@@ -1,0 +1,112 @@
+{
+  "project_name": "BotForge",
+  "theme": "Dark Mode Default (Swiss & High-Contrast / Performance Pro)",
+  "typography": {
+    "headings": {
+      "family": "Chivo",
+      "weights": ["300", "900"],
+      "usage": "Use font-light for elegance and font-black for impact. Apply tracking-tight to sizes > 32px. DO NOT use Inter for headings."
+    },
+    "body": {
+      "family": "IBM Plex Sans",
+      "weights": ["400", "500"],
+      "usage": "Highly legible, slightly technical. Use leading-relaxed. Left-align text."
+    },
+    "mono": {
+      "family": "JetBrains Mono",
+      "weights": ["400"],
+      "usage": "Overlines, labels, stats, embed codes. Uppercase + tracking-[0.2em] for overlines."
+    }
+  },
+  "colors": {
+    "background": "#0A0A0A",
+    "surface": "#121212",
+    "surface_hover": "#1A1A1A",
+    "primary": "#0055FF",
+    "primary_hover": "#3377FF",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#A1A1AA",
+    "border": "#262626",
+    "accent_danger": "#FF3B30",
+    "accent_success": "#00FF66"
+  },
+  "visual_enhancers": {
+    "surface_strategies": [
+      {
+        "name": "Grid Borders (Technical Look)",
+        "target": "Admin Dashboard, Analytics grids",
+        "implementation": "border-collapse style layout. Items get border-r border-b border-[#262626]."
+      },
+      {
+        "name": "Glassmorphism (Crystal)",
+        "target": "Chat Widget overlay, Sticky headers",
+        "implementation": "bg-[#0A0A0A]/60, backdrop-blur-xl, border border-white/10, shadow-sm. NEVER use fully transparent backgrounds."
+      }
+    ],
+    "textures": "Use subtle SVG noise overlays to kill digital flatness."
+  },
+  "component_names": [
+    "Button",
+    "Card",
+    "Input",
+    "Table",
+    "Dialog",
+    "Tabs",
+    "Toast"
+  ],
+  "component_path": "/app/frontend/src/components/ui/",
+  "grids": {
+    "protocol": "Mode B: High Density Grid",
+    "base": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4",
+    "gap": "gap-4 or gap-6",
+    "rule": "Every pixel must be utilized. Use h-full on children. No jagged bottoms."
+  },
+  "layouts": {
+    "spacing_system": "Generous spacing. p-6 or p-8 inside bordered containers. Avoid standard p-4.",
+    "alignment": "Strictly left-aligned. No center-everything default. Optical alignment for icons."
+  },
+  "motion": {
+    "micro_interactions": "Hover states on cards: slight lift (-translate-y-1), border color brightens to white/30.",
+    "transitions": "Use specific properties: transition: transform 0.2s ease, border-color 0.2s ease. NEVER use transition-all.",
+    "accessibility": "Respect prefers-reduced-motion."
+  },
+  "accessibility": {
+    "contrast": "Ensure text meets 4.5:1. Primary button text MUST be #FFFFFF against #0055FF.",
+    "focus": "High contrast focus rings required on all inputs/buttons.",
+    "testing": "All interactive elements MUST have data-testid attributes (kebab-case, role-based)."
+  },
+  "media": {
+    "icons": {
+      "library": "@phosphor-icons/react",
+      "instruction": "Run `yarn add @phosphor-icons/react`. Use Duotone for empty states, Regular for dense UI."
+    }
+  },
+  "3d_libraries": {
+    "strategy": "The Specialists (Deep Data & Geography)",
+    "library": "recharts",
+    "usage": "Use Recharts for the Analytics dashboard to visualize message volume and response quality. Customize with sharp edges, dark tooltips, and Volt Blue primary color."
+  },
+  "image_urls": [
+    {
+      "category": "Hero / Chat Background",
+      "url": "https://images.unsplash.com/photo-1762279389042-9439bfb6c155?crop=entropy&cs=srgb&fm=jpg",
+      "description": "Abstract neon lines forming a digital landscape. Use subtly with low opacity behind the chat demo."
+    },
+    {
+      "category": "Bot Avatar Persona",
+      "url": "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg",
+      "description": "Futuristic humanoid robot. Use in the Bot Persona settings as the default placeholder avatar."
+    }
+  ],
+  "general_ui_ux_guidelines": "Do not center align the app container. No .App { text-align: center }. Use layered depth with z-index. Always use named exports for components, default for pages. Avoid generic SaaS look by emphasizing stark contrast and rigid technical grids. All interactive and key informational elements MUST include a data-testid attribute.",
+  "instructions_to_main_agent": [
+    "Setup fonts: Import Chivo, IBM Plex Sans, and JetBrains Mono from Google Fonts.",
+    "Update tailwind.config.js: Set radius to 0, update color tokens to match guidelines.",
+    "Install dependencies: `yarn add @phosphor-icons/react recharts sonner`.",
+    "Override Shadcn default radius and colors to match the strict, sharp-edged Brutalist aesthetic.",
+    "Ensure dark mode is default.",
+    "Build the layout using CSS Grid with high density.",
+    "Include `data-testid` on all buttons, links, and forms."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": "You tend to converge toward generic, 'on distribution' outputs. Avoid this by using stark contrast, sharp corners, and deep monochrome layers. Do not use generic centered layouts. Create depth through borders and backdrop filters, not soft drop shadows. NEVER use emojis for icons. Prioritize component reuse. Use sonner for toasts. You MUST NOT apply universal transition. Eg: transition: all."
+}
