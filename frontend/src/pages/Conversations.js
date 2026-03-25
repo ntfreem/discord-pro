@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { CheckCircle, Trash2, X, ChevronRight } from "lucide-react";
+import { CheckCircle, Trash2, X, ChevronRight, BookOpen, Lightbulb } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -92,6 +92,21 @@ export default function Conversations() {
       <p style={S.overline}>Review & Training</p>
       <h1 style={S.h1}>Conversations</h1>
 
+      {/* Training Guide Banner */}
+      <div style={{ backgroundColor: "#0055FF0A", border: "1px solid #0055FF1A", borderRadius: "4px", padding: "14px 18px", marginBottom: "24px", display: "flex", gap: "12px" }}>
+        <Lightbulb size={16} color="#0055FF" style={{ flexShrink: 0, marginTop: "1px" }} />
+        <div>
+          <p style={{ fontFamily: "IBM Plex Sans", fontSize: "13px", fontWeight: "500", color: "#FFFFFF", margin: "0 0 4px" }}>
+            How Tone Training Works
+          </p>
+          <p style={{ fontFamily: "IBM Plex Sans", fontSize: "12px", color: "#A1A1AA", margin: 0, lineHeight: "1.6" }}>
+            Review conversations below. When you find one where the bot responded in the voice and style you want, click <strong style={{ color: "#00FF66" }}>Approve for Training</strong>.
+            That conversation becomes a live example shown to Claude on every future message — teaching it to match that exact tone, vocabulary, and approach.
+            Aim for 3–5 diverse, high-quality examples for best results.
+          </p>
+        </div>
+      </div>
+
       {/* Filters */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "24px", alignItems: "center" }}>
         <span style={{ fontFamily: "JetBrains Mono", fontSize: "11px", color: "#A1A1AA", textTransform: "uppercase", letterSpacing: "0.1em" }}>Filter:</span>
@@ -113,7 +128,10 @@ export default function Conversations() {
             <div style={{ padding: "48px", textAlign: "center", color: "#A1A1AA", fontFamily: "IBM Plex Sans", fontSize: "14px" }}>
               No conversations found.
             </div>
-          ) : conversations.map(conv => (
+          ) : conversations.map(conv => {
+            const firstUserMsg = conv.messages?.find(m => m.role === "user");
+            const firstBotMsg = conv.messages?.find(m => m.role === "assistant");
+            return (
             <div key={conv.session_id}
               data-testid="conversation-item"
               onClick={() => selectConv(conv)}
@@ -130,26 +148,37 @@ export default function Conversations() {
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
                     <PlatformBadge platform={conv.platform} />
                     {conv.is_approved_for_training && (
-                      <span style={{ fontSize: "10px", color: "#00FF66", fontFamily: "JetBrains Mono" }}>TRAINING</span>
+                      <span style={{ fontSize: "10px", color: "#00FF66", fontFamily: "JetBrains Mono", display: "flex", alignItems: "center", gap: "3px" }}>
+                        <CheckCircle size={9} /> TRAINING
+                      </span>
                     )}
+                    <span style={{ fontFamily: "IBM Plex Sans", fontSize: "11px", color: "#A1A1AA" }}>
+                      {conv.messages?.length ?? 0} msgs
+                      {conv.metadata?.username && ` · @${conv.metadata.username}`}
+                    </span>
                   </div>
-                  <p style={{ fontFamily: "JetBrains Mono", fontSize: "11px", color: "#A1A1AA", margin: "0 0 4px" }}>
-                    {conv.session_id?.slice(0, 20)}...
-                  </p>
-                  <p style={{ fontFamily: "IBM Plex Sans", fontSize: "12px", color: "#A1A1AA", margin: 0 }}>
-                    {conv.messages?.length ?? 0} messages
-                    {conv.metadata?.username && ` · @${conv.metadata.username}`}
-                  </p>
+                  {/* Message preview */}
+                  {firstUserMsg && (
+                    <p style={{ fontFamily: "IBM Plex Sans", fontSize: "12px", color: "#FFFFFF", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "340px" }}>
+                      <span style={{ color: "#0055FF", fontWeight: "500" }}>U:</span> {firstUserMsg.content}
+                    </p>
+                  )}
+                  {firstBotMsg && (
+                    <p style={{ fontFamily: "IBM Plex Sans", fontSize: "12px", color: "#A1A1AA", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "340px" }}>
+                      <span style={{ color: "#00FF66", fontWeight: "500" }}>A:</span> {firstBotMsg.content}
+                    </p>
+                  )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px", flexShrink: 0, marginLeft: "12px" }}>
                   <span style={{ fontFamily: "IBM Plex Sans", fontSize: "11px", color: "#A1A1AA" }}>
                     {conv.created_at ? new Date(conv.created_at).toLocaleDateString() : ""}
                   </span>
-                  <ChevronRight size={14} color="#404040" />
+                  <ChevronRight size={13} color="#404040" />
                 </div>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
 
         {/* Detail Panel */}
@@ -181,32 +210,41 @@ export default function Conversations() {
             </div>
 
             {/* Actions */}
-            <div style={{ padding: "14px 20px", borderTop: "1px solid #262626", display: "flex", gap: "10px", flexShrink: 0 }}>
-              <button
-                data-testid="approve-training-btn"
-                onClick={() => approve(selected.session_id, !selected.is_approved_for_training)}
-                style={{
-                  flex: 1, padding: "9px 14px", borderRadius: "4px", border: "none", cursor: "pointer",
-                  fontSize: "13px", fontFamily: "IBM Plex Sans", fontWeight: "500",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
-                  backgroundColor: selected.is_approved_for_training ? "#1A1A1A" : "#00FF6618",
-                  color: selected.is_approved_for_training ? "#A1A1AA" : "#00FF66",
-                  border: `1px solid ${selected.is_approved_for_training ? "#262626" : "#00FF6644"}`,
-                }}>
-                <CheckCircle size={13} />
-                {selected.is_approved_for_training ? "Remove from Training" : "Approve for Training"}
-              </button>
-              <button
-                data-testid="delete-conversation-btn"
-                onClick={() => deleteConv(selected.session_id)}
-                style={{
-                  padding: "9px 14px", borderRadius: "4px", border: "1px solid #FF3B3030",
-                  backgroundColor: "#FF3B3010", color: "#FF3B30", cursor: "pointer",
-                  fontSize: "13px", fontFamily: "IBM Plex Sans", fontWeight: "500",
-                  display: "flex", alignItems: "center", gap: "7px",
-                }}>
-                <Trash2 size={13} />Delete
-              </button>
+            <div style={{ padding: "14px 20px", borderTop: "1px solid #262626", flexShrink: 0 }}>
+              <p style={{ fontFamily: "IBM Plex Sans", fontSize: "11px", color: "#404040", margin: "0 0 10px" }}>
+                {selected.is_approved_for_training
+                  ? "This conversation is actively shaping the bot's tone on every message."
+                  : "Approve this conversation to use it as a live tone example for the bot."}
+              </p>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  data-testid="approve-training-btn"
+                  onClick={() => approve(selected.session_id, !selected.is_approved_for_training)}
+                  style={{
+                    flex: 1, padding: "9px 14px", borderRadius: "4px", cursor: "pointer",
+                    fontSize: "13px", fontFamily: "IBM Plex Sans", fontWeight: "500",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
+                    backgroundColor: selected.is_approved_for_training ? "#1A1A1A" : "#00FF6618",
+                    color: selected.is_approved_for_training ? "#A1A1AA" : "#00FF66",
+                    border: `1px solid ${selected.is_approved_for_training ? "#262626" : "#00FF6644"}`,
+                    transition: "all 0.15s ease",
+                  }}>
+                  <CheckCircle size={13} />
+                  {selected.is_approved_for_training ? "Remove from Training" : "Approve for Training"}
+                </button>
+                <button
+                  data-testid="delete-conversation-btn"
+                  onClick={() => deleteConv(selected.session_id)}
+                  style={{
+                    padding: "9px 14px", borderRadius: "4px",
+                    border: "1px solid #FF3B3030", backgroundColor: "#FF3B3010",
+                    color: "#FF3B30", cursor: "pointer",
+                    fontSize: "13px", fontFamily: "IBM Plex Sans", fontWeight: "500",
+                    display: "flex", alignItems: "center", gap: "7px",
+                  }}>
+                  <Trash2 size={13} />Delete
+                </button>
+              </div>
             </div>
           </div>
         )}

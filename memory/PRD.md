@@ -55,7 +55,14 @@ AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord
 - [x] Embed code generator (iframe, JavaScript, React snippets)
 - [x] One brain across web + Discord (same knowledge base, same Claude config)
 
-### AI Integration
+### Phase 2 Updates (Feb 2026)
+- [x] **Tone Training v2**: Manual crafted examples in Bot Settings (user/bot exchange pairs with labels)
+- [x] **Tone Description field**: Plain-English voice description always active in prompt
+- [x] **Priority system**: Crafted manual examples > Approved conversations > General training
+- [x] **Knowledge confidence**: System prompt now uses "AUTHORITATIVE SOURCE" framing — bot no longer hedges when knowledge base has the answer
+- [x] **Conversation previews**: List shows first U/A exchange for at-a-glance review
+- [x] **Training guidance banner**: Explains the approval workflow clearly
+- [x] **Tone examples count** in BotSettings with direct link to Conversations for management
 - Model: `claude-opus-4-5-20251101` via Emergent Universal Key
 - In-memory LlmChat sessions per session_id
 - Dynamic system prompt: persona + RAG knowledge + tone examples

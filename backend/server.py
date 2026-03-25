@@ -40,6 +40,8 @@ class BotConfigUpdate(BaseModel):
     name: Optional[str] = None
     persona: Optional[str] = None
     custom_instructions: Optional[str] = None
+    tone_instructions: Optional[str] = None
+    manual_tone_examples: Optional[List[dict]] = None
 
 class FAQEntry(BaseModel):
     title: str
@@ -90,37 +92,77 @@ async def search_knowledge(query: str, limit: int = 5) -> str:
         return ""
 
 
-async def get_tone_examples_text() -> str:
+async def get_tone_examples_text(bot_config: dict = None) -> str:
+    parts = []
+
+    # 1. Manual tone examples (highest priority — directly crafted by admin)
+    if bot_config:
+        manual = bot_config.get("manual_tone_examples", []) or []
+        for ex in manual[:3]:
+            if ex.get("user_msg") and ex.get("bot_msg"):
+                label = ex.get("label", "")
+                header = f"[{label}]" if label else "[Crafted Example]"
+                parts.append(f"{header}\nUSER: {ex['user_msg']}\nASSISTANT: {ex['bot_msg']}")
+
+    # 2. Approved conversations from training
     try:
         examples = await db.conversations.find(
             {"is_approved_for_training": True}, {"messages": 1, "_id": 0}
         ).limit(3).to_list(3)
-        if not examples:
-            return ""
-        formatted = []
         for ex in examples:
             msgs = ex.get("messages", [])[:6]
             if msgs:
-                text = "\n".join([f"{m['role'].upper()}: {m['content'][:300]}" for m in msgs])
-                formatted.append(text)
-        return "\n\n---\n\n".join(formatted)
+                text = "\n".join([f"{m['role'].upper()}: {m['content'][:400]}" for m in msgs])
+                parts.append(text)
     except Exception as e:
         logger.warning(f"Tone examples: {e}")
+
+    if not parts:
         return ""
+    return "\n\n---\n\n".join(parts[:5])
 
 
 def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_examples: str = "") -> str:
     name = bot_config.get("name", "Assistant")
     persona = bot_config.get("persona", "You are a helpful, friendly assistant.")
     custom_instructions = bot_config.get("custom_instructions", "")
+    tone_instructions = bot_config.get("tone_instructions", "")
 
     parts = [f"You are {name}. {persona}"]
+
     if knowledge_context:
-        parts.append(f"KNOWLEDGE BASE (use this to answer questions accurately):\n{knowledge_context}")
+        parts.append(
+            "KNOWLEDGE BASE — AUTHORITATIVE SOURCE:\n"
+            "The following information is verified and accurate. When a user's question is answered by "
+            "this knowledge base, respond with full confidence. State facts directly. "
+            "DO NOT use hedging phrases like 'I think', 'I believe', 'I'm not sure', 'you may want to verify', "
+            "or 'I cannot confirm' when the answer is present here. Treat this as ground truth.\n"
+            "If a question is NOT covered by this knowledge base, acknowledge that clearly and offer "
+            "to help with what you do know.\n\n"
+            f"{knowledge_context}"
+        )
+    else:
+        parts.append(
+            "KNOWLEDGE BASE: No specific knowledge found for this query. "
+            "Answer based on your general knowledge and be transparent if you are uncertain."
+        )
+
     if tone_examples:
-        parts.append(f"COMMUNICATION STYLE (match this tone and approach):\n{tone_examples}")
+        tone_header = "COMMUNICATION STYLE — MATCH THIS PRECISELY"
+        if tone_instructions:
+            tone_header += f"\nTone guide: {tone_instructions}"
+        parts.append(
+            f"{tone_header}\n"
+            "Study these examples carefully. Mirror the exact vocabulary, sentence length, "
+            "formality level, and energy from these exchanges:\n\n"
+            f"{tone_examples}"
+        )
+    elif tone_instructions:
+        parts.append(f"COMMUNICATION STYLE:\n{tone_instructions}")
+
     if custom_instructions:
         parts.append(f"ADDITIONAL INSTRUCTIONS:\n{custom_instructions}")
+
     return "\n\n".join(parts)
 
 
@@ -200,7 +242,7 @@ async def start_discord_bot(token: str):
             try:
                 bot_config = await db.bot_config.find_one({}, {"_id": 0}) or {}
                 knowledge = await search_knowledge(user_text)
-                tone = await get_tone_examples_text()
+                tone = await get_tone_examples_text(bot_config)
                 system_prompt = build_system_prompt(bot_config, knowledge, tone)
                 async with message.channel.typing():
                     response = await call_claude(session_id, user_text, system_prompt)
@@ -275,7 +317,7 @@ async def send_chat_message(body: ChatMessage):
     session_id = body.session_id or str(uuid.uuid4())
     bot_config = await db.bot_config.find_one({}, {"_id": 0}) or {}
     knowledge = await search_knowledge(body.message)
-    tone = await get_tone_examples_text()
+    tone = await get_tone_examples_text(bot_config)
     system_prompt = build_system_prompt(bot_config, knowledge, tone)
     response = await call_claude(session_id, body.message, system_prompt)
     await save_conversation(session_id, body.message, response, platform="web")
@@ -297,7 +339,10 @@ async def get_bot_config():
 
 @api_router.put("/admin/bot-config")
 async def update_bot_config(body: BotConfigUpdate):
-    update_data = {k: v for k, v in body.dict().items() if v is not None}
+    update_data = {}
+    for k, v in body.dict().items():
+        if v is not None:  # includes empty lists
+            update_data[k] = v
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields provided")
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
