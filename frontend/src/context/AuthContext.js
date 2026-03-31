@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
   const [selectedInstance, setSelectedInstance] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from localStorage (token lives in httpOnly cookie — not here)
+  // Restore session from localStorage
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const storedUser = localStorage.getItem("bf_user");
@@ -29,12 +29,13 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  // tokenVal kept in signature for backward compat but intentionally not stored
-  // The JWT is stored exclusively in an httpOnly cookie (set by the backend)
+  // tokenVal kept in signature — stored in localStorage for CORS-compatible Bearer auth
+  // httpOnly cookie is set by the backend as an additional XSS protection layer
   const login = useCallback((tokenVal, userVal, instancesVal) => {
     const inst = instancesVal || [];
     setUser(userVal);
     setInstances(inst);
+    if (tokenVal) localStorage.setItem("bf_token", tokenVal);
     localStorage.setItem("bf_user", JSON.stringify(userVal));
     localStorage.setItem("bf_instances", JSON.stringify(inst));
 
@@ -57,7 +58,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setInstances([]);
     setSelectedInstance(null);
-    ["bf_user", "bf_instance", "bf_instance_id", "bf_instances"].forEach(k =>
+    ["bf_token", "bf_user", "bf_instance", "bf_instance_id", "bf_instances"].forEach(k =>
       localStorage.removeItem(k)
     );
   }, []);
