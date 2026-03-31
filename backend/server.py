@@ -27,8 +27,8 @@ DB_NAME = os.environ['DB_NAME']
 JWT_SECRET = os.environ["JWT_SECRET"]  # Required — no hardcoded fallback
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
-ADMIN_EMAIL = "admin@bridgebot.tech"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_EMAIL = os.environ["ADMIN_EMAIL"]
+ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
 
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client[DB_NAME]
