@@ -131,6 +131,12 @@ export default function Login() {
             style={S.input}
             required
           />
+          <div style={{ textAlign: "right", marginTop: "-10px", marginBottom: "16px" }}>
+            <Link to="/forgot-password" style={{ fontSize: "12px", color: "#A1A1AA", textDecoration: "none" }}
+              data-testid="forgot-password-link">
+              Forgot password?
+            </Link>
+          </div>
           <button
             data-testid="login-submit"
             type="submit"

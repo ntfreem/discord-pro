@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard, BookOpen, MessageSquare, Settings,
-  BarChart2, Zap, Code2, ExternalLink, Bot, LogOut, ChevronDown, Shield
+  BarChart2, Zap, Code2, ExternalLink, Bot, LogOut, ChevronDown, Shield, Users
 } from "lucide-react";
 import { useState } from "react";
 
@@ -17,6 +17,7 @@ const baseNavItems = [
 ];
 
 const adminNavItem = { path: "/admin/instances", label: "Instances", icon: Shield };
+const usersNavItem = { path: "/admin/users", label: "Users", icon: Users };
 
 const sidebarStyle = {
   width: "240px",
@@ -55,7 +56,7 @@ export default function AdminLayout() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const navItems = user?.role === "superadmin"
-    ? [...baseNavItems, adminNavItem]
+    ? [...baseNavItems, adminNavItem, usersNavItem]
     : baseNavItems;
 
   const handleLogout = () => {

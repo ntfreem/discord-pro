@@ -78,7 +78,37 @@ async def send_verification_email(to_email: str, code: str):
         print(f"\n{'='*50}\nFALLBACK EMAIL\nTo: {to_email}\nCode: {code}\n{'='*50}\n")
 
 
-# ==================== MODELS ====================
+async def send_reset_email(to_email: str, code: str):
+    """Send password reset code via Resend. Falls back to console log if key not set."""
+    if not resend.api_key:
+        print(f"\n{'='*50}\nMOCK RESET EMAIL\nTo: {to_email}\nCode: {code}\n{'='*50}\n")
+        return
+    try:
+        html = f"""
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#111;color:#fff;padding:32px;border-radius:8px">
+          <h2 style="margin:0 0 8px;font-size:22px">BridgeBot</h2>
+          <p style="color:#a1a1aa;margin:0 0 28px;font-size:14px">Password Reset</p>
+          <p style="font-size:14px;margin:0 0 16px">Your password reset code is:</p>
+          <div style="background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:20px;text-align:center;margin-bottom:24px">
+            <span style="font-family:monospace;font-size:32px;font-weight:700;letter-spacing:0.4em;color:#fff">{code}</span>
+          </div>
+          <p style="color:#a1a1aa;font-size:13px;margin:0">This code expires in 15 minutes. If you didn't request a reset, ignore this email.</p>
+        </div>
+        """
+        params = {
+            "from": FROM_EMAIL,
+            "to": [to_email],
+            "subject": "Reset your BridgeBot password",
+            "html": html,
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Password reset email sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Resend error (reset): {e}")
+        print(f"\n{'='*50}\nFALLBACK RESET EMAIL\nTo: {to_email}\nCode: {code}\n{'='*50}\n")
+
+
+
 
 class UserRegister(BaseModel):
     email: str
@@ -94,6 +124,14 @@ class VerifyEmailBody(BaseModel):
 
 class ResendCodeBody(BaseModel):
     email: str
+
+class ForgotPasswordBody(BaseModel):
+    email: str
+
+class ResetPasswordBody(BaseModel):
+    email: str
+    code: str
+    new_password: str
 
 class BotInstanceCreate(BaseModel):
     name: str
@@ -555,11 +593,47 @@ async def logout_user(response: Response):
     return {"success": True}
 
 
+@api_router.post("/auth/forgot-password")
+async def forgot_password(body: ForgotPasswordBody):
+    email = body.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    # Always return success to avoid revealing whether an email is registered
+    if user and user.get("is_verified"):
+        code = str(secrets.randbelow(900000) + 100000)
+        expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        await db.users.update_one(
+            {"email": email},
+            {"$set": {"reset_code": code, "reset_code_expires": expires}}
+        )
+        await send_reset_email(email, code)
+    return {"message": "If that email is registered, a reset code has been sent."}
+
+
+@api_router.post("/auth/reset-password")
+async def reset_password(body: ResetPasswordBody):
+    email = body.email.lower().strip()
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    user = await db.users.find_one({"email": email})
+    if not user or not user.get("reset_code") or user.get("reset_code") != body.code:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code")
+    expires_str = user.get("reset_code_expires", "")
+    if expires_str and datetime.fromisoformat(expires_str) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset code has expired. Request a new one.")
+    hashed = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {"hashed_password": hashed}, "$unset": {"reset_code": "", "reset_code_expires": ""}}
+    )
+    return {"message": "Password reset successful. You can now log in."}
+
+
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     user = await db.users.find_one(
         {"id": current_user["id"]},
-        {"_id": 0, "hashed_password": 0, "verification_code": 0, "verification_code_expiry": 0}
+        {"_id": 0, "hashed_password": 0, "verification_code": 0,
+         "verification_code_expiry": 0, "reset_code": 0, "reset_code_expires": 0}
     )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -573,6 +647,26 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 
 # ==================== INSTANCE MANAGEMENT (SUPERADMIN) ====================
+
+@api_router.get("/admin/users")
+async def list_all_users(current_user: dict = Depends(require_admin)):
+    """Return all registered users with their assigned instances."""
+    users = await db.users.find(
+        {},
+        {"_id": 0, "hashed_password": 0, "verification_code": 0,
+         "verification_code_expiry": 0, "reset_code": 0, "reset_code_expires": 0}
+    ).to_list(1000)
+    instances = await db.bot_instances.find(
+        {}, {"_id": 0, "id": 1, "name": 1, "assigned_user_ids": 1}
+    ).to_list(100)
+    user_instance_map = {}
+    for inst in instances:
+        for uid in inst.get("assigned_user_ids", []):
+            user_instance_map.setdefault(uid, []).append({"id": inst["id"], "name": inst["name"]})
+    for user in users:
+        user["assigned_instances"] = user_instance_map.get(user["id"], [])
+    return users
+
 
 @api_router.get("/admin/instances")
 async def list_instances(current_user: dict = Depends(require_admin)):

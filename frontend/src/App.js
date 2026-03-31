@@ -17,6 +17,9 @@ import Register from "@/pages/Register";
 import VerifyEmail from "@/pages/VerifyEmail";
 import InstanceSelect from "@/pages/InstanceSelect";
 import Instances from "@/pages/Instances";
+import Users from "@/pages/Users";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import "@/App.css";
 
 function ProtectedRoute({ children }) {
@@ -49,6 +52,8 @@ function AppRoutes() {
       <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
       <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
       <Route path="/verify" element={<VerifyEmail />} />
+      <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/select-instance" element={<ProtectedRoute><InstanceSelect /></ProtectedRoute>} />
 
       {/* Admin area */}
@@ -61,6 +66,7 @@ function AppRoutes() {
         <Route path="discord" element={<DiscordSettings />} />
         <Route path="embed" element={<EmbedCode />} />
         <Route path="instances" element={<AdminOnlyRoute><Instances /></AdminOnlyRoute>} />
+        <Route path="users" element={<AdminOnlyRoute><Users /></AdminOnlyRoute>} />
       </Route>
 
       {/* Public chat pages */}
