@@ -419,31 +419,13 @@ async def startup_event():
         })
         logger.info(f"Seeded admin: {ADMIN_EMAIL}")
 
-    # Migrate single-tenant data to multi-tenant if no instances exist
-    if await db.bot_instances.count_documents({}) == 0:
-        default_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
-        await db.bot_instances.insert_one({
-            "id": default_id,
-            "name": "Default Instance",
-            "description": "Auto-created from existing single-tenant data",
-            "created_by": ADMIN_EMAIL,
-            "assigned_user_ids": [],
-            "created_at": now
-        })
+    # Migrate single-tenant data to multi-tenant if needed
+    # (updates any existing docs that lack instance_id — safe to run on every startup)
+    first_instance = await db.bot_instances.find_one({}, {"id": 1})
+    if first_instance:
+        migrate_id = first_instance["id"]
         for col in [db.bot_config, db.knowledge_sources, db.conversations, db.discord_config]:
-            await col.update_many({"instance_id": {"$exists": False}}, {"$set": {"instance_id": default_id}})
-        if not await db.bot_config.find_one({"instance_id": default_id}):
-            await db.bot_config.insert_one({
-                "instance_id": default_id,
-                "name": "BridgeBot Assistant",
-                "persona": "You are a helpful, friendly, and knowledgeable assistant. Provide clear, accurate answers based on available information. Be concise but thorough.",
-                "custom_instructions": "",
-                "tone_instructions": "",
-                "manual_tone_examples": [],
-                "created_at": now
-            })
-        logger.info(f"Created default instance: {default_id}")
+            await col.update_many({"instance_id": {"$exists": False}}, {"$set": {"instance_id": migrate_id}})
 
     discord_config = await db.discord_config.find_one({"is_active": True}, {"_id": 0})
     if discord_config and discord_config.get("bot_token"):
@@ -555,6 +537,11 @@ async def login(body: UserLogin, response: Response):
         instances = await db.bot_instances.find(
             {"assigned_user_ids": user["id"]}, {"_id": 0, "id": 1, "name": 1}
         ).to_list(100)
+        if not instances:
+            raise HTTPException(
+                status_code=403,
+                detail="No instances assigned to your account. Contact your admin."
+            )
     return {
         "token": token,  # Kept for curl/API client use — frontend uses cookie
         "user": {"id": user["id"], "email": user["email"], "role": user["role"]},

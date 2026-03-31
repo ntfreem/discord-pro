@@ -96,7 +96,8 @@ AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord
 - [x] Added `refreshInstances` to AuthContext — sidebar updates immediately after instance create/delete
 - [x] Dashboard now skips API calls when no instance selected; shows "No workspace selected" message
 - [x] Dashboard re-fetches data when `selectedInstance` changes (instance switch works without page reload)
-- [x] Default Instance seeded in DB
+- [x] Block login for non-admin users with 0 assigned instances ("No instances assigned. Contact your admin.")
+- [x] Removed startup auto-creation of default instance (admin creates instances manually)
 
 ## Environment Variables
 ```
