@@ -590,13 +590,22 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 @api_router.get("/admin/instances")
 async def list_instances(current_user: dict = Depends(require_admin)):
     instances = await db.bot_instances.find({}, {"_id": 0}).to_list(100)
+    # Batch user lookup — single query instead of N+1
+    all_user_ids = set()
     for inst in instances:
-        user_ids = inst.get("assigned_user_ids", [])
-        users = await db.users.find(
-            {"id": {"$in": user_ids}},
+        all_user_ids.update(inst.get("assigned_user_ids", []))
+    if all_user_ids:
+        users_list = await db.users.find(
+            {"id": {"$in": list(all_user_ids)}},
             {"_id": 0, "id": 1, "email": 1, "is_verified": 1}
-        ).to_list(100)
-        inst["assigned_users"] = users
+        ).to_list(1000)
+        user_map = {u["id"]: u for u in users_list}
+    else:
+        user_map = {}
+    for inst in instances:
+        inst["assigned_users"] = [
+            user_map[uid] for uid in inst.get("assigned_user_ids", []) if uid in user_map
+        ]
     return instances
 
 
