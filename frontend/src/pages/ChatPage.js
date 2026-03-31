@@ -3,7 +3,7 @@ import axios from "axios";
 import { Bot, Send, Plus, ExternalLink } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `/api`;
 
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);

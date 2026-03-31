@@ -3,7 +3,7 @@ import axios from "axios";
 import { Bot, Send, RotateCcw, X, MessageCircle } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `/api`;
 
 export default function ChatWidget() {
   const [messages, setMessages] = useState([]);

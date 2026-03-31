@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { Bot } from "lucide-react";
 
-const BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const BASE = `/api`;
 
 const S = {
   page: {
