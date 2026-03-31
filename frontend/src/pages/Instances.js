@@ -296,6 +296,7 @@ export default function Instances() {
   const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const { refreshInstances } = useAuth();
 
   const fetchInstances = useCallback(async () => {
     try {
@@ -307,6 +308,11 @@ export default function Instances() {
       setLoading(false);
     }
   }, []);
+
+  // Refresh both the local list AND the auth context (sidebar) after changes
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([fetchInstances(), refreshInstances()]);
+  }, [fetchInstances, refreshInstances]);
 
   useEffect(() => {
     fetchInstances();
@@ -325,7 +331,7 @@ export default function Instances() {
       {showCreate && (
         <CreateInstanceModal
           onClose={() => setShowCreate(false)}
-          onCreate={fetchInstances}
+          onCreate={handleRefresh}
         />
       )}
 
@@ -367,7 +373,7 @@ export default function Instances() {
             {instances.length} instance{instances.length !== 1 ? "s" : ""} — Click any row to expand and manage users
           </p>
           {instances.map(inst => (
-            <InstanceRow key={inst.id} instance={inst} onRefresh={fetchInstances} />
+            <InstanceRow key={inst.id} instance={inst} onRefresh={handleRefresh} />
           ))}
         </div>
       )}

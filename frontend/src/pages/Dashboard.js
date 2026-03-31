@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 import { MessageSquare, BookOpen, CheckCircle, Zap } from "lucide-react";
 
 const S = {
@@ -53,8 +54,14 @@ export default function Dashboard() {
   const [overview, setOverview] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { selectedInstance, user } = useAuth();
 
   useEffect(() => {
+    if (!selectedInstance) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     Promise.all([
       api.get(`/analytics/overview`),
       api.get(`/conversations?limit=6`)
@@ -62,12 +69,27 @@ export default function Dashboard() {
       setOverview(ov.data);
       setConversations(convs.data.conversations || []);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [selectedInstance]);
 
   if (loading) {
     return (
       <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <p style={{ fontFamily: "JetBrains Mono", color: "#A1A1AA", fontSize: "13px" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!selectedInstance) {
+    return (
+      <div style={{ ...S.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ fontFamily: "Chivo, sans-serif", fontSize: "22px", fontWeight: "900", color: "#FFFFFF", margin: "0 0 8px" }}>
+          No workspace selected
+        </p>
+        <p style={{ fontFamily: "IBM Plex Sans, sans-serif", fontSize: "14px", color: "#A1A1AA" }}>
+          {user?.role === "superadmin"
+            ? "Create an instance from the Instances page, then select it from the sidebar."
+            : "Contact your admin to get access to a workspace."}
+        </p>
       </div>
     );
   }

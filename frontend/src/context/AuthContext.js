@@ -63,9 +63,32 @@ export function AuthProvider({ children }) {
     );
   }, []);
 
+  // Re-fetch instances from /auth/me and update state + localStorage
+  const refreshInstances = useCallback(async () => {
+    const token = localStorage.getItem("bf_token");
+    if (!token) return;
+    try {
+      const res = await axios.get(`${BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
+      const newInstances = res.data.instances || [];
+      setInstances(newInstances);
+      localStorage.setItem("bf_instances", JSON.stringify(newInstances));
+      // Auto-select if exactly one instance and nothing is selected yet
+      if (newInstances.length === 1) {
+        setSelectedInstance(newInstances[0]);
+        localStorage.setItem("bf_instance", JSON.stringify(newInstances[0]));
+        localStorage.setItem("bf_instance_id", newInstances[0].id);
+      }
+    } catch {
+      // silently fail — instances state unchanged
+    }
+  }, []);
+
   const value = useMemo(() => ({
-    user, instances, selectedInstance, login, selectInstance, logout, loading
-  }), [user, instances, selectedInstance, login, selectInstance, logout, loading]);
+    user, instances, selectedInstance, login, selectInstance, logout, loading, refreshInstances
+  }), [user, instances, selectedInstance, login, selectInstance, logout, loading, refreshInstances]);
 
   return (
     <AuthContext.Provider value={value}>
