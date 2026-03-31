@@ -8,7 +8,7 @@ AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord
 ### Tech Stack
 - **Frontend**: React + Tailwind CSS + shadcn/ui, dark theme
 - **Backend**: FastAPI (Python), MongoDB
-- **AI**: Claude Opus 4.5 via Emergent Universal Key (emergentintegrations library)
+- **AI**: Claude Opus 4.5 via Claude API key (`CLAUDE_API_KEY`)
 - **Auth**: JWT (PyJWT) + bcrypt password hashing
 - **Email**: Resend (MOCKED via console print until API key provided)
 - **RAG**: MongoDB text search for knowledge retrieval
@@ -94,7 +94,7 @@ AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord
 # Backend (.env)
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=test_database
-EMERGENT_LLM_KEY=sk-emergent-dDaA292Ef6fAa5e3aB
+CLAUDE_API_KEY=<your-claude-api-key>
 JWT_SECRET=botforge-jwt-secret-change-in-production-2026
 
 # Frontend (.env)

@@ -244,7 +244,7 @@ def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_exam
 
 
 async def call_claude(session_id: str, user_message: str, system_prompt: str) -> str:
-    api_key = os.environ.get("EMERGENT_LLM_KEY", "")
+    api_key = os.environ.get("CLAUDE_API_KEY", "")
     if not api_key:
         raise HTTPException(status_code=500, detail="LLM API key not configured")
     try:
