@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "../utils/api";
 import { toast } from "sonner";
 import { CheckCircle, Trash2, X, ChevronRight, BookOpen, Lightbulb } from "lucide-react";
@@ -42,7 +42,7 @@ export default function Conversations() {
   const [filter, setFilter] = useState({ platform: "", approved: "" });
   const [loading, setLoading] = useState(true);
 
-  const loadConversations = () => {
+  const loadConversations = useCallback(() => {
     const params = new URLSearchParams({ limit: 50 });
     if (filter.platform) params.set("platform", filter.platform);
     if (filter.approved !== "") params.set("approved", filter.approved === "true");
@@ -51,9 +51,9 @@ export default function Conversations() {
       setConversations(r.data.conversations || []);
       setTotal(r.data.total || 0);
     }).catch(() => {}).finally(() => setLoading(false));
-  };
+  }, [filter]);
 
-  useEffect(() => { loadConversations(); }, [filter]);
+  useEffect(() => { loadConversations(); }, [loadConversations]);
 
   const approve = async (sessionId, approved) => {
     try {
@@ -203,7 +203,7 @@ export default function Conversations() {
             {/* Messages */}
             <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
               {(selected.messages || []).map((msg, i) => (
-                <MessageBubble key={i} msg={msg} />
+                <MessageBubble key={`${msg.role}-${msg.timestamp || i}`} msg={msg} />
               ))}
             </div>
 

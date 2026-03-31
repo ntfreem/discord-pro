@@ -223,8 +223,8 @@ export default function DiscordSettings() {
           <div style={{ ...S.card, backgroundColor: "#0A0A0A", border: "1px solid #1E1E1E" }}>
             <p style={{ fontFamily: "JetBrains Mono", fontSize: "10px", color: "#A1A1AA", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "12px" }}>How to Interact</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {["@mention the bot in any channel: @BotName your question", "Send it a direct message (DM)", "The bot uses the same knowledge base and persona as your web widget"].map((tip, i) => (
-                <div key={i} style={{ display: "flex", gap: "10px" }}>
+              {["@mention the bot in any channel: @BotName your question", "Send it a direct message (DM)", "The bot uses the same knowledge base and persona as your web widget"].map((tip) => (
+                <div key={tip} style={{ display: "flex", gap: "10px" }}>
                   <span style={{ color: "#0055FF", fontFamily: "JetBrains Mono", fontSize: "11px", flexShrink: 0 }}>→</span>
                   <span style={{ fontFamily: "IBM Plex Sans", fontSize: "12px", color: "#A1A1AA", lineHeight: "1.5" }}>{tip}</span>
                 </div>

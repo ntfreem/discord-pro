@@ -125,7 +125,7 @@ export default function ChatPage() {
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className="message-enter"
+          <div key={`${msg.role}-${msg.timestamp || i}`} className="message-enter"
             style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: "16px" }}>
             {msg.role === "assistant" && (
               <div style={{ width: "28px", height: "28px", backgroundColor: "#0055FF", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "10px", flexShrink: 0, marginTop: "4px" }}>

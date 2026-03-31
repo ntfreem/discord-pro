@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Header
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Header, Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
@@ -24,7 +24,7 @@ load_dotenv(ROOT_DIR / '.env')
 
 MONGO_URL = os.environ['MONGO_URL']
 DB_NAME = os.environ['DB_NAME']
-JWT_SECRET = os.environ.get("JWT_SECRET", "bridgebot-jwt-secret-key")
+JWT_SECRET = os.environ["JWT_SECRET"]  # Required — no hardcoded fallback
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
 ADMIN_EMAIL = "admin@bridgebot.tech"
@@ -143,10 +143,18 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
-async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization or not authorization.startswith("Bearer "):
+async def get_current_user(
+    authorization: Optional[str] = Header(None),
+    bf_access_token: Optional[str] = Cookie(None)
+) -> dict:
+    # Prefer Authorization header (curl/API clients), fall back to httpOnly cookie
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+    elif bf_access_token:
+        token = bf_access_token
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    token = authorization.split(" ", 1)[1]
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return {"id": payload["sub"], "email": payload["email"], "role": payload["role"]}
@@ -524,13 +532,23 @@ async def verify_email(body: VerifyEmailBody):
 
 
 @api_router.post("/auth/login")
-async def login(body: UserLogin):
+async def login(body: UserLogin, response: Response):
     user = await db.users.find_one({"email": body.email.lower()})
     if not user or not bcrypt.checkpw(body.password.encode(), user["hashed_password"].encode()):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.get("is_verified"):
         raise HTTPException(status_code=403, detail="Email not verified. Check your email for the verification code.")
     token = create_access_token(user["id"], user["email"], user["role"])
+    # Set httpOnly cookie — JS cannot read this, protecting against XSS token theft
+    response.set_cookie(
+        key="bf_access_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=True,
+        max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60,
+        path="/",
+    )
     if user["role"] == "superadmin":
         instances = await db.bot_instances.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(100)
     else:
@@ -538,10 +556,16 @@ async def login(body: UserLogin):
             {"assigned_user_ids": user["id"]}, {"_id": 0, "id": 1, "name": 1}
         ).to_list(100)
     return {
-        "token": token,
+        "token": token,  # Kept for curl/API client use — frontend uses cookie
         "user": {"id": user["id"], "email": user["email"], "role": user["role"]},
         "instances": instances
     }
+
+
+@api_router.post("/auth/logout")
+async def logout_user(response: Response):
+    response.delete_cookie(key="bf_access_token", path="/")
+    return {"success": True}
 
 
 @api_router.get("/auth/me")

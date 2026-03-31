@@ -102,7 +102,7 @@ export default function ChatWidget() {
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: "10px" }}>
+          <div key={`${msg.role}-${msg.timestamp || i}`} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: "10px" }}>
             {msg.role === "assistant" && (
               <div style={{ width: "22px", height: "22px", backgroundColor: "#0055FF", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "7px", flexShrink: 0, marginTop: "3px" }}>
                 <Bot size={11} color="#FFFFFF" />

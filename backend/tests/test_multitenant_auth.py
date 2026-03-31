@@ -8,10 +8,10 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
-ADMIN_EMAIL = "admin@bridgebot.tech"
-ADMIN_PASSWORD = "Admin@123"
-TEST_USER_EMAIL = "testuser@example.com"
-TEST_USER_PASSWORD = "Test@123"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@bridgebot.tech")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
+TEST_USER_EMAIL = os.environ.get("TEST_USER_EMAIL", "testuser@example.com")
+TEST_USER_PASSWORD = os.environ.get("TEST_USER_PASSWORD", "Test@123")
 
 
 @pytest.fixture(scope="module")

@@ -19,6 +19,15 @@ const tooltipStyle = {
   itemStyle: { color: "#A1A1AA", fontFamily: "IBM Plex Sans", fontSize: "12px" },
 };
 
+// Extracted to avoid inline object re-creation on every render
+const CHART_MARGIN = { top: 0, right: 10, left: -20, bottom: 0 };
+const AXIS_TICK = { fill: "#A1A1AA", fontFamily: "JetBrains Mono", fontSize: 11 };
+const DOT_BLUE = { fill: "#0055FF", r: 3 };
+const DOT_GREEN = { fill: "#00FF66", r: 3 };
+const ACTIVE_DOT = { r: 5 };
+const LEGEND_STYLE = { fontFamily: "IBM Plex Sans", fontSize: "12px", color: "#A1A1AA", paddingTop: "16px" };
+const PLATFORM_COLORS = ["#0055FF", "#7289DA"];
+
 function StatCard({ title, value, icon: Icon, color }) {
   return (
     <div style={{ ...S.card }}>
@@ -51,8 +60,6 @@ export default function Analytics() {
     { name: "Discord", value: overview.platform_breakdown?.discord ?? 0 },
   ] : [];
 
-  const PLATFORM_COLORS = ["#0055FF", "#7289DA"];
-
   if (loading) {
     return (
       <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -82,14 +89,14 @@ export default function Analytics() {
             Activity — Last 7 Days
           </p>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={daily} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+            <LineChart data={daily} margin={CHART_MARGIN}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1E1E1E" vertical={false} />
-              <XAxis dataKey="date" stroke="#404040" tick={{ fill: "#A1A1AA", fontFamily: "JetBrains Mono", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis stroke="#404040" tick={{ fill: "#A1A1AA", fontFamily: "JetBrains Mono", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <XAxis dataKey="date" stroke="#404040" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <YAxis stroke="#404040" tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip {...tooltipStyle} />
-              <Legend wrapperStyle={{ fontFamily: "IBM Plex Sans", fontSize: "12px", color: "#A1A1AA", paddingTop: "16px" }} />
-              <Line type="monotone" dataKey="conversations" stroke="#0055FF" strokeWidth={2} dot={{ fill: "#0055FF", r: 3 }} activeDot={{ r: 5 }} name="Conversations" />
-              <Line type="monotone" dataKey="messages" stroke="#00FF66" strokeWidth={2} dot={{ fill: "#00FF66", r: 3 }} activeDot={{ r: 5 }} name="Messages" />
+              <Legend wrapperStyle={LEGEND_STYLE} />
+              <Line type="monotone" dataKey="conversations" stroke="#0055FF" strokeWidth={2} dot={DOT_BLUE} activeDot={ACTIVE_DOT} name="Conversations" />
+              <Line type="monotone" dataKey="messages" stroke="#00FF66" strokeWidth={2} dot={DOT_GREEN} activeDot={ACTIVE_DOT} name="Messages" />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -103,7 +110,7 @@ export default function Analytics() {
             <PieChart>
               <Pie data={platformData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value" startAngle={90} endAngle={450}>
                 {platformData.map((entry, index) => (
-                  <Cell key={index} fill={PLATFORM_COLORS[index % PLATFORM_COLORS.length]} stroke="none" />
+                  <Cell key={entry.name} fill={PLATFORM_COLORS[index % PLATFORM_COLORS.length]} stroke="none" />
                 ))}
               </Pie>
               <Tooltip {...tooltipStyle} />

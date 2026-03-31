@@ -1,23 +1,24 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import axios from "axios";
 
+const BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
   const [instances, setInstances] = useState([]);
   const [selectedInstance, setSelectedInstance] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Restore session from localStorage (token lives in httpOnly cookie — not here)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const storedToken = localStorage.getItem("bf_token");
     const storedUser = localStorage.getItem("bf_user");
     const storedInstance = localStorage.getItem("bf_instance");
     const storedInstances = localStorage.getItem("bf_instances");
 
-    if (storedToken && storedUser) {
+    if (storedUser) {
       try {
-        setToken(storedToken);
         setUser(JSON.parse(storedUser));
         if (storedInstances) setInstances(JSON.parse(storedInstances));
         if (storedInstance) setSelectedInstance(JSON.parse(storedInstance));
@@ -28,41 +29,45 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  const login = (tokenVal, userVal, instancesVal) => {
+  // tokenVal kept in signature for backward compat but intentionally not stored
+  // The JWT is stored exclusively in an httpOnly cookie (set by the backend)
+  const login = useCallback((tokenVal, userVal, instancesVal) => {
     const inst = instancesVal || [];
-    setToken(tokenVal);
     setUser(userVal);
     setInstances(inst);
-    localStorage.setItem("bf_token", tokenVal);
     localStorage.setItem("bf_user", JSON.stringify(userVal));
     localStorage.setItem("bf_instances", JSON.stringify(inst));
 
-    // Auto-select if exactly one instance
     if (inst.length === 1) {
       setSelectedInstance(inst[0]);
       localStorage.setItem("bf_instance", JSON.stringify(inst[0]));
       localStorage.setItem("bf_instance_id", inst[0].id);
     }
-  };
+  }, []);
 
-  const selectInstance = (instance) => {
+  const selectInstance = useCallback((instance) => {
     setSelectedInstance(instance);
     localStorage.setItem("bf_instance", JSON.stringify(instance));
     localStorage.setItem("bf_instance_id", instance.id);
-  };
+  }, []);
 
-  const logout = () => {
-    setToken(null);
+  const logout = useCallback(() => {
+    // Clear httpOnly cookie on backend (fire-and-forget)
+    axios.post(`${BASE}/auth/logout`, {}, { withCredentials: true }).catch(() => {});
     setUser(null);
     setInstances([]);
     setSelectedInstance(null);
-    ["bf_token", "bf_user", "bf_instance", "bf_instance_id", "bf_instances"].forEach(k =>
+    ["bf_user", "bf_instance", "bf_instance_id", "bf_instances"].forEach(k =>
       localStorage.removeItem(k)
     );
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    user, instances, selectedInstance, login, selectInstance, logout, loading
+  }), [user, instances, selectedInstance, login, selectInstance, logout, loading]);
 
   return (
-    <AuthContext.Provider value={{ user, token, instances, selectedInstance, login, selectInstance, logout, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

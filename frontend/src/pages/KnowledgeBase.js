@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../utils/api";
 import { toast } from "sonner";
 import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
@@ -57,11 +57,11 @@ export default function KnowledgeBase() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
 
-  const loadSources = () => {
+  const loadSources = useCallback(() => {
     api.get(`/knowledge/sources`).then(r => setSources(r.data)).catch(() => {});
-  };
+  }, []);
 
-  useEffect(() => { loadSources(); }, []);
+  useEffect(() => { loadSources(); }, [loadSources]);
 
   const addFaq = async () => {
     if (!faq.title.trim() || !faq.content.trim()) { toast.error("Title and content are required"); return; }
