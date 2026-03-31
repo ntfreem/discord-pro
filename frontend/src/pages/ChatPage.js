@@ -10,7 +10,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [botConfig, setBotConfig] = useState({ name: "BotForge Assistant" });
+  const [botConfig, setBotConfig] = useState({ name: "BridgeBot Assistant" });
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const [searchParams] = useSearchParams();
@@ -89,7 +89,7 @@ export default function ChatPage() {
           </div>
           <div>
             <p style={{ fontFamily: "Chivo, sans-serif", fontSize: "16px", fontWeight: "900", color: "#FFFFFF", margin: 0, letterSpacing: "-0.3px" }}>
-              {botConfig.name || "BotForge Assistant"}
+              {botConfig.name || "BridgeBot Assistant"}
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#00FF66" }} />

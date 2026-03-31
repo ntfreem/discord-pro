@@ -104,12 +104,12 @@ export default function Register() {
             <Bot size={20} color="#FFFFFF" />
           </div>
           <span style={{ fontFamily: "Chivo, sans-serif", fontSize: "20px", fontWeight: "900", color: "#FFFFFF" }}>
-            Bot<span style={{ color: "#0055FF" }}>Forge</span>
+            Bridge<span style={{ color: "#0055FF" }}>Bot</span>
           </span>
         </div>
 
         <h1 style={S.heading}>Create account</h1>
-        <p style={S.sub}>Join BotForge and start building</p>
+        <p style={S.sub}>Join BridgeBot and start building</p>
 
         {error && <div style={S.err} data-testid="register-error">{error}</div>}
         {success && <div style={S.success} data-testid="register-success">{success}</div>}

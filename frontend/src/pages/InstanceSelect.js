@@ -27,7 +27,7 @@ export default function InstanceSelect() {
           <Bot size={20} color="#FFFFFF" />
         </div>
         <span style={{ fontFamily: "Chivo, sans-serif", fontSize: "20px", fontWeight: "900", color: "#FFFFFF" }}>
-          Bot<span style={{ color: "#0055FF" }}>Forge</span>
+          Bridge<span style={{ color: "#0055FF" }}>Bot</span>
         </span>
       </div>
 

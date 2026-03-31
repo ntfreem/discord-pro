@@ -87,7 +87,7 @@ export default function AdminLayout() {
                 fontFamily: "Chivo, sans-serif", fontSize: "18px",
                 fontWeight: "900", color: "#FFFFFF", letterSpacing: "-0.5px",
               }}>
-                Bot<span style={{ color: "#0055FF" }}>Forge</span>
+                Bridge<span style={{ color: "#0055FF" }}>Bot</span>
               </span>
               <p style={{
                 fontFamily: "JetBrains Mono, monospace", fontSize: "9px",

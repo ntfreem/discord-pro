@@ -54,19 +54,19 @@ export default function EmbedCode() {
   const widgetUrl = `${window.location.origin}/widget${instanceParam}`;
   const chatUrl = `${window.location.origin}/chat${instanceParam}`;
 
-  const iframeCode = `<!-- BotForge Chat Widget -->
+  const iframeCode = `<!-- BridgeBot Chat Widget -->
 <iframe
   src="${widgetUrl}"
   style="position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)"
-  title="BotForge Chat"
+  title="BridgeBot Chat"
 ></iframe>`;
 
-  const scriptCode = `<!-- BotForge Chat Widget (Auto-inject) -->
+  const scriptCode = `<!-- BridgeBot Chat Widget (Auto-inject) -->
 <script>
 (function() {
   var iframe = document.createElement('iframe');
   iframe.src = '${widgetUrl}';
-  iframe.title = 'BotForge Chat';
+  iframe.title = 'BridgeBot Chat';
   iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)';
   document.body.appendChild(iframe);
 })();
@@ -75,11 +75,11 @@ export default function EmbedCode() {
   const reactCode = `// React component embed
 import React from 'react';
 
-export function BotForgeWidget() {
+export function BridgeBotWidget() {
   return (
     <iframe
       src="${widgetUrl}"
-      title="BotForge Chat"
+      title="BridgeBot Chat"
       style={{
         position: 'fixed', bottom: '20px', right: '20px',
         width: '380px', height: '600px', border: 'none',
@@ -127,7 +127,7 @@ export function BotForgeWidget() {
             }}>
               <iframe
                 src={widgetUrl}
-                title="BotForge Widget Preview"
+                title="BridgeBot Widget Preview"
                 data-testid="widget-preview-iframe"
                 style={{ width: "100%", height: "100%", border: "none" }}
               />

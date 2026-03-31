@@ -164,7 +164,7 @@ export default function ChatWidget() {
           </button>
         </div>
         <p style={{ fontFamily: "JetBrains Mono", fontSize: "9px", color: "#2A2A2A", margin: "6px 0 0", textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "center" }}>
-          Powered by BotForge
+          Powered by BridgeBot
         </p>
       </div>
     </div>

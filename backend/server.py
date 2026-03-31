@@ -23,7 +23,7 @@ load_dotenv(ROOT_DIR / '.env')
 
 MONGO_URL = os.environ['MONGO_URL']
 DB_NAME = os.environ['DB_NAME']
-JWT_SECRET = os.environ.get("JWT_SECRET", "botforge-jwt-secret-key")
+JWT_SECRET = os.environ.get("JWT_SECRET", "bridgebot-jwt-secret-key")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
 ADMIN_EMAIL = "admin@bridgebot.tech"
@@ -393,7 +393,7 @@ async def startup_event():
         if not await db.bot_config.find_one({"instance_id": default_id}):
             await db.bot_config.insert_one({
                 "instance_id": default_id,
-                "name": "BotForge Assistant",
+                "name": "BridgeBot Assistant",
                 "persona": "You are a helpful, friendly, and knowledgeable assistant. Provide clear, accurate answers based on available information. Be concise but thorough.",
                 "custom_instructions": "",
                 "tone_instructions": "",
@@ -425,7 +425,7 @@ async def shutdown_event():
 
 @api_router.get("/")
 async def root():
-    return {"message": "BotForge API", "version": "2.0.0"}
+    return {"message": "BridgeBot API", "version": "2.0.0"}
 
 
 @api_router.post("/auth/register")
@@ -708,7 +708,7 @@ async def add_faq(entry: FAQEntry, instance_id: str = Depends(get_instance_acces
 async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_instance_access)):
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as http:
-            resp = await http.get(entry.url, headers={"User-Agent": "Mozilla/5.0 (BotForge/1.0)"})
+            resp = await http.get(entry.url, headers={"User-Agent": "Mozilla/5.0 (BridgeBot/1.0)"})
             resp.raise_for_status()
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(resp.text, "html.parser")
