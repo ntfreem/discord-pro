@@ -1,4 +1,4 @@
-# BotForge - AI Chatbot SaaS Platform PRD
+# BridgeBot - AI Chatbot SaaS Platform PRD
 
 ## Problem Statement
 AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord bot support, website chat widget, and knowledge base (RAG). Multi-tenant SaaS: admin can create multiple bot instances and assign users to them. Users log in via email verification and see only their assigned instance.
@@ -77,7 +77,7 @@ AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord
 
 ### Phase 3 - Multi-tenant SaaS Auth (Feb 2026)
 - [x] JWT authentication (PyJWT + bcrypt)
-- [x] User registration with email verification (MOCKED via print)
+- [x] User registration with email verification (Resend — live with re_SPdTV1HR key)
 - [x] Admin seeded: admin@bridgebot.tech / Admin@123 (auto on startup)
 - [x] Protected routes (ProtectedRoute, AdminOnlyRoute, PublicOnlyRoute)
 - [x] Instance management: CRUD for bot instances
@@ -88,6 +88,15 @@ AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord
 - [x] Superadmin vs User role separation
 - [x] Logout button in sidebar
 - [x] Post-login flow: 1 instance → auto-select → /admin; multiple → /select-instance; 0 → no-instance banner
+- [x] Hybrid auth: Bearer token (localStorage) + HttpOnly cookie
+- [x] BridgeBot rebrand (removed all Emergent UI artifacts)
+
+### Phase 4 - Bug Fixes (Mar 2026)
+- [x] Fixed "Failed to load instances" production bug (DB wipe caused transient 500 errors)
+- [x] Added `refreshInstances` to AuthContext — sidebar updates immediately after instance create/delete
+- [x] Dashboard now skips API calls when no instance selected; shows "No workspace selected" message
+- [x] Dashboard re-fetches data when `selectedInstance` changes (instance switch works without page reload)
+- [x] Default Instance seeded in DB
 
 ## Environment Variables
 ```
@@ -158,12 +167,14 @@ GET  /api/discord/status          - Bot online status
 - [x] Instance management + user assignment
 - [x] Data isolation by instance_id
 - [x] Admin vs User dashboard separation
+- [x] "Failed to load instances" production bug fix
+- [x] Dashboard no-instance graceful state
+- [x] AuthContext refreshInstances after create/delete
 
 ### P1 (High Value - Next)
-- [ ] Un-mock Resend integration (user to provide API key: noreply@bridgebot.tech)
+- [ ] Split server.py into modules (auth.py, instances.py, knowledge.py, chat.py) — currently 1007 lines
 - [ ] Real-time streaming responses (SSE/WebSockets)
 - [ ] Conversation search/filter
-- [ ] Split server.py into modules (auth.py, instances.py, knowledge.py, chat.py)
 
 ### P2 (Future)
 - [ ] Knowledge chunk editing
