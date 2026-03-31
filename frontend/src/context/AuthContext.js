@@ -10,23 +10,69 @@ export function AuthProvider({ children }) {
   const [selectedInstance, setSelectedInstance] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from localStorage
+  // Restore session and validate against server on every page load
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const storedUser = localStorage.getItem("bf_user");
-    const storedInstance = localStorage.getItem("bf_instance");
-    const storedInstances = localStorage.getItem("bf_instances");
+    const storedToken = localStorage.getItem("bf_token");
 
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-        if (storedInstances) setInstances(JSON.parse(storedInstances));
-        if (storedInstance) setSelectedInstance(JSON.parse(storedInstance));
-      } catch {
-        localStorage.clear();
-      }
+    if (!storedUser || !storedToken) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      setUser(JSON.parse(storedUser));
+    } catch {
+      localStorage.clear();
+      setLoading(false);
+      return;
+    }
+
+    // Always re-fetch instances from server — never trust stale localStorage
+    axios.get(`${BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${storedToken}` },
+      withCredentials: true,
+    }).then((res) => {
+      const freshInstances = res.data.instances || [];
+      setInstances(freshInstances);
+      localStorage.setItem("bf_instances", JSON.stringify(freshInstances));
+
+      // Restore selected instance only if it still exists on server
+      const storedInstance = localStorage.getItem("bf_instance");
+      if (storedInstance) {
+        try {
+          const parsed = JSON.parse(storedInstance);
+          const stillValid = freshInstances.some(i => i.id === parsed.id);
+          if (stillValid) {
+            setSelectedInstance(parsed);
+          } else {
+            // Instance was deleted — clear stale selection
+            localStorage.removeItem("bf_instance");
+            localStorage.removeItem("bf_instance_id");
+            // Auto-select if only one remains
+            if (freshInstances.length === 1) {
+              setSelectedInstance(freshInstances[0]);
+              localStorage.setItem("bf_instance", JSON.stringify(freshInstances[0]));
+              localStorage.setItem("bf_instance_id", freshInstances[0].id);
+            }
+          }
+        } catch {
+          localStorage.removeItem("bf_instance");
+          localStorage.removeItem("bf_instance_id");
+        }
+      } else if (freshInstances.length === 1) {
+        setSelectedInstance(freshInstances[0]);
+        localStorage.setItem("bf_instance", JSON.stringify(freshInstances[0]));
+        localStorage.setItem("bf_instance_id", freshInstances[0].id);
+      }
+    }).catch(() => {
+      // Token invalid/expired — clear everything
+      localStorage.clear();
+      setUser(null);
+    }).finally(() => {
+      setLoading(false);
+    });
   }, []);
 
   // tokenVal kept in signature — stored in localStorage for CORS-compatible Bearer auth
