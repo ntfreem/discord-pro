@@ -98,6 +98,9 @@ AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord
 - [x] Dashboard re-fetches data when `selectedInstance` changes (instance switch works without page reload)
 - [x] Block login for non-admin users with 0 assigned instances ("No instances assigned. Contact your admin.")
 - [x] Removed startup auto-creation of default instance (admin creates instances manually)
+- [x] Password reset via email OTP (POST /auth/forgot-password + POST /auth/reset-password, 15-min expiry)
+- [x] "Forgot password?" link on login page → /forgot-password → /reset-password flow
+- [x] Admin Users page (/admin/users) — shows all users with assigned/unassigned status, tabs (All/Assigned/Unassigned), verification badges
 
 ## Environment Variables
 ```
