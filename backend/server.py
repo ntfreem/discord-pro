@@ -17,6 +17,7 @@ from pathlib import Path
 import httpx
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+import resend
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -41,6 +42,40 @@ discord_client_instance = None
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+resend.api_key = os.environ.get("RESEND_API_KEY", "")
+FROM_EMAIL = "noreply@bridgebot.tech"
+
+
+async def send_verification_email(to_email: str, code: str):
+    """Send verification code email via Resend. Falls back to console log if key not set."""
+    if not resend.api_key:
+        logger.warning("RESEND_API_KEY not set — printing code to logs")
+        print(f"\n{'='*50}\nMOCK EMAIL (no Resend key)\nTo: {to_email}\nCode: {code}\n{'='*50}\n")
+        return
+    try:
+        html = f"""
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#111;color:#fff;padding:32px;border-radius:8px">
+          <h2 style="margin:0 0 8px;font-size:22px">BridgeBot</h2>
+          <p style="color:#a1a1aa;margin:0 0 28px;font-size:14px">Email Verification</p>
+          <p style="font-size:14px;margin:0 0 16px">Your verification code is:</p>
+          <div style="background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:20px;text-align:center;margin-bottom:24px">
+            <span style="font-family:monospace;font-size:32px;font-weight:700;letter-spacing:0.4em;color:#fff">{code}</span>
+          </div>
+          <p style="color:#a1a1aa;font-size:13px;margin:0">This code expires in 15 minutes. If you didn't request this, ignore this email.</p>
+        </div>
+        """
+        params = {
+            "from": FROM_EMAIL,
+            "to": [to_email],
+            "subject": "Your BridgeBot verification code",
+            "html": html,
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Verification email sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Resend error: {e} — falling back to log")
+        print(f"\n{'='*50}\nFALLBACK EMAIL\nTo: {to_email}\nCode: {code}\n{'='*50}\n")
 
 
 # ==================== MODELS ====================
@@ -450,14 +485,8 @@ async def register(body: UserRegister):
         "role": "user",
         "created_at": datetime.now(timezone.utc).isoformat()
     })
-    print(f"\n{'='*50}")
-    print(f"MOCK EMAIL VERIFICATION")
-    print(f"To: {body.email}")
-    print(f"Verification Code: {code}")
-    print(f"(Expires in 15 minutes)")
-    print(f"{'='*50}\n")
-    logger.info(f"MOCK EMAIL: Code for {body.email} is {code}")
-    return {"message": "Verification code sent. Check server logs for the mock code."}
+    await send_verification_email(body.email, code)
+    return {"message": "Verification code sent to your email."}
 
 
 @api_router.post("/auth/resend-code")
@@ -471,9 +500,8 @@ async def resend_code(body: ResendCodeBody):
         {"email": body.email.lower()},
         {"$set": {"verification_code": code, "verification_code_expiry": expiry}}
     )
-    print(f"\n{'='*50}\nMOCK EMAIL - RESEND\nTo: {body.email}\nNew Code: {code}\n{'='*50}\n")
-    logger.info(f"MOCK RESEND: New code for {body.email} is {code}")
-    return {"message": "New code sent"}
+    await send_verification_email(body.email, code)
+    return {"message": "New verification code sent"}
 
 
 @api_router.post("/auth/verify")

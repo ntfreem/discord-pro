@@ -104,7 +104,7 @@ export default function VerifyEmail() {
     setError("");
     try {
       await axios.post(`${BASE}/auth/resend-code`, { email });
-      setSuccess("New code sent. Check server logs.");
+      setSuccess("New code sent. Check your inbox.");
     } catch {
       setError("Failed to resend. Try again.");
     } finally {
@@ -138,7 +138,7 @@ export default function VerifyEmail() {
             We sent a 6-digit verification code to<br />
             <strong style={{ color: "#FFFFFF" }}>{email || "your email"}</strong>
             <br /><span style={{ fontSize: "11px", fontFamily: "JetBrains Mono", color: "#404040" }}>
-              (Check server logs for the mock code)
+              (Check your inbox — or spam folder)
             </span>
           </p>
         </div>

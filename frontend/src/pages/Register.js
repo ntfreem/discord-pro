@@ -87,7 +87,7 @@ export default function Register() {
     setLoading(true);
     try {
       await axios.post(`${BASE}/auth/register`, { email, password });
-      setSuccess("Account created! Check the server logs for your verification code.");
+      setSuccess("Account created! Check your email for the verification code.");
       setTimeout(() => navigate(`/verify?email=${encodeURIComponent(email)}`), 1800);
     } catch (err) {
       setError(err.response?.data?.detail || "Registration failed. Try again.");
