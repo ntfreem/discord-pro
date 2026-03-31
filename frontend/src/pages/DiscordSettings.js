@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "sonner";
 import { Zap, CheckCircle, AlertCircle, ExternalLink, RefreshCw } from "lucide-react";
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const S = {
   page: { padding: "40px 48px", backgroundColor: "#0A0A0A", minHeight: "100vh" },
@@ -68,14 +66,14 @@ export default function DiscordSettings() {
   const pollRef = useRef(null);
 
   const loadConfig = () => {
-    axios.get(`${API}/discord/config`).then(r => {
+    api.get(`/discord/config`).then(r => {
       setExisting(r.data);
       setIsActive(r.data?.is_active || false);
     }).catch(() => {});
   };
 
   const loadStatus = () => {
-    axios.get(`${API}/discord/status`).then(r => setStatus(r.data)).catch(() => {});
+    api.get(`/discord/status`).then(r => setStatus(r.data)).catch(() => {});
   };
 
   useEffect(() => {
@@ -90,7 +88,7 @@ export default function DiscordSettings() {
     if (token.trim()) update.bot_token = token.trim();
     setSaving(true);
     try {
-      await axios.put(`${API}/discord/config`, update);
+      await api.put(`/discord/config`, update);
       toast.success("Discord settings saved");
       setToken("");
       loadConfig();
@@ -101,7 +99,7 @@ export default function DiscordSettings() {
   const startBot = async () => {
     setStarting(true);
     try {
-      await axios.post(`${API}/discord/restart`);
+      await api.post(`/discord/restart`);
       toast.success("Discord bot starting...");
       setTimeout(loadStatus, 3000);
     } catch (e) { toast.error(e.response?.data?.detail || "Failed to start bot"); }

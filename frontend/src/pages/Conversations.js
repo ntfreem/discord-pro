@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "sonner";
 import { CheckCircle, Trash2, X, ChevronRight, BookOpen, Lightbulb } from "lucide-react";
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const S = {
   page: { padding: "40px 48px", backgroundColor: "#0A0A0A", minHeight: "100vh" },
@@ -49,7 +47,7 @@ export default function Conversations() {
     if (filter.platform) params.set("platform", filter.platform);
     if (filter.approved !== "") params.set("approved", filter.approved === "true");
     setLoading(true);
-    axios.get(`${API}/conversations?${params}`).then(r => {
+    api.get(`/conversations?${params}`).then(r => {
       setConversations(r.data.conversations || []);
       setTotal(r.data.total || 0);
     }).catch(() => {}).finally(() => setLoading(false));
@@ -59,7 +57,7 @@ export default function Conversations() {
 
   const approve = async (sessionId, approved) => {
     try {
-      await axios.patch(`${API}/conversations/${sessionId}/approve`, { approved });
+      await api.patch(`/conversations/${sessionId}/approve`, { approved });
       toast.success(approved ? "Approved for training" : "Removed from training");
       setConversations(prev => prev.map(c => c.session_id === sessionId ? { ...c, is_approved_for_training: approved } : c));
       if (selected?.session_id === sessionId) setSelected(prev => ({ ...prev, is_approved_for_training: approved }));
@@ -69,7 +67,7 @@ export default function Conversations() {
   const deleteConv = async (sessionId) => {
     if (!window.confirm("Delete this conversation?")) return;
     try {
-      await axios.delete(`${API}/conversations/${sessionId}`);
+      await api.delete(`/conversations/${sessionId}`);
       toast.success("Conversation deleted");
       setConversations(prev => prev.filter(c => c.session_id !== sessionId));
       if (selected?.session_id === sessionId) setSelected(null);

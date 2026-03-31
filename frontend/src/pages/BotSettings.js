@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "sonner";
 import { Save, Eye, EyeOff, Plus, X, ExternalLink, MessageSquare, Lightbulb } from "lucide-react";
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const S = {
   page: { padding: "40px 48px", backgroundColor: "#0A0A0A", minHeight: "100vh" },
@@ -43,7 +41,7 @@ export default function BotSettings() {
   const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
-    axios.get(`${API}/admin/bot-config`).then(r => {
+    api.get(`/admin/bot-config`).then(r => {
       if (r.data) setConfig({
         name: r.data.name || "",
         persona: r.data.persona || "",
@@ -52,7 +50,7 @@ export default function BotSettings() {
         manual_tone_examples: r.data.manual_tone_examples || [],
       });
     }).catch(() => {});
-    axios.get(`${API}/analytics/overview`).then(r => {
+    api.get(`/analytics/overview`).then(r => {
       setApprovedCount(r.data?.approved_for_training ?? 0);
     }).catch(() => {});
   }, []);
@@ -62,7 +60,7 @@ export default function BotSettings() {
     if (!config.persona.trim()) { toast.error("Persona description is required"); return; }
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/bot-config`, config);
+      await api.put(`/admin/bot-config`, config);
       toast.success("Settings saved — bot updated immediately");
     } catch { toast.error("Failed to save settings"); }
     finally { setSaving(false); }

@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer
 } from "recharts";
 import { MessageSquare, BookOpen, CheckCircle, Zap } from "lucide-react";
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const S = {
   page: { padding: "40px 48px", backgroundColor: "#0A0A0A", minHeight: "100vh" },
@@ -40,8 +38,8 @@ export default function Analytics() {
 
   useEffect(() => {
     Promise.all([
-      axios.get(`${API}/analytics/overview`),
-      axios.get(`${API}/analytics/daily`)
+      api.get(`/analytics/overview`),
+      api.get(`/analytics/daily`)
     ]).then(([ov, dl]) => {
       setOverview(ov.data);
       setDaily(dl.data);

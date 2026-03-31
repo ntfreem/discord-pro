@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Bot, Send, RotateCcw, X, MessageCircle } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -13,17 +14,19 @@ export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const [searchParams] = useSearchParams();
+  const instanceId = searchParams.get("instance");
 
   useEffect(() => {
     axios.get(`${API}/admin/bot-config`).then(r => { if (r.data?.name) setBotConfig(r.data); }).catch(() => {});
-    const saved = sessionStorage.getItem("widget_session");
+    const saved = sessionStorage.getItem(`widget_session_${instanceId || "default"}`);
     if (saved) {
       setSessionId(saved);
       axios.get(`${API}/chat/history/${saved}`).then(r => {
         setMessages(r.data.messages || []);
       }).catch(() => {});
     }
-  }, []);
+  }, [instanceId]);
 
   useEffect(() => {
     if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,10 +44,10 @@ export default function ChatWidget() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post(`${API}/chat/send`, { message: text, session_id: sessionId });
+      const res = await axios.post(`${API}/chat/send`, { message: text, session_id: sessionId, instance_id: instanceId });
       if (!sessionId) {
         setSessionId(res.data.session_id);
-        sessionStorage.setItem("widget_session", res.data.session_id);
+        sessionStorage.setItem(`widget_session_${instanceId || "default"}`, res.data.session_id);
       }
       setMessages(prev => [...prev, { role: "assistant", content: res.data.response, timestamp: new Date().toISOString() }]);
     } catch {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { Copy, Check, Code2, Globe, Monitor } from "lucide-react";
 
@@ -48,8 +49,10 @@ function CodeBlock({ code, label, testId }) {
 }
 
 export default function EmbedCode() {
-  const widgetUrl = `${window.location.origin}/widget`;
-  const chatUrl = `${window.location.origin}/chat`;
+  const { selectedInstance } = useAuth();
+  const instanceParam = selectedInstance ? `?instance=${selectedInstance.id}` : "";
+  const widgetUrl = `${window.location.origin}/widget${instanceParam}`;
+  const chatUrl = `${window.location.origin}/chat${instanceParam}`;
 
   const iframeCode = `<!-- BotForge Chat Widget -->
 <iframe

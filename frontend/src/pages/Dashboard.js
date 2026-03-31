@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { MessageSquare, BookOpen, CheckCircle, Zap } from "lucide-react";
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const S = {
   page: { padding: "40px 48px", backgroundColor: "#0A0A0A", minHeight: "100vh" },
@@ -58,8 +56,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      axios.get(`${API}/analytics/overview`),
-      axios.get(`${API}/conversations?limit=6`)
+      api.get(`/analytics/overview`),
+      api.get(`/conversations?limit=6`)
     ]).then(([ov, convs]) => {
       setOverview(ov.data);
       setConversations(convs.data.conversations || []);

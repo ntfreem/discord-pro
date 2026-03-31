@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Bot, Send, Plus, ExternalLink } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -12,18 +13,22 @@ export default function ChatPage() {
   const [botConfig, setBotConfig] = useState({ name: "BotForge Assistant" });
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const [searchParams] = useSearchParams();
+  const instanceId = searchParams.get("instance");
 
   useEffect(() => {
-    axios.get(`${API}/admin/bot-config`).then(r => { if (r.data?.name) setBotConfig(r.data); }).catch(() => {});
+    // Get bot config for this instance
+    const cfgParams = instanceId ? `?instance_id=${instanceId}` : "";
+    axios.get(`${API}/admin/bot-config${cfgParams}`).then(r => { if (r.data?.name) setBotConfig(r.data); }).catch(() => {});
 
-    const savedSession = localStorage.getItem("botforge_chat_session");
+    const savedSession = localStorage.getItem(`bf_chat_${instanceId || "default"}`);
     if (savedSession) {
       setSessionId(savedSession);
       axios.get(`${API}/chat/history/${savedSession}`).then(r => {
         setMessages(r.data.messages || []);
       }).catch(() => {});
     }
-  }, []);
+  }, [instanceId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,10 +43,10 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post(`${API}/chat/send`, { message: text, session_id: sessionId });
+      const res = await axios.post(`${API}/chat/send`, { message: text, session_id: sessionId, instance_id: instanceId });
       if (!sessionId) {
         setSessionId(res.data.session_id);
-        localStorage.setItem("botforge_chat_session", res.data.session_id);
+        localStorage.setItem(`bf_chat_${instanceId || "default"}`, res.data.session_id);
       }
       setMessages(prev => [...prev, {
         role: "assistant", content: res.data.response, timestamp: new Date().toISOString()
@@ -57,7 +62,7 @@ export default function ChatPage() {
   };
 
   const startNewChat = () => {
-    localStorage.removeItem("botforge_chat_session");
+    localStorage.removeItem(`bf_chat_${instanceId || "default"}`);
     setSessionId(null);
     setMessages([]);
   };

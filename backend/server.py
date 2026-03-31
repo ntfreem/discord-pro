@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
@@ -9,6 +9,9 @@ import logging
 import asyncio
 import uuid
 import re
+import jwt
+import bcrypt
+import secrets
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import httpx
@@ -20,6 +23,12 @@ load_dotenv(ROOT_DIR / '.env')
 
 MONGO_URL = os.environ['MONGO_URL']
 DB_NAME = os.environ['DB_NAME']
+JWT_SECRET = os.environ.get("JWT_SECRET", "botforge-jwt-secret-key")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRY_DAYS = 7
+ADMIN_EMAIL = "admin@bridgebot.tech"
+ADMIN_PASSWORD = "Admin@123"
+
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client[DB_NAME]
 
@@ -35,6 +44,28 @@ logger = logging.getLogger(__name__)
 
 
 # ==================== MODELS ====================
+
+class UserRegister(BaseModel):
+    email: str
+    password: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class VerifyEmailBody(BaseModel):
+    email: str
+    code: str
+
+class ResendCodeBody(BaseModel):
+    email: str
+
+class BotInstanceCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+class AssignUser(BaseModel):
+    user_email: str
 
 class BotConfigUpdate(BaseModel):
     name: Optional[str] = None
@@ -55,6 +86,7 @@ class URLEntry(BaseModel):
 class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str] = None
+    instance_id: Optional[str] = None
 
 class ApproveBody(BaseModel):
     approved: bool = True
@@ -64,18 +96,69 @@ class DiscordConfigUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
-# ==================== HELPERS ====================
+# ==================== JWT AUTH HELPERS ====================
 
-async def search_knowledge(query: str, limit: int = 5) -> str:
+def create_access_token(user_id: str, email: str, role: str) -> str:
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "role": role,
+        "exp": datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRY_DAYS)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = authorization.split(" ", 1)[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return {"id": payload["sub"], "email": payload["email"], "role": payload["role"]}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
+async def _verify_instance_access(x_instance_id: Optional[str], current_user: dict) -> str:
+    if not x_instance_id:
+        raise HTTPException(status_code=400, detail="X-Instance-ID header required")
+    if current_user["role"] == "superadmin":
+        return x_instance_id
+    instance = await db.bot_instances.find_one({"id": x_instance_id}, {"_id": 0})
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    if current_user["id"] not in instance.get("assigned_user_ids", []):
+        raise HTTPException(status_code=403, detail="Access denied to this instance")
+    return x_instance_id
+
+
+async def get_instance_access(
+    x_instance_id: Optional[str] = Header(None, alias="X-Instance-ID"),
+    current_user: dict = Depends(get_current_user)
+) -> str:
+    return await _verify_instance_access(x_instance_id, current_user)
+
+
+# ==================== KNOWLEDGE / TONE HELPERS ====================
+
+async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
     try:
         results = await db.knowledge_sources.find(
-            {"$text": {"$search": query}, "is_active": True},
+            {"$text": {"$search": query}, "is_active": True, "instance_id": instance_id},
             {"score": {"$meta": "textScore"}, "_id": 0}
         ).sort([("score", {"$meta": "textScore"})]).limit(limit).to_list(limit)
 
         if not results:
             results = await db.knowledge_sources.find(
-                {"is_active": True}, {"_id": 0}
+                {"is_active": True, "instance_id": instance_id}, {"_id": 0}
             ).sort("created_at", -1).limit(3).to_list(3)
 
         if not results:
@@ -92,10 +175,8 @@ async def search_knowledge(query: str, limit: int = 5) -> str:
         return ""
 
 
-async def get_tone_examples_text(bot_config: dict = None) -> str:
+async def get_tone_examples_text(instance_id: str, bot_config: dict = None) -> str:
     parts = []
-
-    # 1. Manual tone examples (highest priority — directly crafted by admin)
     if bot_config:
         manual = bot_config.get("manual_tone_examples", []) or []
         for ex in manual[:3]:
@@ -103,11 +184,9 @@ async def get_tone_examples_text(bot_config: dict = None) -> str:
                 label = ex.get("label", "")
                 header = f"[{label}]" if label else "[Crafted Example]"
                 parts.append(f"{header}\nUSER: {ex['user_msg']}\nASSISTANT: {ex['bot_msg']}")
-
-    # 2. Approved conversations from training
     try:
         examples = await db.conversations.find(
-            {"is_approved_for_training": True}, {"messages": 1, "_id": 0}
+            {"is_approved_for_training": True, "instance_id": instance_id}, {"messages": 1, "_id": 0}
         ).limit(3).to_list(3)
         for ex in examples:
             msgs = ex.get("messages", [])[:6]
@@ -116,7 +195,6 @@ async def get_tone_examples_text(bot_config: dict = None) -> str:
                 parts.append(text)
     except Exception as e:
         logger.warning(f"Tone examples: {e}")
-
     if not parts:
         return ""
     return "\n\n---\n\n".join(parts[:5])
@@ -154,8 +232,7 @@ def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_exam
         parts.append(
             f"{tone_header}\n"
             "Study these examples carefully. Mirror the exact vocabulary, sentence length, "
-            "formality level, and energy from these exchanges:\n\n"
-            f"{tone_examples}"
+            f"formality level, and energy from these exchanges:\n\n{tone_examples}"
         )
     elif tone_instructions:
         parts.append(f"COMMUNICATION STYLE:\n{tone_instructions}")
@@ -187,7 +264,7 @@ async def call_claude(session_id: str, user_message: str, system_prompt: str) ->
 
 
 async def save_conversation(session_id: str, user_message: str, bot_response: str,
-                            platform: str = "web", metadata: dict = None):
+                            platform: str = "web", metadata: dict = None, instance_id: str = "default"):
     timestamp = datetime.now(timezone.utc).isoformat()
     new_messages = [
         {"role": "user", "content": user_message, "timestamp": timestamp},
@@ -202,6 +279,7 @@ async def save_conversation(session_id: str, user_message: str, bot_response: st
     else:
         await db.conversations.insert_one({
             "session_id": session_id, "platform": platform,
+            "instance_id": instance_id,
             "messages": new_messages, "is_approved_for_training": False,
             "created_at": timestamp, "updated_at": timestamp,
             "metadata": metadata or {}
@@ -210,7 +288,7 @@ async def save_conversation(session_id: str, user_message: str, bot_response: st
 
 # ==================== DISCORD BOT ====================
 
-async def start_discord_bot(token: str):
+async def start_discord_bot(token: str, instance_id: str = "default"):
     global discord_client_instance
     try:
         import discord
@@ -240,15 +318,15 @@ async def start_discord_bot(token: str):
 
             session_id = f"discord_{message.author.id}"
             try:
-                bot_config = await db.bot_config.find_one({}, {"_id": 0}) or {}
-                knowledge = await search_knowledge(user_text)
-                tone = await get_tone_examples_text(bot_config)
+                bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
+                knowledge = await search_knowledge(user_text, instance_id)
+                tone = await get_tone_examples_text(instance_id, bot_config)
                 system_prompt = build_system_prompt(bot_config, knowledge, tone)
                 async with message.channel.typing():
                     response = await call_claude(session_id, user_text, system_prompt)
                 await save_conversation(
                     session_id=session_id, user_message=user_text, bot_response=response,
-                    platform="discord",
+                    platform="discord", instance_id=instance_id,
                     metadata={"username": str(message.author.name), "user_id": str(message.author.id)}
                 )
                 if len(response) > 1990:
@@ -273,22 +351,61 @@ async def startup_event():
     global discord_task
     try:
         await db.knowledge_sources.create_index([("title", "text"), ("content", "text")])
+        await db.knowledge_sources.create_index([("instance_id", 1)])
         await db.conversations.create_index([("session_id", 1)])
         await db.conversations.create_index([("created_at", -1)])
+        await db.conversations.create_index([("instance_id", 1)])
+        await db.bot_config.create_index([("instance_id", 1)])
+        await db.bot_instances.create_index([("id", 1)])
+        await db.users.create_index([("email", 1)], unique=True)
+        await db.users.create_index([("id", 1)])
     except Exception as e:
         logger.warning(f"Index creation: {e}")
 
-    if not await db.bot_config.find_one({}):
-        await db.bot_config.insert_one({
-            "name": "BotForge Assistant",
-            "persona": "You are a helpful, friendly, and knowledgeable assistant. Provide clear, accurate answers based on available information. Be concise but thorough.",
-            "custom_instructions": "",
+    # Seed admin user
+    if not await db.users.find_one({"email": ADMIN_EMAIL}):
+        hashed_pw = bcrypt.hashpw(ADMIN_PASSWORD.encode(), bcrypt.gensalt()).decode()
+        await db.users.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": ADMIN_EMAIL,
+            "hashed_password": hashed_pw,
+            "is_verified": True,
+            "verification_code": None,
+            "role": "superadmin",
             "created_at": datetime.now(timezone.utc).isoformat()
         })
+        logger.info(f"Seeded admin: {ADMIN_EMAIL}")
 
-    discord_config = await db.discord_config.find_one({}, {"_id": 0})
-    if discord_config and discord_config.get("bot_token") and discord_config.get("is_active"):
-        discord_task = asyncio.create_task(start_discord_bot(discord_config["bot_token"]))
+    # Migrate single-tenant data to multi-tenant if no instances exist
+    if await db.bot_instances.count_documents({}) == 0:
+        default_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+        await db.bot_instances.insert_one({
+            "id": default_id,
+            "name": "Default Instance",
+            "description": "Auto-created from existing single-tenant data",
+            "created_by": ADMIN_EMAIL,
+            "assigned_user_ids": [],
+            "created_at": now
+        })
+        for col in [db.bot_config, db.knowledge_sources, db.conversations, db.discord_config]:
+            await col.update_many({"instance_id": {"$exists": False}}, {"$set": {"instance_id": default_id}})
+        if not await db.bot_config.find_one({"instance_id": default_id}):
+            await db.bot_config.insert_one({
+                "instance_id": default_id,
+                "name": "BotForge Assistant",
+                "persona": "You are a helpful, friendly, and knowledgeable assistant. Provide clear, accurate answers based on available information. Be concise but thorough.",
+                "custom_instructions": "",
+                "tone_instructions": "",
+                "manual_tone_examples": [],
+                "created_at": now
+            })
+        logger.info(f"Created default instance: {default_id}")
+
+    discord_config = await db.discord_config.find_one({"is_active": True}, {"_id": 0})
+    if discord_config and discord_config.get("bot_token"):
+        iid = discord_config.get("instance_id", "default")
+        discord_task = asyncio.create_task(start_discord_bot(discord_config["bot_token"], iid))
 
 
 @app.on_event("shutdown")
@@ -304,23 +421,236 @@ async def shutdown_event():
     mongo_client.close()
 
 
-# ==================== ROUTES ====================
+# ==================== AUTH ROUTES ====================
 
 @api_router.get("/")
 async def root():
-    return {"message": "BotForge API", "version": "1.0.0"}
+    return {"message": "BotForge API", "version": "2.0.0"}
 
 
-# --- CHAT ---
+@api_router.post("/auth/register")
+async def register(body: UserRegister):
+    if not body.email or not body.password:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    if await db.users.find_one({"email": body.email.lower()}):
+        raise HTTPException(status_code=400, detail="Email already registered")
+    code = str(secrets.randbelow(900000) + 100000)
+    expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+    hashed_pw = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
+    user_id = str(uuid.uuid4())
+    await db.users.insert_one({
+        "id": user_id,
+        "email": body.email.lower(),
+        "hashed_password": hashed_pw,
+        "is_verified": False,
+        "verification_code": code,
+        "verification_code_expiry": expiry,
+        "role": "user",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    print(f"\n{'='*50}")
+    print(f"MOCK EMAIL VERIFICATION")
+    print(f"To: {body.email}")
+    print(f"Verification Code: {code}")
+    print(f"(Expires in 15 minutes)")
+    print(f"{'='*50}\n")
+    logger.info(f"MOCK EMAIL: Code for {body.email} is {code}")
+    return {"message": "Verification code sent. Check server logs for the mock code."}
+
+
+@api_router.post("/auth/resend-code")
+async def resend_code(body: ResendCodeBody):
+    user = await db.users.find_one({"email": body.email.lower()})
+    if not user or user.get("is_verified"):
+        return {"message": "If this email is registered and unverified, a new code has been sent"}
+    code = str(secrets.randbelow(900000) + 100000)
+    expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+    await db.users.update_one(
+        {"email": body.email.lower()},
+        {"$set": {"verification_code": code, "verification_code_expiry": expiry}}
+    )
+    print(f"\n{'='*50}\nMOCK EMAIL - RESEND\nTo: {body.email}\nNew Code: {code}\n{'='*50}\n")
+    logger.info(f"MOCK RESEND: New code for {body.email} is {code}")
+    return {"message": "New code sent"}
+
+
+@api_router.post("/auth/verify")
+async def verify_email(body: VerifyEmailBody):
+    user = await db.users.find_one({"email": body.email.lower()})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.get("is_verified"):
+        return {"message": "Email already verified"}
+    if user.get("verification_code") != body.code:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    expiry_str = user.get("verification_code_expiry")
+    if expiry_str and datetime.fromisoformat(expiry_str) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Code expired. Request a new one.")
+    await db.users.update_one(
+        {"email": body.email.lower()},
+        {"$set": {"is_verified": True, "verification_code": None, "verification_code_expiry": None}}
+    )
+    return {"message": "Email verified successfully"}
+
+
+@api_router.post("/auth/login")
+async def login(body: UserLogin):
+    user = await db.users.find_one({"email": body.email.lower()})
+    if not user or not bcrypt.checkpw(body.password.encode(), user["hashed_password"].encode()):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.get("is_verified"):
+        raise HTTPException(status_code=403, detail="Email not verified. Check your email for the verification code.")
+    token = create_access_token(user["id"], user["email"], user["role"])
+    if user["role"] == "superadmin":
+        instances = await db.bot_instances.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(100)
+    else:
+        instances = await db.bot_instances.find(
+            {"assigned_user_ids": user["id"]}, {"_id": 0, "id": 1, "name": 1}
+        ).to_list(100)
+    return {
+        "token": token,
+        "user": {"id": user["id"], "email": user["email"], "role": user["role"]},
+        "instances": instances
+    }
+
+
+@api_router.get("/auth/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    user = await db.users.find_one(
+        {"id": current_user["id"]},
+        {"_id": 0, "hashed_password": 0, "verification_code": 0, "verification_code_expiry": 0}
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if current_user["role"] == "superadmin":
+        instances = await db.bot_instances.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(100)
+    else:
+        instances = await db.bot_instances.find(
+            {"assigned_user_ids": current_user["id"]}, {"_id": 0, "id": 1, "name": 1}
+        ).to_list(100)
+    return {**user, "instances": instances}
+
+
+# ==================== INSTANCE MANAGEMENT (SUPERADMIN) ====================
+
+@api_router.get("/admin/instances")
+async def list_instances(current_user: dict = Depends(require_admin)):
+    instances = await db.bot_instances.find({}, {"_id": 0}).to_list(100)
+    for inst in instances:
+        user_ids = inst.get("assigned_user_ids", [])
+        users = await db.users.find(
+            {"id": {"$in": user_ids}},
+            {"_id": 0, "id": 1, "email": 1, "is_verified": 1}
+        ).to_list(100)
+        inst["assigned_users"] = users
+    return instances
+
+
+@api_router.post("/admin/instances")
+async def create_instance(body: BotInstanceCreate, current_user: dict = Depends(require_admin)):
+    instance_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    instance = {
+        "id": instance_id,
+        "name": body.name,
+        "description": body.description or "",
+        "created_by": current_user["email"],
+        "assigned_user_ids": [],
+        "created_at": now
+    }
+    await db.bot_instances.insert_one(instance)
+    instance.pop("_id", None)
+    await db.bot_config.insert_one({
+        "instance_id": instance_id,
+        "name": body.name,
+        "persona": "You are a helpful, friendly, and knowledgeable assistant. Provide clear, accurate answers based on available information. Be concise but thorough.",
+        "custom_instructions": "",
+        "tone_instructions": "",
+        "manual_tone_examples": [],
+        "created_at": now
+    })
+    return instance
+
+
+@api_router.put("/admin/instances/{instance_id}")
+async def update_instance(instance_id: str, body: BotInstanceCreate, current_user: dict = Depends(require_admin)):
+    result = await db.bot_instances.update_one(
+        {"id": instance_id},
+        {"$set": {"name": body.name, "description": body.description or "",
+                  "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    return {"success": True}
+
+
+@api_router.delete("/admin/instances/{instance_id}")
+async def delete_instance(instance_id: str, current_user: dict = Depends(require_admin)):
+    result = await db.bot_instances.delete_one({"id": instance_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    for col in [db.bot_config, db.knowledge_sources, db.conversations, db.discord_config]:
+        await col.delete_many({"instance_id": instance_id})
+    return {"success": True}
+
+
+@api_router.post("/admin/instances/{instance_id}/assign-user")
+async def assign_user(instance_id: str, body: AssignUser, current_user: dict = Depends(require_admin)):
+    instance = await db.bot_instances.find_one({"id": instance_id})
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    user = await db.users.find_one({"email": body.user_email.lower()})
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{body.user_email}' not found. They must register first.")
+    await db.bot_instances.update_one(
+        {"id": instance_id},
+        {"$addToSet": {"assigned_user_ids": user["id"]}}
+    )
+    return {"success": True, "user": {"id": user["id"], "email": user["email"]}}
+
+
+@api_router.delete("/admin/instances/{instance_id}/unassign-user/{user_id}")
+async def unassign_user(instance_id: str, user_id: str, current_user: dict = Depends(require_admin)):
+    result = await db.bot_instances.update_one(
+        {"id": instance_id},
+        {"$pull": {"assigned_user_ids": user_id}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    return {"success": True}
+
+
+@api_router.get("/admin/users")
+async def list_users(current_user: dict = Depends(require_admin)):
+    users = await db.users.find(
+        {},
+        {"_id": 0, "hashed_password": 0, "verification_code": 0, "verification_code_expiry": 0}
+    ).to_list(500)
+    return users
+
+
+# ==================== CHAT (PUBLIC) ====================
+
 @api_router.post("/chat/send")
 async def send_chat_message(body: ChatMessage):
     session_id = body.session_id or str(uuid.uuid4())
-    bot_config = await db.bot_config.find_one({}, {"_id": 0}) or {}
-    knowledge = await search_knowledge(body.message)
-    tone = await get_tone_examples_text(bot_config)
+    instance_id = body.instance_id or "default"
+    # Try to find actual instance by id or fall back to first instance
+    bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
+    if not bot_config:
+        first_instance = await db.bot_instances.find_one({}, {"id": 1})
+        if first_instance:
+            instance_id = first_instance["id"]
+            bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
+        else:
+            bot_config = {}
+    knowledge = await search_knowledge(body.message, instance_id)
+    tone = await get_tone_examples_text(instance_id, bot_config)
     system_prompt = build_system_prompt(bot_config, knowledge, tone)
     response = await call_claude(session_id, body.message, system_prompt)
-    await save_conversation(session_id, body.message, response, platform="web")
+    await save_conversation(session_id, body.message, response, platform="web", instance_id=instance_id)
     return {"response": response, "session_id": session_id}
 
 
@@ -330,38 +660,43 @@ async def get_chat_history(session_id: str):
     return conv or {"messages": [], "session_id": session_id}
 
 
-# --- BOT CONFIG ---
+# ==================== BOT CONFIG (PROTECTED) ====================
+
 @api_router.get("/admin/bot-config")
-async def get_bot_config():
-    config = await db.bot_config.find_one({}, {"_id": 0})
+async def get_bot_config(instance_id: str = Depends(get_instance_access)):
+    config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
     return config or {}
 
 
 @api_router.put("/admin/bot-config")
-async def update_bot_config(body: BotConfigUpdate):
+async def update_bot_config(body: BotConfigUpdate, instance_id: str = Depends(get_instance_access)):
     update_data = {}
     for k, v in body.dict().items():
-        if v is not None:  # includes empty lists
+        if v is not None:
             update_data[k] = v
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields provided")
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await db.bot_config.update_one({}, {"$set": update_data}, upsert=True)
-    return await db.bot_config.find_one({}, {"_id": 0})
+    await db.bot_config.update_one({"instance_id": instance_id}, {"$set": update_data}, upsert=True)
+    return await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
 
 
-# --- KNOWLEDGE SOURCES ---
+# ==================== KNOWLEDGE SOURCES (PROTECTED) ====================
+
 @api_router.get("/knowledge/sources")
-async def get_knowledge_sources():
-    sources = await db.knowledge_sources.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+async def get_knowledge_sources(instance_id: str = Depends(get_instance_access)):
+    sources = await db.knowledge_sources.find(
+        {"instance_id": instance_id}, {"_id": 0}
+    ).sort("created_at", -1).to_list(200)
     return sources
 
 
 @api_router.post("/knowledge/sources/faq")
-async def add_faq(entry: FAQEntry):
+async def add_faq(entry: FAQEntry, instance_id: str = Depends(get_instance_access)):
     doc = {
         "id": str(uuid.uuid4()), "type": "faq", "title": entry.title,
         "content": entry.content, "tags": entry.tags or [],
+        "instance_id": instance_id,
         "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.knowledge_sources.insert_one(doc)
@@ -370,12 +705,11 @@ async def add_faq(entry: FAQEntry):
 
 
 @api_router.post("/knowledge/sources/url")
-async def scrape_url_source(entry: URLEntry):
+async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_instance_access)):
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as http:
             resp = await http.get(entry.url, headers={"User-Agent": "Mozilla/5.0 (BotForge/1.0)"})
             resp.raise_for_status()
-
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(resp.text, "html.parser")
         for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
@@ -383,11 +717,10 @@ async def scrape_url_source(entry: URLEntry):
         text = soup.get_text(separator="\n", strip=True)
         text = re.sub(r'\n{3,}', '\n\n', text).strip()[:6000]
         title = entry.title or (soup.title.string.strip() if soup.title and soup.title.string else entry.url)
-
         doc = {
             "id": str(uuid.uuid4()), "type": "url", "title": str(title)[:150],
-            "content": text, "url": entry.url, "is_active": True,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "content": text, "url": entry.url, "instance_id": instance_id,
+            "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.knowledge_sources.insert_one(doc)
         doc.pop("_id", None)
@@ -399,12 +732,18 @@ async def scrape_url_source(entry: URLEntry):
 
 
 @api_router.post("/knowledge/sources/upload")
-async def upload_document(file: UploadFile = File(...), title: str = Form(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    x_instance_id: Optional[str] = Header(None, alias="X-Instance-ID"),
+    authorization: Optional[str] = Header(None)
+):
+    current_user = await get_current_user(authorization)
+    instance_id = await _verify_instance_access(x_instance_id, current_user)
     try:
         content_bytes = await file.read()
         filename = file.filename or ""
         text = ""
-
         if filename.lower().endswith(".txt"):
             text = content_bytes.decode("utf-8", errors="ignore")
         elif filename.lower().endswith(".pdf"):
@@ -417,12 +756,11 @@ async def upload_document(file: UploadFile = File(...), title: str = Form(...)):
                 raise HTTPException(status_code=400, detail=f"PDF parse error: {str(e)}")
         else:
             raise HTTPException(status_code=400, detail="Only .txt and .pdf files are supported")
-
         text = re.sub(r'\n{3,}', '\n\n', text).strip()[:6000]
         doc = {
             "id": str(uuid.uuid4()), "type": "document", "title": title or filename,
-            "content": text, "filename": filename, "is_active": True,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "content": text, "filename": filename, "instance_id": instance_id,
+            "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.knowledge_sources.insert_one(doc)
         doc.pop("_id", None)
@@ -434,16 +772,16 @@ async def upload_document(file: UploadFile = File(...), title: str = Form(...)):
 
 
 @api_router.delete("/knowledge/sources/{source_id}")
-async def delete_source(source_id: str):
-    result = await db.knowledge_sources.delete_one({"id": source_id})
+async def delete_source(source_id: str, instance_id: str = Depends(get_instance_access)):
+    result = await db.knowledge_sources.delete_one({"id": source_id, "instance_id": instance_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Source not found")
     return {"success": True}
 
 
 @api_router.patch("/knowledge/sources/{source_id}/toggle")
-async def toggle_source(source_id: str):
-    source = await db.knowledge_sources.find_one({"id": source_id}, {"_id": 0})
+async def toggle_source(source_id: str, instance_id: str = Depends(get_instance_access)):
+    source = await db.knowledge_sources.find_one({"id": source_id, "instance_id": instance_id}, {"_id": 0})
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
     new_status = not source.get("is_active", True)
@@ -451,11 +789,15 @@ async def toggle_source(source_id: str):
     return {"is_active": new_status}
 
 
-# --- CONVERSATIONS ---
+# ==================== CONVERSATIONS (PROTECTED) ====================
+
 @api_router.get("/conversations")
-async def get_conversations(platform: Optional[str] = None, approved: Optional[bool] = None,
-                            page: int = 1, limit: int = 20):
-    query = {}
+async def get_conversations(
+    platform: Optional[str] = None, approved: Optional[bool] = None,
+    page: int = 1, limit: int = 20,
+    instance_id: str = Depends(get_instance_access)
+):
+    query = {"instance_id": instance_id}
     if platform:
         query["platform"] = platform
     if approved is not None:
@@ -467,17 +809,18 @@ async def get_conversations(platform: Optional[str] = None, approved: Optional[b
 
 
 @api_router.get("/conversations/{session_id}")
-async def get_conversation(session_id: str):
-    conv = await db.conversations.find_one({"session_id": session_id}, {"_id": 0})
+async def get_conversation(session_id: str, instance_id: str = Depends(get_instance_access)):
+    conv = await db.conversations.find_one({"session_id": session_id, "instance_id": instance_id}, {"_id": 0})
     if not conv:
         raise HTTPException(status_code=404, detail="Not found")
     return conv
 
 
 @api_router.patch("/conversations/{session_id}/approve")
-async def approve_conversation(session_id: str, body: ApproveBody):
+async def approve_conversation(session_id: str, body: ApproveBody,
+                                instance_id: str = Depends(get_instance_access)):
     result = await db.conversations.update_one(
-        {"session_id": session_id},
+        {"session_id": session_id, "instance_id": instance_id},
         {"$set": {"is_approved_for_training": body.approved}}
     )
     if result.matched_count == 0:
@@ -486,28 +829,31 @@ async def approve_conversation(session_id: str, body: ApproveBody):
 
 
 @api_router.delete("/conversations/{session_id}")
-async def delete_conversation(session_id: str):
+async def delete_conversation(session_id: str, instance_id: str = Depends(get_instance_access)):
     llm_sessions.pop(session_id, None)
-    result = await db.conversations.delete_one({"session_id": session_id})
+    result = await db.conversations.delete_one({"session_id": session_id, "instance_id": instance_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     return {"success": True}
 
 
-# --- ANALYTICS ---
+# ==================== ANALYTICS (PROTECTED) ====================
+
 @api_router.get("/analytics/overview")
-async def analytics_overview():
-    total_convs = await db.conversations.count_documents({})
-    approved_training = await db.conversations.count_documents({"is_approved_for_training": True})
-    knowledge_count = await db.knowledge_sources.count_documents({"is_active": True})
+async def analytics_overview(instance_id: str = Depends(get_instance_access)):
+    q = {"instance_id": instance_id}
+    total_convs = await db.conversations.count_documents(q)
+    approved_training = await db.conversations.count_documents({**q, "is_approved_for_training": True})
+    knowledge_count = await db.knowledge_sources.count_documents({"is_active": True, "instance_id": instance_id})
     pipeline = [
+        {"$match": q},
         {"$project": {"msg_count": {"$size": {"$ifNull": ["$messages", []]}}}},
         {"$group": {"_id": None, "total": {"$sum": "$msg_count"}}}
     ]
     msg_result = await db.conversations.aggregate(pipeline).to_list(1)
     total_messages = msg_result[0]["total"] if msg_result else 0
-    web_count = await db.conversations.count_documents({"platform": "web"})
-    discord_count = await db.conversations.count_documents({"platform": "discord"})
+    web_count = await db.conversations.count_documents({**q, "platform": "web"})
+    discord_count = await db.conversations.count_documents({**q, "platform": "discord"})
     return {
         "total_conversations": total_convs, "total_messages": total_messages,
         "approved_for_training": approved_training, "knowledge_sources": knowledge_count,
@@ -516,17 +862,19 @@ async def analytics_overview():
 
 
 @api_router.get("/analytics/daily")
-async def analytics_daily():
+async def analytics_daily(instance_id: str = Depends(get_instance_access)):
     now = datetime.now(timezone.utc)
     days = []
     for i in range(6, -1, -1):
         day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
-        count = await db.conversations.count_documents({
+        base_q = {
+            "instance_id": instance_id,
             "created_at": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()}
-        })
+        }
+        count = await db.conversations.count_documents(base_q)
         pipeline = [
-            {"$match": {"created_at": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()}}},
+            {"$match": base_q},
             {"$project": {"msg_count": {"$size": {"$ifNull": ["$messages", []]}}}},
             {"$group": {"_id": None, "total": {"$sum": "$msg_count"}}}
         ]
@@ -536,10 +884,11 @@ async def analytics_daily():
     return days
 
 
-# --- DISCORD ---
+# ==================== DISCORD (PROTECTED) ====================
+
 @api_router.get("/discord/config")
-async def get_discord_config():
-    config = await db.discord_config.find_one({}, {"_id": 0})
+async def get_discord_config(instance_id: str = Depends(get_instance_access)):
+    config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
     if config:
         token = config.get("bot_token", "")
         if token:
@@ -549,15 +898,16 @@ async def get_discord_config():
 
 
 @api_router.put("/discord/config")
-async def update_discord_config(body: DiscordConfigUpdate):
+async def update_discord_config(body: DiscordConfigUpdate, instance_id: str = Depends(get_instance_access)):
     update = {k: v for k, v in body.dict().items() if v is not None}
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await db.discord_config.update_one({}, {"$set": update}, upsert=True)
+    update["instance_id"] = instance_id
+    await db.discord_config.update_one({"instance_id": instance_id}, {"$set": update}, upsert=True)
     return {"success": True}
 
 
 @api_router.post("/discord/restart")
-async def restart_discord_bot():
+async def restart_discord_bot(instance_id: str = Depends(get_instance_access)):
     global discord_task, discord_client_instance
     if discord_client_instance:
         try:
@@ -568,15 +918,15 @@ async def restart_discord_bot():
     if discord_task:
         discord_task.cancel()
         discord_task = None
-    config = await db.discord_config.find_one({}, {"_id": 0})
+    config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
     if not config or not config.get("bot_token"):
         raise HTTPException(status_code=400, detail="Discord bot token not configured")
-    discord_task = asyncio.create_task(start_discord_bot(config["bot_token"]))
+    discord_task = asyncio.create_task(start_discord_bot(config["bot_token"], instance_id))
     return {"success": True, "message": "Discord bot starting..."}
 
 
 @api_router.get("/discord/status")
-async def get_discord_status():
+async def get_discord_status(instance_id: str = Depends(get_instance_access)):
     global discord_client_instance
     if discord_client_instance and discord_client_instance.is_ready():
         return {"status": "online", "bot_name": str(discord_client_instance.user)}

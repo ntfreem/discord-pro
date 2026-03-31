@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "sonner";
 import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const S = {
   page: { padding: "40px 48px", backgroundColor: "#0A0A0A", minHeight: "100vh" },
@@ -60,7 +58,7 @@ export default function KnowledgeBase() {
   const fileRef = useRef(null);
 
   const loadSources = () => {
-    axios.get(`${API}/knowledge/sources`).then(r => setSources(r.data)).catch(() => {});
+    api.get(`/knowledge/sources`).then(r => setSources(r.data)).catch(() => {});
   };
 
   useEffect(() => { loadSources(); }, []);
@@ -69,7 +67,7 @@ export default function KnowledgeBase() {
     if (!faq.title.trim() || !faq.content.trim()) { toast.error("Title and content are required"); return; }
     setLoading(true);
     try {
-      await axios.post(`${API}/knowledge/sources/faq`, faq);
+      await api.post(`/knowledge/sources/faq`, faq);
       toast.success("FAQ added successfully");
       setFaq({ title: "", content: "" });
       loadSources();
@@ -81,7 +79,7 @@ export default function KnowledgeBase() {
     if (!urlEntry.url.trim()) { toast.error("URL is required"); return; }
     setScraping(true);
     try {
-      await axios.post(`${API}/knowledge/sources/url`, urlEntry);
+      await api.post(`/knowledge/sources/url`, urlEntry);
       toast.success("URL scraped and saved successfully");
       setUrlEntry({ url: "", title: "" });
       loadSources();
@@ -98,7 +96,7 @@ export default function KnowledgeBase() {
     form.append("title", docTitle);
     setUploading(true);
     try {
-      await axios.post(`${API}/knowledge/sources/upload`, form, { headers: { "Content-Type": "multipart/form-data" } });
+      await api.post(`/knowledge/sources/upload`, form);
       toast.success("Document uploaded successfully");
       setDocTitle("");
       if (fileRef.current) fileRef.current.value = "";
@@ -109,7 +107,7 @@ export default function KnowledgeBase() {
 
   const deleteSource = async (id) => {
     try {
-      await axios.delete(`${API}/knowledge/sources/${id}`);
+      await api.delete(`/knowledge/sources/${id}`);
       toast.success("Source deleted");
       setSources(prev => prev.filter(s => s.id !== id));
     } catch { toast.error("Failed to delete"); }
@@ -117,7 +115,7 @@ export default function KnowledgeBase() {
 
   const toggleSource = async (id) => {
     try {
-      const r = await axios.patch(`${API}/knowledge/sources/${id}/toggle`);
+      const r = await api.patch(`/knowledge/sources/${id}/toggle`);
       setSources(prev => prev.map(s => s.id === id ? { ...s, is_active: r.data.is_active } : s));
     } catch { toast.error("Failed to toggle"); }
   };
