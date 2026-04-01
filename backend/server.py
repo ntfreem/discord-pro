@@ -302,8 +302,17 @@ def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_exam
         )
     else:
         parts.append(
-            "KNOWLEDGE BASE: No specific knowledge found for this query. "
-            "Answer based on your general knowledge and be transparent if you are uncertain."
+            "KNOWLEDGE BASE RESULT: No matching entries were found for the user's query.\n\n"
+            "IMPORTANT — KNOWLEDGE GATE PROTOCOL:\n"
+            "You must NOT answer the question directly from your general knowledge without the user's explicit permission.\n"
+            "Instead, respond with something like:\n"
+            "\"I couldn't find anything about that in my knowledge base. "
+            "Would you like me to expand the search and answer using my general knowledge?\"\n\n"
+            "Then wait for the user's response and follow these rules:\n"
+            "- If they say YES (yes, sure, go ahead, please, ok, expand, etc.) → answer the original question using your general knowledge.\n"
+            "- If they say NO (no, never mind, don't bother, skip, etc.) → acknowledge politely and offer to help with something else.\n"
+            "- If they ask a completely different question → treat it as a new query and apply the knowledge gate protocol again.\n"
+            "Keep your ask short and natural — one sentence is enough."
         )
 
     if tone_examples:
