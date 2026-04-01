@@ -324,24 +324,86 @@ def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_exam
     return "\n\n".join(parts)
 
 
-async def call_claude(session_id: str, user_message: str, system_prompt: str) -> str:
+async def call_claude(session_id: str, user_message: str, system_prompt: str,
+                      instance_id: str = "default", platform: str = "web") -> str:
     api_key = os.environ.get("CLAUDE_API_KEY", "")
     if not api_key:
         raise HTTPException(status_code=500, detail="LLM API key not configured")
-    try:
-        if session_id not in llm_sessions:
-            chat = LlmChat(
+
+    primary_model = "claude-opus-4-5-20251101"
+    fallback_model = "claude-sonnet-4-5-20251101"
+    max_retries = 2
+    retry_count = 0
+    used_fallback = False
+    last_error = None  # noqa: F841
+    error_type = None
+
+    async def _attempt(model: str) -> str:
+        nonlocal retry_count
+        key = f"{session_id}_{model}"
+        if key not in llm_sessions:
+            llm_sessions[key] = LlmChat(
                 api_key=api_key,
-                session_id=session_id,
+                session_id=key,
                 system_message=system_prompt
-            ).with_model("anthropic", "claude-opus-4-5-20251101")
-            llm_sessions[session_id] = chat
-        chat = llm_sessions[session_id]
-        response = await chat.send_message(UserMessage(text=user_message))
-        return response
+            ).with_model("anthropic", model)
+        return await llm_sessions[key].send_message(UserMessage(text=user_message))
+
+    # Try primary model with retries
+    for attempt in range(max_retries + 1):
+        try:
+            result = await _attempt(primary_model)
+            await _log_llm_usage(instance_id, session_id, platform, primary_model,
+                                 primary_model, True, retry_count, False, None)
+            return result
+        except Exception as e:
+            last_error = e  # noqa: F841
+            err_str = str(e).lower()
+            error_type = ("rate_limit" if "rate" in err_str or "429" in err_str
+                          else "balance" if "credit" in err_str or "balance" in err_str or "payment" in err_str
+                          else "timeout" if "timeout" in err_str or "timed out" in err_str
+                          else "unknown")
+            if attempt < max_retries:
+                retry_count += 1
+                logger.warning(f"Claude Opus attempt {attempt+1} failed ({error_type}), retrying...")
+                await asyncio.sleep(1.5 ** attempt)  # 1s, 1.5s backoff
+            else:
+                logger.error(f"Claude Opus exhausted retries: {e}")
+
+    # Fallback to Sonnet
+    try:
+        used_fallback = True  # noqa: F841
+        result = await _attempt(fallback_model)
+        logger.info(f"Fallback to {fallback_model} succeeded for session {session_id}")
+        await _log_llm_usage(instance_id, session_id, platform, fallback_model,
+                             primary_model, True, retry_count, True, error_type)
+        return result
     except Exception as e:
-        logger.error(f"Claude API error: {e}")
-        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
+        logger.error(f"Fallback model also failed: {e}")
+        await _log_llm_usage(instance_id, session_id, platform, fallback_model,
+                             primary_model, False, retry_count, True, error_type)
+        raise HTTPException(status_code=500, detail="AI service temporarily unavailable. Please try again in a moment.")
+
+
+async def _log_llm_usage(instance_id: str, session_id: str, platform: str,
+                          model_used: str, model_attempted: str, success: bool,
+                          retry_count: int, used_fallback: bool, error_type: str):
+    try:
+        await db.llm_usage.insert_one({
+            "id": str(uuid.uuid4()),
+            "instance_id": instance_id,
+            "session_id": session_id,
+            "platform": platform,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "model_attempted": model_attempted,
+            "model_used": model_used,
+            "success": success,
+            "retry_count": retry_count,
+            "used_fallback": used_fallback,
+            "error_type": error_type,
+        })
+    except Exception as e:
+        logger.warning(f"Failed to log LLM usage: {e}")
 
 
 async def save_conversation(session_id: str, user_message: str, bot_response: str,
@@ -404,7 +466,8 @@ async def start_discord_bot(token: str, instance_id: str = "default"):
                 tone = await get_tone_examples_text(instance_id, bot_config)
                 system_prompt = build_system_prompt(bot_config, knowledge, tone)
                 async with message.channel.typing():
-                    response = await call_claude(session_id, user_text, system_prompt)
+                    response = await call_claude(session_id, user_text, system_prompt,
+                                                instance_id=instance_id, platform="discord")
                 await save_conversation(
                     session_id=session_id, user_message=user_text, bot_response=response,
                     platform="discord", instance_id=instance_id,
@@ -438,6 +501,8 @@ async def startup_event():
         await db.conversations.create_index([("instance_id", 1)])
         await db.bot_config.create_index([("instance_id", 1)])
         await db.bot_instances.create_index([("id", 1)])
+        await db.llm_usage.create_index([("instance_id", 1)])
+        await db.llm_usage.create_index([("timestamp", -1)])
         await db.users.create_index([("email", 1)], unique=True)
         await db.users.create_index([("id", 1)])
     except Exception as e:
@@ -764,13 +829,6 @@ async def unassign_user(instance_id: str, user_id: str, current_user: dict = Dep
     return {"success": True}
 
 
-@api_router.get("/admin/users")
-async def list_users(current_user: dict = Depends(require_admin)):
-    users = await db.users.find(
-        {},
-        {"_id": 0, "hashed_password": 0, "verification_code": 0, "verification_code_expiry": 0}
-    ).to_list(500)
-    return users
 
 
 # ==================== CHAT (PUBLIC) ====================
@@ -791,7 +849,8 @@ async def send_chat_message(body: ChatMessage):
     knowledge = await search_knowledge(body.message, instance_id)
     tone = await get_tone_examples_text(instance_id, bot_config)
     system_prompt = build_system_prompt(bot_config, knowledge, tone)
-    response = await call_claude(session_id, body.message, system_prompt)
+    response = await call_claude(session_id, body.message, system_prompt,
+                                instance_id=instance_id, platform="web")
     await save_conversation(session_id, body.message, response, platform="web", instance_id=instance_id)
     return {"response": response, "session_id": session_id}
 
@@ -1024,6 +1083,65 @@ async def analytics_daily(instance_id: str = Depends(get_instance_access)):
         msg_count = msg_res[0]["total"] if msg_res else 0
         days.append({"date": day_start.strftime("%m/%d"), "conversations": count, "messages": msg_count})
     return days
+
+
+@api_router.get("/analytics/llm-usage")
+async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
+    """API usage, retry attempts, fallbacks and error breakdown for the selected instance."""
+    q = {"instance_id": instance_id}
+    now = datetime.now(timezone.utc)
+
+    total = await db.llm_usage.count_documents(q)
+    successful = await db.llm_usage.count_documents({**q, "success": True})
+    failed = await db.llm_usage.count_documents({**q, "success": False})
+    fallbacks = await db.llm_usage.count_documents({**q, "used_fallback": True})
+
+    # Sum retry_count across all docs
+    pipeline_retries = [
+        {"$match": q},
+        {"$group": {"_id": None, "total_retries": {"$sum": "$retry_count"}}}
+    ]
+    retry_res = await db.llm_usage.aggregate(pipeline_retries).to_list(1)
+    total_retries = retry_res[0]["total_retries"] if retry_res else 0
+
+    # Error type breakdown
+    pipeline_errors = [
+        {"$match": {**q, "success": False, "error_type": {"$ne": None}}},
+        {"$group": {"_id": "$error_type", "count": {"$sum": 1}}}
+    ]
+    error_docs = await db.llm_usage.aggregate(pipeline_errors).to_list(20)
+    error_breakdown = {d["_id"]: d["count"] for d in error_docs}
+
+    # Daily breakdown — last 7 days
+    daily = []
+    for i in range(6, -1, -1):
+        day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        day_q = {**q, "timestamp": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()}}
+        calls = await db.llm_usage.count_documents(day_q)
+        errors = await db.llm_usage.count_documents({**day_q, "success": False})
+        retries_pipeline = [
+            {"$match": day_q},
+            {"$group": {"_id": None, "total": {"$sum": "$retry_count"}}}
+        ]
+        r = await db.llm_usage.aggregate(retries_pipeline).to_list(1)
+        daily.append({
+            "date": day_start.strftime("%m/%d"),
+            "calls": calls,
+            "errors": errors,
+            "retries": r[0]["total"] if r else 0,
+        })
+
+    return {
+        "total_calls": total,
+        "successful_calls": successful,
+        "failed_calls": failed,
+        "retry_attempts": total_retries,
+        "fallback_used": fallbacks,
+        "success_rate": round((successful / total * 100), 1) if total else 100.0,
+        "error_breakdown": error_breakdown,
+        "daily": daily,
+    }
 
 
 # ==================== DISCORD (PROTECTED) ====================

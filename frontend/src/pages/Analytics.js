@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import api from "../utils/api";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell, ResponsiveContainer
+  PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar
 } from "recharts";
-import { MessageSquare, BookOpen, CheckCircle, Zap } from "lucide-react";
+import { MessageSquare, BookOpen, CheckCircle, Zap, Activity, AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
 
 const S = {
   page: { padding: "40px 48px", backgroundColor: "#0A0A0A", minHeight: "100vh" },
@@ -43,15 +43,18 @@ function StatCard({ title, value, icon: Icon, color }) {
 export default function Analytics() {
   const [overview, setOverview] = useState(null);
   const [daily, setDaily] = useState([]);
+  const [llmUsage, setLlmUsage] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get(`/analytics/overview`),
-      api.get(`/analytics/daily`)
-    ]).then(([ov, dl]) => {
+      api.get(`/analytics/daily`),
+      api.get(`/analytics/llm-usage`),
+    ]).then(([ov, dl, llm]) => {
       setOverview(ov.data);
       setDaily(dl.data);
+      setLlmUsage(llm.data);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -129,7 +132,7 @@ export default function Analytics() {
       </div>
 
       {/* Daily Table */}
-      <div style={{ backgroundColor: "#121212", border: "1px solid #262626", borderRadius: "4px", overflow: "hidden" }}>
+      <div style={{ backgroundColor: "#121212", border: "1px solid #262626", borderRadius: "4px", overflow: "hidden", marginBottom: "32px" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #262626" }}>
           <p style={{ fontFamily: "Chivo, sans-serif", fontSize: "15px", fontWeight: "900", color: "#FFFFFF", margin: 0 }}>Daily Breakdown</p>
         </div>
@@ -155,6 +158,92 @@ export default function Analytics() {
           </tbody>
         </table>
       </div>
+
+      {/* ── AI Usage Section ── */}
+      <div style={{ marginBottom: "12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <p style={{ ...S.overline, marginBottom: "4px" }}>Claude API</p>
+          <h2 style={{ fontFamily: "Chivo, sans-serif", fontSize: "22px", fontWeight: "900", color: "#FFFFFF", margin: 0 }}>AI Usage & Reliability</h2>
+        </div>
+        <a
+          href="https://app.emergent.sh/profile/universal-key"
+          target="_blank"
+          rel="noreferrer"
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px", backgroundColor: "#111", border: "1px solid #262626", borderRadius: "4px", color: "#A1A1AA", fontSize: "12px", fontFamily: "IBM Plex Sans, sans-serif", textDecoration: "none", transition: "border-color 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#0055FF"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#262626"}
+          data-testid="balance-link"
+        >
+          <ExternalLink size={12} /> Check Balance
+        </a>
+      </div>
+
+      {/* AI stat cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+        <StatCard title="Total API Calls" value={llmUsage?.total_calls ?? 0} icon={Activity} color="#0055FF" />
+        <StatCard
+          title="Success Rate"
+          value={llmUsage ? `${llmUsage.success_rate}%` : "—"}
+          icon={CheckCircle}
+          color={llmUsage?.success_rate >= 95 ? "#00FF66" : llmUsage?.success_rate >= 80 ? "#F59E0B" : "#FF6B6B"}
+        />
+        <StatCard title="Retry Attempts" value={llmUsage?.retry_attempts ?? 0} icon={RefreshCw} color="#F59E0B" />
+        <StatCard title="Fallbacks (Sonnet)" value={llmUsage?.fallback_used ?? 0} icon={AlertTriangle} color="#A1A1AA" />
+      </div>
+
+      {/* AI Charts Row */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px", marginBottom: "32px" }}>
+        {/* Daily API calls bar chart */}
+        <div style={S.card}>
+          <p style={{ fontFamily: "Chivo, sans-serif", fontSize: "15px", fontWeight: "900", color: "#FFFFFF", margin: "0 0 24px" }}>
+            API Calls — Last 7 Days
+          </p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={llmUsage?.daily ?? []} margin={CHART_MARGIN}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E1E" vertical={false} />
+              <XAxis dataKey="date" stroke="#404040" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <YAxis stroke="#404040" tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip {...tooltipStyle} />
+              <Legend wrapperStyle={LEGEND_STYLE} />
+              <Bar dataKey="calls" name="API Calls" fill="#0055FF" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="errors" name="Errors" fill="#FF6B6B" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="retries" name="Retries" fill="#F59E0B" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Error breakdown */}
+        <div style={S.card}>
+          <p style={{ fontFamily: "Chivo, sans-serif", fontSize: "15px", fontWeight: "900", color: "#FFFFFF", margin: "0 0 20px" }}>
+            Error Breakdown
+          </p>
+          {llmUsage?.failed_calls === 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "160px", gap: "8px" }}>
+              <CheckCircle size={28} color="#00FF66" />
+              <p style={{ fontFamily: "IBM Plex Sans", fontSize: "13px", color: "#A1A1AA", margin: 0 }}>No errors recorded</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {Object.entries(llmUsage?.error_breakdown ?? {}).map(([type, count]) => (
+                <div key={type} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontFamily: "JetBrains Mono", fontSize: "11px", color: "#A1A1AA", textTransform: "uppercase", letterSpacing: "0.08em" }}>{type}</span>
+                  <span style={{ fontFamily: "Chivo", fontWeight: "900", fontSize: "18px", color: "#FF6B6B" }}>{count}</span>
+                </div>
+              ))}
+              <div style={{ borderTop: "1px solid #1E1E1E", paddingTop: "10px", display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontFamily: "JetBrains Mono", fontSize: "11px", color: "#A1A1AA", textTransform: "uppercase" }}>Total failed</span>
+                <span style={{ fontFamily: "Chivo", fontWeight: "900", fontSize: "18px", color: "#FF6B6B" }}>{llmUsage?.failed_calls ?? 0}</span>
+              </div>
+            </div>
+          )}
+          <div style={{ marginTop: "20px", padding: "10px 12px", backgroundColor: "#0A0A0A", borderRadius: "4px", border: "1px solid #1E1E1E" }}>
+            <p style={{ margin: 0, fontFamily: "IBM Plex Sans", fontSize: "11px", color: "#A1A1AA", lineHeight: "1.5" }}>
+              On failure: retries up to 2× on Claude Opus, then falls back to Claude Sonnet automatically.
+            </p>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
