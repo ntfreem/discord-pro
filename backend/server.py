@@ -452,10 +452,6 @@ async def save_conversation(session_id: str, user_message: str, bot_response: st
 
 async def start_discord_bot(token: str, instance_id: str = "default", config: dict = None):
     global discord_client_instance
-    cfg = config or {}
-    listen_mode = cfg.get("listen_mode", "mention_only")          # mention_only | all_channels | specific_channels
-    monitored_ids = set(cfg.get("monitored_channel_ids") or [])   # channel IDs for specific_channels
-    reply_style = cfg.get("reply_style", "natural")               # natural | with_mention
 
     try:
         import discord
@@ -465,7 +461,7 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
 
         @discord_client_instance.event
         async def on_ready():
-            logger.info(f"Discord bot online: {discord_client_instance.user} | mode={listen_mode}")
+            logger.info(f"Discord bot online: {discord_client_instance.user}")
             # Sync bot name from bot_config to Discord username
             try:
                 bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
@@ -491,6 +487,15 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
         async def on_message(message):
             # Never respond to bots
             if message.author.bot:
+                return
+
+            # Read config from DB on each message so changes take effect immediately
+            live_cfg = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
+            listen_mode = live_cfg.get("listen_mode", "mention_only")
+            monitored_ids = set(live_cfg.get("monitored_channel_ids") or [])
+            reply_style = live_cfg.get("reply_style", "natural")
+
+            if not live_cfg.get("is_active", True):
                 return
 
             is_dm = isinstance(message.channel, discord.DMChannel)
