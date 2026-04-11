@@ -35,7 +35,7 @@ DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID", "")
 DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET", "")
 DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "")
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
-DISCORD_BOT_PERMISSIONS = 68608  # View Channels + Send Messages + Read Message History
+DISCORD_BOT_PERMISSIONS = 68608 | 67108864  # View Channels + Send Messages + Read Message History + Change Nickname
 
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client[DB_NAME]
@@ -1345,7 +1345,7 @@ async def discord_oauth_callback(
 
 @api_router.post("/discord/sync-name")
 async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
-    """Push the bot_config name to Discord as the bot's username immediately."""
+    """Push the bot_config name to Discord as the bot's nickname in connected guilds."""
     import aiohttp
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
     token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
@@ -1355,21 +1355,60 @@ async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
     name = (bot_config or {}).get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Bot name not set. Configure it in Bot Settings first.")
+    headers = {"Authorization": f"Bot {token}"}
+    results = []
     async with aiohttp.ClientSession() as session:
+        # 1) Set nickname in the connected guild (what users see in server)
+        guild_id = (config or {}).get("guild_id")
+        if guild_id:
+            async with session.patch(
+                f"https://discord.com/api/v10/guilds/{guild_id}/members/@me",
+                headers=headers,
+                json={"nick": name}
+            ) as resp:
+                if resp.status == 200:
+                    results.append(f"Server nickname set to '{name}'")
+                    logger.info(f"Discord guild nickname updated to '{name}' in guild {guild_id}")
+                else:
+                    body = await resp.json()
+                    err = body.get("message", "unknown error")
+                    logger.warning(f"Guild nickname update failed ({resp.status}): {err}")
+                    if resp.status == 403:
+                        results.append(f"Missing 'Change Nickname' permission in server — re-invite the bot to fix this")
+                    else:
+                        results.append(f"Guild nickname failed: {err}")
+        else:
+            # No guild_id stored — try all guilds the bot is in
+            async with session.get("https://discord.com/api/v10/users/@me/guilds", headers=headers) as resp:
+                if resp.status == 200:
+                    guilds = await resp.json()
+                    for guild in guilds[:10]:
+                        async with session.patch(
+                            f"https://discord.com/api/v10/guilds/{guild['id']}/members/@me",
+                            headers=headers,
+                            json={"nick": name}
+                        ) as nick_resp:
+                            if nick_resp.status == 200:
+                                results.append(f"Nickname set in '{guild['name']}'")
+                            else:
+                                body = await nick_resp.json()
+                                results.append(f"Failed in '{guild['name']}': {body.get('message', 'error')}")
+
+        # 2) Also update global username (less visible but keeps it in sync)
         async with session.patch(
             "https://discord.com/api/v10/users/@me",
-            headers={"Authorization": f"Bot {token}"},
+            headers=headers,
             json={"username": name}
         ) as resp:
             if resp.status == 200:
-                data = await resp.json()
-                return {"success": True, "discord_username": data.get("username"), "message": f"Discord name updated to '{name}'"}
-            body = await resp.json()
-            detail = body.get("message") or body.get("error") or "Discord API error"
-            # Rate limit info
-            if resp.status == 429:
-                raise HTTPException(status_code=429, detail="Discord rate limit: bot name can only be changed twice per hour. Try again later.")
-            raise HTTPException(status_code=400, detail=detail)
+                results.append("Global username updated")
+            else:
+                body = await resp.json()
+                logger.warning(f"Global username update failed: {body}")
+
+    if not results:
+        raise HTTPException(status_code=400, detail="No guilds found to update nickname")
+    return {"success": True, "message": " | ".join(results)}
 
 
 @api_router.get("/discord/channels")
