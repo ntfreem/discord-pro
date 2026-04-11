@@ -1,92 +1,83 @@
-# Discord-Pro — AI Chatbot SaaS Platform
+# BridgeBot — Product Requirements Document
 
-## Product Requirements Document
+## Overview
+Multi-tenant SaaS chatbot platform where admins create AI knowledge-base instances and assign them to users. Supports web chat, embeddable widget, and Discord bot integration.
 
-### Original Problem Statement
-Create an AI chatbot platform with an admin web UI, Discord integration, and website widget using Claude. Must have a knowledge base (RAG over docs) and tone training layer. Multi-tenant SaaS where an admin can create multiple instances and assign them to users. Include email verification, hybrid JWT auth, and Discord integration capabilities. Rebranded from BridgeBot to **Discord-Pro**.
+## Core Architecture
+- **Frontend**: React (Vite-free CRA), Tailwind, Shadcn/UI components
+- **Backend**: FastAPI (Python), single `server.py` (~1450 lines)
+- **Database**: MongoDB (Motor async driver)
+- **Auth**: Hybrid JWT (Bearer + HttpOnly Cookie), supports email or username login
+- **LLM**: Claude via Emergent Universal Key
+- **Email**: Resend API (MOCKED — no real domain verified)
+- **Discord**: discord.py + Discord OAuth2 Application flow
 
-### Architecture
-```
-/app/
-├── backend/
-│   ├── .env (MONGO_URL, DB_NAME, CLAUDE_API_KEY, RESEND_API_KEY)
-│   ├── requirements.txt
-│   └── server.py (~1200 lines, monolithic FastAPI backend)
-├── frontend/
-│   ├── package.json
-│   ├── craco.config.js (@ alias configured)
-│   └── src/
-│       ├── theme.js (Soft AI Bot design system tokens)
-│       ├── index.css (CSS vars, fonts, animations)
-│       ├── App.css (scrollbar, global styles)
-│       ├── App.js (routing)
-│       ├── utils/api.js (relative /api paths)
-│       ├── context/AuthContext.js (hybrid JWT auth)
-│       ├── components/AdminLayout.js (rounded sidebar)
-│       └── pages/ (17 pages — all Discord-Pro themed)
-├── memory/
-│   ├── PRD.md
-│   └── test_credentials.md
-└── design_guidelines.json (original Tron spec, now superseded)
-```
+## Design System
+- Theme: "Tactical Futurism" — soft, rounded, blue palette
+- Tokens defined in `/app/frontend/src/theme.js`
+- Custom Pixar-style AI robot graphic on login page
 
-### Tech Stack
-- React 19, FastAPI, MongoDB (Motor), Hybrid JWT Auth
-- Claude Opus 4.5 / Sonnet 4.5 via Emergent LLM Key
-- Discord.py (background task), Resend Email API
-- Recharts for analytics, Lucide icons, Sonner toasts
+## Implemented Features
 
-### Design System (Current)
-- **Style**: Soft AI Bot — rounded, approachable, lighter blues on dark
-- **Backgrounds**: #0B1120 (base), #111827 (surface), #1E293B (panel)
-- **Primary**: #3B82F6 (blue), #60A5FA (light), #93C5FD (lighter)
-- **Typography**: Outfit headings, IBM Plex Sans body, JetBrains Mono mono
-- **Corners**: 14px cards, 10px inputs/buttons, 6px badges
-- **Shadows**: Soft blue-tinted, gradient buttons
-- **Auth pages**: Centered card with subtle gradient background orbs
+### Authentication (DONE)
+- Email or Username login/registration
+- Admin default username: `administrator`
+- JWT tokens with 7-day expiry
+- Password reset flow (email MOCKED via Resend)
+- Email verification flow (MOCKED)
 
-### What's Been Implemented
+### Multi-Tenant Instances (DONE)
+- Admins create/manage bot instances
+- Users assigned to instances
+- Instance selector on login
 
-**Core Platform (Complete)**
-- Multi-tenant SaaS with isolated bot instances
-- Hybrid JWT auth (Bearer + HttpOnly Cookie)
-- Email verification & password reset via Resend
-- Admin user management & instance assignment
-- Knowledge base (FAQ, URL scraping, document upload)
-- AI chat with knowledge gate & tone training
-- LLM analytics with Opus->Sonnet fallback logic
-- Discord bot integration (channel monitoring, name sync)
-- Website embed widget & standalone chat page
+### Knowledge Base (DONE)
+- FAQ entries, URL scraping, document upload
+- Keyword search for RAG context
 
-**P0 UI Design (Complete — Feb 2026)**
-- Initial Tron "Tactical Futurism" theme applied
-- Refined to soft, rounded AI bot aesthetic
-- Rebranded BridgeBot → Discord-Pro across all 17+ pages + HTML meta
-- Shared theme.js design system with color aliases
-- All cards, inputs, buttons, badges rounded
-- Gradient buttons and avatars
-- Subtle ambient light orbs on auth pages
+### Chat (DONE)
+- Web chat page + embeddable widget
+- Session-based conversations
+- Claude LLM with knowledge context
 
-### Pending / Future Tasks
-- P2: Split server.py into separate route modules (~1200 lines)
-- P2: Real-time streaming chat responses (SSE/WebSockets)
-- P2: Vector DB integration (Pinecone/Weaviate) for semantic RAG
+### Discord Bot (DONE)
+- **OAuth2 "Invite Bot" flow** (NEW — April 2026)
+  - `GET /api/discord/oauth-url` generates Discord authorization URL
+  - `GET /api/discord/callback` handles OAuth redirect, saves guild info
+  - Frontend "Invite Bot to Server" button replaces manual token paste
+  - Simplified 3-step setup guide
+  - Manual token input preserved as "Advanced" fallback
+- Listen modes: mention_only, all_channels, specific_channels
+- Reply styles: natural, with_mention
+- Bot name sync to Discord
+- Channel selection for specific_channels mode
 
-### Key API Endpoints
-- POST /api/auth/login, /api/auth/register, /api/auth/verify
-- POST /api/auth/forgot-password, /api/auth/reset-password
-- GET /api/auth/me
-- GET /api/admin/bot-config, PUT /api/admin/bot-config
-- GET/POST /api/knowledge/sources/*
-- POST /api/chat/send, GET /api/chat/history/:sessionId
-- GET /api/analytics/overview, /api/analytics/daily, /api/analytics/llm-usage
-- GET /api/conversations, PATCH /api/conversations/:id/approve
-- GET/PUT /api/discord/config, POST /api/discord/restart, /api/discord/sync-name
-- GET /api/admin/instances, /api/admin/users
+### Analytics (DONE)
+- Dashboard overview, daily stats, LLM usage tracking
+- Platform breakdown (web vs discord)
 
-### Critical Notes
-1. Frontend uses ONLY relative /api paths (no REACT_APP_BACKEND_URL in source)
-2. Discord bot name changes rate-limited to 2/hour
-3. LLM fallback: Opus 4.5 → 2 retries → Sonnet 4.5
-4. Resend email is MOCKED if API key missing (prints to stdout)
-5. Platform rebranded from BridgeBot to Discord-Pro
+### UI Redesign (DONE)
+- Soft, rounded, blue theme across all components
+- BridgeBot branding (no "Discord-Pro")
+
+## Credentials
+- Discord Client ID: 1492589924480843858
+- Discord Client Secret: stored in backend/.env
+- Discord Redirect URI: {APP_URL}/api/discord/callback
+- **Important**: User must register this redirect URI in Discord Developer Portal > OAuth2 > Redirects
+
+## Backlog
+
+### P2 — Refactor server.py
+- Split ~1450-line server.py into modular route files (/routes folder)
+- Separate Discord background tasks from API routes
+
+### P2 — Real-time Streaming
+- SSE or WebSocket for streaming chat responses
+
+### P2 — Vector DB
+- Pinecone/Weaviate integration for semantic RAG search
+
+## Constraints
+- **No rate limiting** (user explicitly requested this)
+- Branding must stay "BridgeBot" (no "Discord-Pro")
