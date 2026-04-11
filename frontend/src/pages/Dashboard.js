@@ -4,6 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { MessageSquare, BookOpen, CheckCircle, Zap } from "lucide-react";
 import { colors, fonts, radius, T, rowEnter, rowLeave } from "../theme";
 
+const BOT_IMG = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/c0ece9583d8b3c245af6236456deaff237aae7a9fbb92cff5b832e779f437c4d.png";
+
 function StatCard({ title, value, icon: Icon, color }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -73,7 +75,8 @@ export default function Dashboard() {
 
   if (!selectedInstance) {
     return (
-      <div style={{ ...T.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ ...T.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+        <img src={BOT_IMG} alt="" style={{ width: "120px", marginBottom: "20px", opacity: 0.8 }} />
         <p style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary, margin: "0 0 8px" }}>
           No workspace selected
         </p>
@@ -88,8 +91,14 @@ export default function Dashboard() {
 
   return (
     <div style={T.page}>
-      <p style={T.overline}>Overview</p>
-      <h1 style={T.h1}>Dashboard</h1>
+      {/* Welcome header */}
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "28px" }}>
+        <img src={BOT_IMG} alt="" style={{ width: "52px", height: "52px", objectFit: "contain" }} />
+        <div>
+          <p style={T.overline}>Overview</p>
+          <h1 style={{ ...T.h1, margin: 0 }}>Welcome back</h1>
+        </div>
+      </div>
 
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "32px" }}>

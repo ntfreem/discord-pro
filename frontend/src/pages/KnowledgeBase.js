@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur, rowEnter, rowLeave } from "../theme";
 
+const BOT_IMG = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/c0ece9583d8b3c245af6236456deaff237aae7a9fbb92cff5b832e779f437c4d.png";
+
 const typeIcon = { faq: HelpCircle, url: Globe, document: FileText };
 const typeColor = { faq: colors.brand.blue, url: colors.brand.success, document: colors.text.secondary };
 
@@ -213,6 +215,7 @@ export default function KnowledgeBase() {
         </div>
         {sources.length === 0 ? (
           <div style={{ padding: "48px", textAlign: "center" }}>
+            <img src={BOT_IMG} alt="" style={{ width: "80px", marginBottom: "14px", opacity: 0.6 }} />
             <p style={{ fontFamily: fonts.body, color: colors.text.secondary, fontSize: "14px" }}>No knowledge sources yet. Add your first source above.</p>
           </div>
         ) : (

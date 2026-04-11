@@ -5,6 +5,8 @@ import { Plus, Trash2, UserPlus, UserMinus, Bot, ChevronDown, ChevronUp } from "
 import { toast } from "sonner";
 import { colors, fonts, T, onFocus, onBlur } from "../theme";
 
+const BOT_IMG = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/c0ece9583d8b3c245af6236456deaff237aae7a9fbb92cff5b832e779f437c4d.png";
+
 function CreateInstanceModal({ onClose, onCreate }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -179,7 +181,7 @@ export default function Instances() {
 
       {instances.length === 0 ? (
         <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", padding: "48px", textAlign: "center" }}>
-          <Bot size={32} color={colors.text.muted} style={{ marginBottom: "16px" }} />
+          <img src={BOT_IMG} alt="" style={{ width: "100px", marginBottom: "16px", opacity: 0.7 }} />
           <p style={{ color: colors.text.secondary, fontSize: "15px", fontFamily: fonts.body, marginBottom: "8px" }}>No instances yet</p>
           <p style={{ color: colors.text.muted, fontSize: "13px", fontFamily: fonts.body, marginBottom: "20px" }}>Create your first bot instance to get started</p>
           <button onClick={() => setShowCreate(true)} style={T.btnPrimary}><Plus size={15} /> Create First Instance</button>
