@@ -1,9 +1,9 @@
-# BridgeBot - AI Chatbot SaaS Platform
+# Discord-Pro — AI Chatbot SaaS Platform
 
 ## Product Requirements Document
 
 ### Original Problem Statement
-Create an AI chatbot (BridgeBot) with an admin web UI, Discord integration, and website widget using Claude. Must have a knowledge base (RAG over docs) and tone training layer. Transform the app into a multi-tenant SaaS where an admin can create multiple instances and assign them to users. Include email verification, hybrid JWT auth, and Discord integration capabilities.
+Create an AI chatbot platform with an admin web UI, Discord integration, and website widget using Claude. Must have a knowledge base (RAG over docs) and tone training layer. Multi-tenant SaaS where an admin can create multiple instances and assign them to users. Include email verification, hybrid JWT auth, and Discord integration capabilities. Rebranded from BridgeBot to **Discord-Pro**.
 
 ### Architecture
 ```
@@ -16,18 +16,18 @@ Create an AI chatbot (BridgeBot) with an admin web UI, Discord integration, and 
 │   ├── package.json
 │   ├── craco.config.js (@ alias configured)
 │   └── src/
-│       ├── theme.js (Tron design system tokens)
+│       ├── theme.js (Soft AI Bot design system tokens)
 │       ├── index.css (CSS vars, fonts, animations)
 │       ├── App.css (scrollbar, global styles)
 │       ├── App.js (routing)
 │       ├── utils/api.js (relative /api paths)
 │       ├── context/AuthContext.js (hybrid JWT auth)
-│       ├── components/AdminLayout.js (Tron sidebar)
-│       └── pages/ (17 pages - all Tron themed)
+│       ├── components/AdminLayout.js (rounded sidebar)
+│       └── pages/ (17 pages — all Discord-Pro themed)
 ├── memory/
 │   ├── PRD.md
 │   └── test_credentials.md
-└── design_guidelines.json
+└── design_guidelines.json (original Tron spec, now superseded)
 ```
 
 ### Tech Stack
@@ -35,6 +35,15 @@ Create an AI chatbot (BridgeBot) with an admin web UI, Discord integration, and 
 - Claude Opus 4.5 / Sonnet 4.5 via Emergent LLM Key
 - Discord.py (background task), Resend Email API
 - Recharts for analytics, Lucide icons, Sonner toasts
+
+### Design System (Current)
+- **Style**: Soft AI Bot — rounded, approachable, lighter blues on dark
+- **Backgrounds**: #0B1120 (base), #111827 (surface), #1E293B (panel)
+- **Primary**: #3B82F6 (blue), #60A5FA (light), #93C5FD (lighter)
+- **Typography**: Outfit headings, IBM Plex Sans body, JetBrains Mono mono
+- **Corners**: 14px cards, 10px inputs/buttons, 6px badges
+- **Shadows**: Soft blue-tinted, gradient buttons
+- **Auth pages**: Centered card with subtle gradient background orbs
 
 ### What's Been Implemented
 
@@ -45,19 +54,18 @@ Create an AI chatbot (BridgeBot) with an admin web UI, Discord integration, and 
 - Admin user management & instance assignment
 - Knowledge base (FAQ, URL scraping, document upload)
 - AI chat with knowledge gate & tone training
-- LLM analytics with Opus→Sonnet fallback logic
+- LLM analytics with Opus->Sonnet fallback logic
 - Discord bot integration (channel monitoring, name sync)
 - Website embed widget & standalone chat page
 
-**P0 Tron UI Redesign (Complete - Feb 2026)**
-- Full "Tactical Futurism" design system applied to all 17+ pages
-- Shared theme.js with design tokens (colors, fonts, spacing)
-- Deep navy backgrounds (#030712), cyan (#00F5FF) accents, royal blue (#0088FF) primary
-- Outfit headings, IBM Plex Sans body, JetBrains Mono mono
-- Sharp 2px corners, glow effects, glassmorphism
-- Split-screen auth pages with generated Tron grid background image
-- Consistent sidebar with cyan active indicators
-- All charts, tables, cards, inputs, buttons redesigned
+**P0 UI Design (Complete — Feb 2026)**
+- Initial Tron "Tactical Futurism" theme applied
+- Refined to soft, rounded AI bot aesthetic
+- Rebranded BridgeBot → Discord-Pro across all 17+ pages + HTML meta
+- Shared theme.js design system with color aliases
+- All cards, inputs, buttons, badges rounded
+- Gradient buttons and avatars
+- Subtle ambient light orbs on auth pages
 
 ### Pending / Future Tasks
 - P2: Split server.py into separate route modules (~1200 lines)
@@ -76,12 +84,9 @@ Create an AI chatbot (BridgeBot) with an admin web UI, Discord integration, and 
 - GET/PUT /api/discord/config, POST /api/discord/restart, /api/discord/sync-name
 - GET /api/admin/instances, /api/admin/users
 
-### DB Collections
-- users, bot_instances, bot_config, knowledge_sources
-- conversations, discord_config, llm_usage
-
 ### Critical Notes
 1. Frontend uses ONLY relative /api paths (no REACT_APP_BACKEND_URL in source)
 2. Discord bot name changes rate-limited to 2/hour
-3. LLM fallback: Opus 4.5 → 2 retries → Sonnet 4.5 (logged to llm_usage)
-4. Resend email is mocked if API key missing (prints to stdout)
+3. LLM fallback: Opus 4.5 → 2 retries → Sonnet 4.5
+4. Resend email is MOCKED if API key missing (prints to stdout)
+5. Platform rebranded from BridgeBot to Discord-Pro
