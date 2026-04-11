@@ -1,112 +1,130 @@
 {
-  "project_name": "BotForge",
-  "theme": "Dark Mode Default (Swiss & High-Contrast / Performance Pro)",
+  "theme": "dark",
+  "archetype": "7 (Electric & Neon)",
+  "design_philosophy": {
+    "concept": "Tactical Futurism & Blue Legacy Tron",
+    "description": "A high-end, data-driven 'Control Room' interface blending Deep Navy and Void Black with Electric Cyan and Royal Blue glows. Emphasizes geometric simplicity, strict grids, and terminal-inspired aesthetics over generic SaaS layouts. The glow is earned through interactions.",
+    "key_traits": ["Sharp Corners", "Glowing Accents", "Monospace Tech Text", "Bento Grid Dashboard", "Neon Shadows"]
+  },
   "typography": {
-    "headings": {
-      "family": "Chivo",
-      "weights": ["300", "900"],
-      "usage": "Use font-light for elegance and font-black for impact. Apply tracking-tight to sizes > 32px. DO NOT use Inter for headings."
-    },
-    "body": {
-      "family": "IBM Plex Sans",
-      "weights": ["400", "500"],
-      "usage": "Highly legible, slightly technical. Use leading-relaxed. Left-align text."
-    },
-    "mono": {
-      "family": "JetBrains Mono",
-      "weights": ["400"],
-      "usage": "Overlines, labels, stats, embed codes. Uppercase + tracking-[0.2em] for overlines."
-    }
-  },
-  "colors": {
-    "background": "#0A0A0A",
-    "surface": "#121212",
-    "surface_hover": "#1A1A1A",
-    "primary": "#0055FF",
-    "primary_hover": "#3377FF",
-    "text_primary": "#FFFFFF",
-    "text_secondary": "#A1A1AA",
-    "border": "#262626",
-    "accent_danger": "#FF3B30",
-    "accent_success": "#00FF66"
-  },
-  "visual_enhancers": {
-    "surface_strategies": [
+    "fonts": [
       {
-        "name": "Grid Borders (Technical Look)",
-        "target": "Admin Dashboard, Analytics grids",
-        "implementation": "border-collapse style layout. Items get border-r border-b border-[#262626]."
+        "role": "Headings",
+        "family": "Outfit",
+        "type": "sans-serif",
+        "classes": "font-sans tracking-tight"
       },
       {
-        "name": "Glassmorphism (Crystal)",
-        "target": "Chat Widget overlay, Sticky headers",
-        "implementation": "bg-[#0A0A0A]/60, backdrop-blur-xl, border border-white/10, shadow-sm. NEVER use fully transparent backgrounds."
+        "role": "Body",
+        "family": "IBM Plex Sans",
+        "type": "sans-serif",
+        "classes": "font-sans leading-relaxed"
+      },
+      {
+        "role": "Accents/Overlines",
+        "family": "JetBrains Mono",
+        "type": "monospace",
+        "classes": "font-mono tracking-[0.2em] uppercase text-xs"
       }
+    ]
+  },
+  "colors": {
+    "background": {
+      "base": "#030712",
+      "surface": "#050B14",
+      "panel": "#0B132B",
+      "glass": "rgba(11, 19, 43, 0.6)"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#94A3B8",
+      "accent": "#00F5FF",
+      "muted": "#475569"
+    },
+    "brand": {
+      "cyan_glow": "#00F5FF",
+      "royal_blue": "#0088FF",
+      "void_black": "#050510",
+      "error": "#FF003C",
+      "success": "#00FF66"
+    },
+    "borders": {
+      "default": "rgba(0, 136, 255, 0.3)",
+      "active": "#00F5FF",
+      "muted": "rgba(255, 255, 255, 0.1)"
+    }
+  },
+  "spacing_and_layout": {
+    "strategy": "Control Room Grid",
+    "dashboard_grid": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6",
+    "card_padding": "p-6 md:p-8",
+    "section_spacing": "py-12 md:py-16",
+    "border_radius": "rounded-sm"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#0088FF] text-white hover:bg-[#00F5FF] hover:text-[#050510] hover:shadow-[0_0_15px_rgba(0,245,255,0.6)] transition-all duration-300 font-medium rounded-sm border border-[#00F5FF]/50",
+      "secondary": "bg-transparent text-[#00F5FF] border border-[#0088FF]/50 hover:border-[#00F5FF] hover:shadow-[0_0_10px_rgba(0,136,255,0.4)] transition-all duration-300 rounded-sm",
+      "ghost": "text-[#94A3B8] hover:text-[#00F5FF] hover:bg-[#0088FF]/10 transition-colors"
+    },
+    "cards": {
+      "base": "bg-[#050B14] border border-[#0088FF]/30 rounded-sm",
+      "hover": "hover:border-[#00F5FF]/80 hover:shadow-[0_4px_20px_rgba(0,136,255,0.15)] transition-all duration-300"
+    },
+    "inputs": {
+      "base": "bg-[#030712] border border-[#0088FF]/40 text-white rounded-sm focus:border-[#00F5FF] focus:ring-1 focus:ring-[#00F5FF] transition-all placeholder:text-slate-600"
+    },
+    "sidebar": {
+      "container": "bg-[#050B14] border-r border-[#0088FF]/20",
+      "link_active": "border-l-2 border-[#00F5FF] bg-gradient-to-r from-[#00F5FF]/10 to-transparent text-[#00F5FF]",
+      "link_idle": "text-[#94A3B8] hover:text-[#00F5FF] hover:bg-[#0088FF]/5"
+    }
+  },
+  "visual_enhancers": {
+    "glow_effects": [
+      "shadow-[0_0_15px_rgba(0,245,255,0.4)]",
+      "drop-shadow-[0_0_8px_rgba(0,136,255,0.6)]"
     ],
-    "textures": "Use subtle SVG noise overlays to kill digital flatness."
-  },
-  "component_names": [
-    "Button",
-    "Card",
-    "Input",
-    "Table",
-    "Dialog",
-    "Tabs",
-    "Toast"
-  ],
-  "component_path": "/app/frontend/src/components/ui/",
-  "grids": {
-    "protocol": "Mode B: High Density Grid",
-    "base": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4",
-    "gap": "gap-4 or gap-6",
-    "rule": "Every pixel must be utilized. Use h-full on children. No jagged bottoms."
-  },
-  "layouts": {
-    "spacing_system": "Generous spacing. p-6 or p-8 inside bordered containers. Avoid standard p-4.",
-    "alignment": "Strictly left-aligned. No center-everything default. Optical alignment for icons."
-  },
-  "motion": {
-    "micro_interactions": "Hover states on cards: slight lift (-translate-y-1), border color brightens to white/30.",
-    "transitions": "Use specific properties: transition: transform 0.2s ease, border-color 0.2s ease. NEVER use transition-all.",
-    "accessibility": "Respect prefers-reduced-motion."
-  },
-  "accessibility": {
-    "contrast": "Ensure text meets 4.5:1. Primary button text MUST be #FFFFFF against #0055FF.",
-    "focus": "High contrast focus rings required on all inputs/buttons.",
-    "testing": "All interactive elements MUST have data-testid attributes (kebab-case, role-based)."
+    "glassmorphism": "backdrop-blur-xl bg-[#0B132B]/60 border border-[#00F5FF]/20",
+    "micro_interactions": "All interactive elements MUST have a state change. Text color shifts to Cyan, borders illuminate on hover/focus."
   },
   "media": {
-    "icons": {
-      "library": "@phosphor-icons/react",
-      "instruction": "Run `yarn add @phosphor-icons/react`. Use Duotone for empty states, Regular for dense UI."
-    }
-  },
-  "3d_libraries": {
-    "strategy": "The Specialists (Deep Data & Geography)",
-    "library": "recharts",
-    "usage": "Use Recharts for the Analytics dashboard to visualize message volume and response quality. Customize with sharp edges, dark tooltips, and Volt Blue primary color."
-  },
-  "image_urls": [
-    {
-      "category": "Hero / Chat Background",
-      "url": "https://images.unsplash.com/photo-1762279389042-9439bfb6c155?crop=entropy&cs=srgb&fm=jpg",
-      "description": "Abstract neon lines forming a digital landscape. Use subtly with low opacity behind the chat demo."
+    "auth_background": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/a9ed4607-9191-4987-997f-567023b29223/images/8644f8b8f1ed8ab3df7a7849c3cfbba50c74f9818fdaf7a3115cf18dc70e7161.png",
+      "description": "Abstract futuristic digital grid background in deep navy blue and pure black, subtle electric cyan glowing lines intersecting"
     },
-    {
-      "category": "Bot Avatar Persona",
-      "url": "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg",
-      "description": "Futuristic humanoid robot. Use in the Bot Persona settings as the default placeholder avatar."
+    "dashboard_hero": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/a9ed4607-9191-4987-997f-567023b29223/images/11956bd17b8cd891f7c0ff5972efa6c07f8e2ef6cf98cddd44372425b64ed602.png",
+      "description": "High-end abstract data visualization, glowing cyan and royal blue nodes"
+    },
+    "bot_avatar_placeholder": {
+      "url": "https://images.unsplash.com/photo-1760931969401-9bd6ee902798?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxuZW9uJTIwZ2xvd2luZyUyMG9yYiUyMHJvYm90JTIwaGVhZCUyMGF2YXRhciUyMGRhcmt8ZW58MHx8fHwxNzc1ODk0NDEzfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Futuristic robot head with glowing red triangle symbol, to be used as default bot persona avatar."
     }
-  ],
-  "general_ui_ux_guidelines": "Do not center align the app container. No .App { text-align: center }. Use layered depth with z-index. Always use named exports for components, default for pages. Avoid generic SaaS look by emphasizing stark contrast and rigid technical grids. All interactive and key informational elements MUST include a data-testid attribute.",
-  "instructions_to_main_agent": [
-    "Setup fonts: Import Chivo, IBM Plex Sans, and JetBrains Mono from Google Fonts.",
-    "Update tailwind.config.js: Set radius to 0, update color tokens to match guidelines.",
-    "Install dependencies: `yarn add @phosphor-icons/react recharts sonner`.",
-    "Override Shadcn default radius and colors to match the strict, sharp-edged Brutalist aesthetic.",
-    "Ensure dark mode is default.",
-    "Build the layout using CSS Grid with high density.",
-    "Include `data-testid` on all buttons, links, and forms."
-  ],
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": "You tend to converge toward generic, 'on distribution' outputs. Avoid this by using stark contrast, sharp corners, and deep monochrome layers. Do not use generic centered layouts. Create depth through borders and backdrop filters, not soft drop shadows. NEVER use emojis for icons. Prioritize component reuse. Use sonner for toasts. You MUST NOT apply universal transition. Eg: transition: all."
+  },
+  "page_specific_instructions": {
+    "auth_pages": "Login/Register/Verify/Forgot: Split screen layout. Left side: Form with sharp inputs. Right side: auth_background image with a dark gradient overlay (bg-gradient-to-r from-[#030712] to-transparent) so it blends seamlessly.",
+    "admin_sidebar": "Deep navy background with instance switcher at the top. Use JetBrains Mono for instance names. Active states have neon cyan left-borders.",
+    "dashboard_overview": "Top section uses bento grid for stats (Instances, Users, Messages). Recharts for analytics using cyan/blue strokes on transparent backgrounds.",
+    "knowledge_base": "Upload area styled as a dropzone with dashed cyan border, glowing on drag-over. Document list uses tight data tables.",
+    "bot_settings": "Form sections categorized in cards with subtle glowing borders. Persona editor includes a preview panel resembling a terminal window.",
+    "conversations_and_users": "Data tables using Shadcn. Dark rows, cyan hover state (hover:bg-[#00F5FF]/10). Dense grid layout.",
+    "analytics": "Recharts with heavy customization: hide generic grids, use solid horizontal gridlines (rgba(0,136,255,0.1)), neon strokes, and glowing tooltips.",
+    "discord_settings": "Discord blue (#5865F2) mixed with the Tron theme. Dedicated card layout for Webhook/Bot Token setups.",
+    "embed_generator": "Code block styled using a dark terminal aesthetic (bg-[#030712], border-[#0088FF]/30) with JetBrains Mono font. Include a 'Copy' button with cyan hover.",
+    "chat_widget": "Floating action button with cyan pulse animation. When expanded, an edge-to-edge dark chat interface with neon blue message bubbles (User) and dark gray (Bot).",
+    "standalone_chat": "Full-screen interface. Sidebar for history, main chat area uses a sleek, cardless message list. Focus on readability with high contrast typography."
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure pure white text on dark navy backgrounds meets APCA standards. Cyan text should be reserved for larger accents, borders, or high-contrast states.",
+    "testing_attributes": "Add `data-testid` to all forms, submit buttons, navigation links, and settings toggles (e.g., `data-testid='login-submit-button'`, `data-testid='nav-dashboard'`)."
+  },
+  "dependencies": [
+    "lucide-react",
+    "recharts",
+    "framer-motion",
+    "@studio-freight/lenis",
+    "clsx",
+    "tailwind-merge"
+  ]
 }
