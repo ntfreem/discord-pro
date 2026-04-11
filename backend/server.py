@@ -34,6 +34,7 @@ ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
 DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID", "")
 DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET", "")
 DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "")
+DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 DISCORD_BOT_PERMISSIONS = 68608  # View Channels + Send Messages + Read Message History
 
 mongo_client = AsyncIOMotorClient(MONGO_URL)
@@ -603,9 +604,10 @@ async def startup_event():
             await col.update_many({"instance_id": {"$exists": False}}, {"$set": {"instance_id": migrate_id}})
 
     discord_config = await db.discord_config.find_one({"is_active": True}, {"_id": 0})
-    if discord_config and discord_config.get("bot_token"):
+    bot_token = (discord_config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+    if discord_config and bot_token:
         iid = discord_config.get("instance_id", "default")
-        discord_task = asyncio.create_task(start_discord_bot(discord_config["bot_token"], iid, discord_config))
+        discord_task = asyncio.create_task(start_discord_bot(bot_token, iid, discord_config))
 
 
 @app.on_event("shutdown")
@@ -1316,7 +1318,8 @@ async def discord_oauth_callback(
 
             # Auto-start the bot if we have a token
             config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
-            if config and config.get("bot_token"):
+            bot_token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+            if bot_token:
                 global discord_task, discord_client_instance
                 if discord_client_instance:
                     try:
@@ -1328,7 +1331,7 @@ async def discord_oauth_callback(
                     discord_task.cancel()
                     discord_task = None
                 discord_task = asyncio.create_task(
-                    start_discord_bot(config["bot_token"], instance_id, config)
+                    start_discord_bot(bot_token, instance_id, config or {})
                 )
 
             return RedirectResponse(
@@ -1345,13 +1348,13 @@ async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
     """Push the bot_config name to Discord as the bot's username immediately."""
     import aiohttp
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
-    if not config or not config.get("bot_token"):
+    token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+    if not token:
         raise HTTPException(status_code=400, detail="Bot token not configured")
     bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
     name = (bot_config or {}).get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Bot name not set. Configure it in Bot Settings first.")
-    token = config["bot_token"]
     async with aiohttp.ClientSession() as session:
         async with session.patch(
             "https://discord.com/api/v10/users/@me",
@@ -1374,9 +1377,9 @@ async def get_discord_channels(instance_id: str = Depends(get_instance_access)):
     """Fetch text channels from all guilds the bot is in, using the stored token."""
     import aiohttp
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
-    if not config or not config.get("bot_token"):
+    token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+    if not token:
         raise HTTPException(status_code=400, detail="Bot token not configured. Save your token first.")
-    token = config["bot_token"]
     headers = {"Authorization": f"Bot {token}"}
     all_channels = []
     try:
@@ -1415,15 +1418,16 @@ async def get_discord_config(instance_id: str = Depends(get_instance_access)):
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
     if config:
         token = config.get("bot_token", "")
+        has_token = bool(token or DISCORD_BOT_TOKEN)
         if token:
             config["bot_token_display"] = token[:8] + "..." + token[-4:] if len(token) > 12 else "***"
-            config["has_bot_token"] = True
-        else:
-            config["has_bot_token"] = False
+        elif DISCORD_BOT_TOKEN:
+            config["bot_token_display"] = "Configured via environment"
+        config["has_bot_token"] = has_token
         config.pop("bot_token", None)
         config.pop("oauth_access_token", None)
     else:
-        config = {"is_active": False, "has_bot_token": False, "oauth_connected": False}
+        config = {"is_active": False, "has_bot_token": bool(DISCORD_BOT_TOKEN), "oauth_connected": False}
     config["oauth_enabled"] = bool(DISCORD_CLIENT_ID)
     return config
 
@@ -1450,9 +1454,10 @@ async def restart_discord_bot(instance_id: str = Depends(get_instance_access)):
         discord_task.cancel()
         discord_task = None
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
-    if not config or not config.get("bot_token"):
+    token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+    if not token:
         raise HTTPException(status_code=400, detail="Discord bot token not configured")
-    discord_task = asyncio.create_task(start_discord_bot(config["bot_token"], instance_id, config))
+    discord_task = asyncio.create_task(start_discord_bot(token, instance_id, config or {}))
     return {"success": True, "message": "Discord bot starting..."}
 
 
