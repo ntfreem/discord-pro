@@ -11,7 +11,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [botConfig, setBotConfig] = useState({ name: "Discord-Pro Assistant" });
+  const [botConfig, setBotConfig] = useState({ name: "BridgeBot Assistant" });
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const [searchParams] = useSearchParams();
@@ -72,7 +72,7 @@ export default function ChatPage() {
           </div>
           <div>
             <p style={{ fontFamily: fonts.heading, fontSize: "16px", fontWeight: "700", color: colors.text.primary, margin: 0, letterSpacing: "-0.3px" }}>
-              {botConfig.name || "Discord-Pro Assistant"}
+              {botConfig.name || "BridgeBot Assistant"}
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: colors.brand.success, boxShadow: `0 0 6px ${colors.brand.success}` }} />

@@ -46,12 +46,12 @@ export default function Register() {
             <Bot size={22} color="#FFFFFF" />
           </div>
           <span style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary }}>
-            Discord<span style={{ color: colors.brand.light }}>-Pro</span>
+            Bridge<span style={{ color: colors.brand.light }}>Bot</span>
           </span>
         </div>
 
         <h1 style={{ fontFamily: fonts.heading, fontSize: "24px", fontWeight: "700", color: colors.text.primary, textAlign: "center", margin: "0 0 6px" }}>Create account</h1>
-        <p style={{ fontSize: "14px", color: colors.text.secondary, textAlign: "center", marginBottom: "28px" }}>Join Discord-Pro and start building</p>
+        <p style={{ fontSize: "14px", color: colors.text.secondary, textAlign: "center", marginBottom: "28px" }}>Join BridgeBot and start building</p>
 
         {error && <div style={T.err} data-testid="register-error">{error}</div>}
         {success && <div style={T.success} data-testid="register-success">{success}</div>}

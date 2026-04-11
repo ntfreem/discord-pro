@@ -48,7 +48,7 @@ export default function Login() {
               <Bot size={22} color="#FFFFFF" />
             </div>
             <span style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary }}>
-              Discord<span style={{ color: colors.brand.light }}>-Pro</span>
+              Bridge<span style={{ color: colors.brand.light }}>Bot</span>
             </span>
           </div>
 

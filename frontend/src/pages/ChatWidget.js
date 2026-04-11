@@ -157,7 +157,7 @@ export default function ChatWidget() {
           </button>
         </div>
         <p style={{ fontFamily: fonts.mono, fontSize: "9px", color: colors.text.muted, margin: "6px 0 0", textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "center" }}>
-          Powered by Discord-Pro
+          Powered by BridgeBot
         </p>
       </div>
     </div>

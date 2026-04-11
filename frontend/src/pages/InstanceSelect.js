@@ -12,7 +12,7 @@ export default function InstanceSelect() {
     <div style={{ minHeight: "100vh", backgroundColor: colors.bg.base, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", fontFamily: fonts.body }}>
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "40px" }}>
         <div style={{ width: "40px", height: "40px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`, borderRadius: radius.md, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 15px rgba(59,130,246,0.35)" }}><Bot size={22} color="#FFFFFF" /></div>
-        <span style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary }}>Discord<span style={{ color: colors.brand.light }}>-Pro</span></span>
+        <span style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary }}>Bridge<span style={{ color: colors.brand.light }}>Bot</span></span>
       </div>
       <div style={{ width: "100%", maxWidth: "520px" }}>
         <p style={{ fontFamily: fonts.mono, fontSize: "11px", color: colors.brand.light, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "6px" }}>{user?.email}</p>

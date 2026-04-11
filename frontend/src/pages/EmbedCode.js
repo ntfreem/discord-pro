@@ -49,11 +49,11 @@ export default function EmbedCode() {
   const widgetUrl = `${window.location.origin}/widget${instanceParam}`;
   const chatUrl = `${window.location.origin}/chat${instanceParam}`;
 
-  const iframeCode = `<!-- Discord-Pro Chat Widget -->\n<iframe\n  src="${widgetUrl}"\n  style="position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)"\n  title="Discord-Pro Chat"\n></iframe>`;
+  const iframeCode = `<!-- BridgeBot Chat Widget -->\n<iframe\n  src="${widgetUrl}"\n  style="position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)"\n  title="BridgeBot Chat"\n></iframe>`;
 
-  const scriptCode = `<!-- Discord-Pro Chat Widget (Auto-inject) -->\n<script>\n(function() {\n  var iframe = document.createElement('iframe');\n  iframe.src = '${widgetUrl}';\n  iframe.title = 'Discord-Pro Chat';\n  iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)';\n  document.body.appendChild(iframe);\n})();\n</script>`;
+  const scriptCode = `<!-- BridgeBot Chat Widget (Auto-inject) -->\n<script>\n(function() {\n  var iframe = document.createElement('iframe');\n  iframe.src = '${widgetUrl}';\n  iframe.title = 'BridgeBot Chat';\n  iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)';\n  document.body.appendChild(iframe);\n})();\n</script>`;
 
-  const reactCode = `// React component embed\nimport React from 'react';\n\nexport function DiscordProWidget() {\n  return (\n    <iframe\n      src="${widgetUrl}"\n      title="Discord-Pro Chat"\n      style={{\n        position: 'fixed', bottom: '20px', right: '20px',\n        width: '380px', height: '600px', border: 'none',\n        zIndex: 9999, borderRadius: '8px',\n        boxShadow: '0 8px 32px rgba(0,0,0,0.5)'\n      }}\n    />\n  );\n}`;
+  const reactCode = `// React component embed\nimport React from 'react';\n\nexport function BridgeBotWidget() {\n  return (\n    <iframe\n      src="${widgetUrl}"\n      title="BridgeBot Chat"\n      style={{\n        position: 'fixed', bottom: '20px', right: '20px',\n        width: '380px', height: '600px', border: 'none',\n        zIndex: 9999, borderRadius: '8px',\n        boxShadow: '0 8px 32px rgba(0,0,0,0.5)'\n      }}\n    />\n  );\n}`;
 
   return (
     <div style={T.page}>
@@ -84,7 +84,7 @@ export default function EmbedCode() {
               backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "4px",
               overflow: "hidden", height: "520px", position: "relative"
             }}>
-              <iframe src={widgetUrl} title="Discord-Pro Widget Preview" data-testid="widget-preview-iframe"
+              <iframe src={widgetUrl} title="BridgeBot Widget Preview" data-testid="widget-preview-iframe"
                 style={{ width: "100%", height: "100%", border: "none" }} />
             </div>
             <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.muted, marginTop: "12px" }}>

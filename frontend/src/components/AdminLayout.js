@@ -71,7 +71,7 @@ export default function AdminLayout() {
                 fontFamily: fonts.heading, fontSize: "18px", fontWeight: "700",
                 color: colors.text.primary, letterSpacing: "-0.3px",
               }}>
-                Discord<span style={{ color: colors.brand.light }}>-Pro</span>
+                Bridge<span style={{ color: colors.brand.light }}>Bot</span>
               </span>
               <p style={{
                 fontFamily: fonts.mono, fontSize: "9px", color: colors.text.muted,
