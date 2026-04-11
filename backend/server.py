@@ -167,6 +167,9 @@ class ApproveBody(BaseModel):
 class DiscordConfigUpdate(BaseModel):
     bot_token: Optional[str] = None
     is_active: Optional[bool] = None
+    listen_mode: Optional[str] = None          # mention_only | all_channels | specific_channels
+    monitored_channel_ids: Optional[List[str]] = None
+    reply_style: Optional[str] = None          # natural | with_mention
 
 
 # ==================== JWT AUTH HELPERS ====================
@@ -440,8 +443,13 @@ async def save_conversation(session_id: str, user_message: str, bot_response: st
 
 # ==================== DISCORD BOT ====================
 
-async def start_discord_bot(token: str, instance_id: str = "default"):
+async def start_discord_bot(token: str, instance_id: str = "default", config: dict = None):
     global discord_client_instance
+    cfg = config or {}
+    listen_mode = cfg.get("listen_mode", "mention_only")          # mention_only | all_channels | specific_channels
+    monitored_ids = set(cfg.get("monitored_channel_ids") or [])   # channel IDs for specific_channels
+    reply_style = cfg.get("reply_style", "natural")               # natural | with_mention
+
     try:
         import discord
         intents = discord.Intents.default()
@@ -450,21 +458,38 @@ async def start_discord_bot(token: str, instance_id: str = "default"):
 
         @discord_client_instance.event
         async def on_ready():
-            logger.info(f"Discord bot online: {discord_client_instance.user}")
+            logger.info(f"Discord bot online: {discord_client_instance.user} | mode={listen_mode}")
 
         @discord_client_instance.event
         async def on_message(message):
+            # Never respond to bots
             if message.author.bot:
                 return
+
             is_dm = isinstance(message.channel, discord.DMChannel)
             is_mentioned = (discord_client_instance.user in message.mentions
                             if discord_client_instance.user else False)
-            if not is_dm and not is_mentioned:
+
+            # Determine whether to respond based on listen_mode
+            if is_dm:
+                should_respond = True
+            elif listen_mode == "mention_only":
+                should_respond = is_mentioned
+            elif listen_mode == "all_channels":
+                should_respond = True
+            elif listen_mode == "specific_channels":
+                should_respond = (str(message.channel.id) in monitored_ids) or is_mentioned
+            else:
+                should_respond = is_mentioned
+
+            if not should_respond:
                 return
 
+            # Clean the message text — strip bot mention if present
             user_text = message.content
             if discord_client_instance.user:
                 user_text = user_text.replace(f"<@{discord_client_instance.user.id}>", "").strip()
+                user_text = user_text.replace(f"<@!{discord_client_instance.user.id}>", "").strip()
             if not user_text:
                 return
 
@@ -482,14 +507,19 @@ async def start_discord_bot(token: str, instance_id: str = "default"):
                     platform="discord", instance_id=instance_id,
                     metadata={"username": str(message.author.name), "user_id": str(message.author.id)}
                 )
+                # Apply reply style
+                if reply_style == "with_mention" and not is_dm:
+                    response = f"{message.author.mention} {response}"
+
+                # Discord has a 2000 char limit
                 if len(response) > 1990:
                     for i in range(0, len(response), 1990):
-                        await message.reply(response[i:i+1990])
+                        await message.channel.send(response[i:i+1990])
                 else:
-                    await message.reply(response)
+                    await message.channel.send(response)
             except Exception as e:
                 logger.error(f"Discord message error: {e}")
-                await message.reply("Sorry, I encountered an error. Please try again.")
+                await message.channel.send("Sorry, I encountered an error. Please try again.")
 
         await discord_client_instance.start(token)
     except Exception as e:
@@ -542,7 +572,7 @@ async def startup_event():
     discord_config = await db.discord_config.find_one({"is_active": True}, {"_id": 0})
     if discord_config and discord_config.get("bot_token"):
         iid = discord_config.get("instance_id", "default")
-        discord_task = asyncio.create_task(start_discord_bot(discord_config["bot_token"], iid))
+        discord_task = asyncio.create_task(start_discord_bot(discord_config["bot_token"], iid, discord_config))
 
 
 @app.on_event("shutdown")
@@ -1155,6 +1185,47 @@ async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
 
 # ==================== DISCORD (PROTECTED) ====================
 
+@api_router.get("/discord/channels")
+async def get_discord_channels(instance_id: str = Depends(get_instance_access)):
+    """Fetch text channels from all guilds the bot is in, using the stored token."""
+    import aiohttp
+    config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
+    if not config or not config.get("bot_token"):
+        raise HTTPException(status_code=400, detail="Bot token not configured. Save your token first.")
+    token = config["bot_token"]
+    headers = {"Authorization": f"Bot {token}"}
+    all_channels = []
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://discord.com/api/v10/users/@me/guilds", headers=headers) as resp:
+                if resp.status == 401:
+                    raise HTTPException(status_code=400, detail="Invalid bot token")
+                if resp.status != 200:
+                    raise HTTPException(status_code=400, detail="Failed to fetch guilds from Discord")
+                guilds = await resp.json()
+            for guild in guilds[:10]:
+                async with session.get(
+                    f"https://discord.com/api/v10/guilds/{guild['id']}/channels", headers=headers
+                ) as resp:
+                    if resp.status != 200:
+                        continue
+                    channels = await resp.json()
+                    for c in channels:
+                        if c.get("type") == 0:  # GUILD_TEXT only
+                            all_channels.append({
+                                "id": str(c["id"]),
+                                "name": c["name"],
+                                "guild_id": str(guild["id"]),
+                                "guild_name": guild["name"],
+                            })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Discord channel fetch error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch channels from Discord")
+    return all_channels
+
+
 @api_router.get("/discord/config")
 async def get_discord_config(instance_id: str = Depends(get_instance_access)):
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
@@ -1190,7 +1261,7 @@ async def restart_discord_bot(instance_id: str = Depends(get_instance_access)):
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
     if not config or not config.get("bot_token"):
         raise HTTPException(status_code=400, detail="Discord bot token not configured")
-    discord_task = asyncio.create_task(start_discord_bot(config["bot_token"], instance_id))
+    discord_task = asyncio.create_task(start_discord_bot(config["bot_token"], instance_id, config))
     return {"success": True, "message": "Discord bot starting..."}
 
 

@@ -98,7 +98,7 @@ AI Chatbot platform with admin web UI, Claude AI integration (Opus 4.5), Discord
 - [x] Dashboard re-fetches data when `selectedInstance` changes (instance switch works without page reload)
 - [x] Block login for non-admin users with 0 assigned instances ("No instances assigned. Contact your admin.")
 - [x] Removed startup auto-creation of default instance (admin creates instances manually)
-- [x] AI Usage analytics (GET /analytics/llm-usage) — total calls, success rate, retries, fallbacks, daily bar chart, error breakdown
+- [x] Discord enhanced: listen_mode (mention_only / all_channels / specific_channels), auto-fetch channels via REST API, reply_style (natural / with_mention), human-only auto-respond
 - [x] Claude Opus retry logic (2× retries with backoff) + automatic Sonnet fallback
 - [x] llm_usage MongoDB collection tracks every API call with model, success, retry_count, error_type, platform
 - [x] "Forgot password?" link on login page → /forgot-password → /reset-password flow
