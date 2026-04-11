@@ -6,7 +6,7 @@ import { Bot, ArrowRight } from "lucide-react";
 import { colors, fonts, radius, T, onFocus, onBlur } from "../theme";
 
 const BASE = `/api`;
-const LOGIN_ART = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/ed512d51ac1409ffabe308576d0f1f8f165e8f123bb9437c753f4da525879c01.png";
+const SPACE_ART = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/14a8efcbd4d630c175eea7c6d1542e55cf5676070cd4fafb306fec57d11bd329.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -33,12 +33,9 @@ export default function Login() {
     <div style={{ minHeight: "100vh", display: "flex", backgroundColor: colors.bg.base }}>
       {/* Left: Form */}
       <div style={{
-        flex: "0 0 50%", display: "flex", alignItems: "center", justifyContent: "center",
+        width: "50%", display: "flex", alignItems: "center", justifyContent: "center",
         padding: "40px", fontFamily: fonts.body, position: "relative", zIndex: 2,
       }}>
-        {/* Soft ambient glow */}
-        <div style={{ position: "absolute", top: "10%", left: "10%", width: "350px", height: "350px", borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-
         <div style={{ width: "100%", maxWidth: "400px" }}>
           {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "48px" }}>
@@ -75,7 +72,7 @@ export default function Login() {
 
             <div style={{ textAlign: "right", marginBottom: "24px" }}>
               <Link to="/forgot-password" data-testid="forgot-password-link"
-                style={{ fontSize: "13px", color: colors.text.muted, textDecoration: "none", transition: "color 0.2s" }}>
+                style={{ fontSize: "13px", color: colors.text.muted, textDecoration: "none" }}>
                 Forgot password?
               </Link>
             </div>
@@ -97,49 +94,24 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right: Graphic */}
+      {/* Right: Space Cartoon - takes up full half */}
       <div style={{
-        flex: "0 0 50%", position: "relative", overflow: "hidden",
+        width: "50%", position: "relative", overflow: "hidden",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {/* Background gradient that blends with base */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: `radial-gradient(ellipse at center, rgba(59, 130, 246, 0.08) 0%, transparent 65%)`,
-        }} />
-
-        {/* The AI graphic */}
         <img
-          src={LOGIN_ART}
-          alt="AI Assistant"
+          src={SPACE_ART}
+          alt="AI Space Bot"
           style={{
-            width: "80%", maxWidth: "480px",
-            objectFit: "contain",
-            filter: "drop-shadow(0 0 60px rgba(59, 130, 246, 0.2))",
-            animation: "float 5s ease-in-out infinite",
-            position: "relative", zIndex: 1,
+            width: "100%", height: "100%",
+            objectFit: "cover",
+            position: "absolute", inset: 0,
           }}
         />
-
-        {/* Edge blend gradients */}
+        {/* Soft left-edge blend into the form side */}
         <div style={{
           position: "absolute", inset: 0,
-          background: `linear-gradient(to right, ${colors.bg.base} 0%, transparent 20%)`,
-          pointerEvents: "none",
-        }} />
-        <div style={{
-          position: "absolute", inset: 0,
-          background: `linear-gradient(to top, ${colors.bg.base} 0%, transparent 25%)`,
-          pointerEvents: "none",
-        }} />
-        <div style={{
-          position: "absolute", inset: 0,
-          background: `linear-gradient(to bottom, ${colors.bg.base} 0%, transparent 25%)`,
-          pointerEvents: "none",
-        }} />
-        <div style={{
-          position: "absolute", inset: 0,
-          background: `linear-gradient(to left, ${colors.bg.base} 0%, transparent 15%)`,
+          background: `linear-gradient(to right, ${colors.bg.base} 0%, transparent 25%)`,
           pointerEvents: "none",
         }} />
       </div>
