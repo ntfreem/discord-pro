@@ -6,6 +6,7 @@ import { Bot, ArrowRight } from "lucide-react";
 import { colors, fonts, radius, T, onFocus, onBlur } from "../theme";
 
 const BASE = `/api`;
+const LOGIN_ART = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/ed512d51ac1409ffabe308576d0f1f8f165e8f123bb9437c753f4da525879c01.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -29,74 +30,118 @@ export default function Login() {
   };
 
   return (
-    <div style={{
-      minHeight: "100vh", backgroundColor: colors.bg.base,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: "20px", fontFamily: fonts.body,
-    }}>
-      {/* Soft gradient background orbs */}
-      <div style={{ position: "fixed", top: "-20%", right: "-10%", width: "600px", height: "600px", borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", bottom: "-15%", left: "-5%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, rgba(96,165,250,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-
+    <div style={{ minHeight: "100vh", display: "flex", backgroundColor: colors.bg.base }}>
+      {/* Left: Form */}
       <div style={{
-        width: "100%", maxWidth: "420px",
-        backgroundColor: colors.bg.surface,
-        border: `1px solid ${colors.border.default}`,
-        borderRadius: radius.xl, padding: "40px 36px",
-        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-        position: "relative", zIndex: 1,
+        flex: "0 0 50%", display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "40px", fontFamily: fonts.body, position: "relative", zIndex: 2,
       }}>
-        {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "32px", justifyContent: "center" }}>
-          <div style={{
-            width: "40px", height: "40px",
-            background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`,
-            borderRadius: radius.md, display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 15px rgba(59, 130, 246, 0.35)",
-          }}>
-            <Bot size={22} color="#FFFFFF" />
+        {/* Soft ambient glow */}
+        <div style={{ position: "absolute", top: "10%", left: "10%", width: "350px", height: "350px", borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+        <div style={{ width: "100%", maxWidth: "400px" }}>
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "48px" }}>
+            <div style={{
+              width: "40px", height: "40px",
+              background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`,
+              borderRadius: radius.md, display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 4px 15px rgba(59, 130, 246, 0.35)",
+            }}>
+              <Bot size={22} color="#FFFFFF" />
+            </div>
+            <span style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary }}>
+              Discord<span style={{ color: colors.brand.light }}>-Pro</span>
+            </span>
           </div>
-          <span style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary }}>
-            Discord<span style={{ color: colors.brand.light }}>-Pro</span>
-          </span>
+
+          <h1 style={{ fontFamily: fonts.heading, fontSize: "30px", fontWeight: "700", color: colors.text.primary, margin: "0 0 8px", letterSpacing: "-0.3px" }}>
+            Welcome back
+          </h1>
+          <p style={{ fontSize: "15px", color: colors.text.secondary, marginBottom: "32px", lineHeight: "1.5" }}>
+            Sign in to your AI workspace
+          </p>
+
+          {error && <div style={T.err} data-testid="login-error">{error}</div>}
+
+          <form onSubmit={handleSubmit}>
+            <label style={T.label}>Email</label>
+            <input data-testid="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com" style={{ ...T.input, marginBottom: "16px" }} onFocus={onFocus} onBlur={onBlur} required />
+
+            <label style={T.label}>Password</label>
+            <input data-testid="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="Enter your password" style={{ ...T.input, marginBottom: "6px" }} onFocus={onFocus} onBlur={onBlur} required />
+
+            <div style={{ textAlign: "right", marginBottom: "24px" }}>
+              <Link to="/forgot-password" data-testid="forgot-password-link"
+                style={{ fontSize: "13px", color: colors.text.muted, textDecoration: "none", transition: "color 0.2s" }}>
+                Forgot password?
+              </Link>
+            </div>
+
+            <button data-testid="login-submit" type="submit"
+              style={{
+                ...T.btnPrimary, width: "100%", justifyContent: "center",
+                padding: "13px", fontSize: "14px",
+                opacity: loading ? 0.7 : 1,
+              }} disabled={loading}>
+              {loading ? "Signing in..." : <>Sign In <ArrowRight size={16} /></>}
+            </button>
+          </form>
+
+          <p style={{ textAlign: "center", marginTop: "28px", fontSize: "14px", color: colors.text.secondary }}>
+            Don't have an account?{" "}
+            <Link to="/register" style={{ color: colors.brand.light, textDecoration: "none", fontWeight: "600" }}>Create one</Link>
+          </p>
         </div>
+      </div>
 
-        <h1 style={{ fontFamily: fonts.heading, fontSize: "24px", fontWeight: "700", color: colors.text.primary, textAlign: "center", margin: "0 0 6px" }}>
-          Welcome back
-        </h1>
-        <p style={{ fontSize: "14px", color: colors.text.secondary, textAlign: "center", marginBottom: "28px" }}>
-          Sign in to your workspace
-        </p>
+      {/* Right: Graphic */}
+      <div style={{
+        flex: "0 0 50%", position: "relative", overflow: "hidden",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {/* Background gradient that blends with base */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `radial-gradient(ellipse at center, rgba(59, 130, 246, 0.08) 0%, transparent 65%)`,
+        }} />
 
-        {error && <div style={T.err} data-testid="login-error">{error}</div>}
+        {/* The AI graphic */}
+        <img
+          src={LOGIN_ART}
+          alt="AI Assistant"
+          style={{
+            width: "80%", maxWidth: "480px",
+            objectFit: "contain",
+            filter: "drop-shadow(0 0 60px rgba(59, 130, 246, 0.2))",
+            animation: "float 5s ease-in-out infinite",
+            position: "relative", zIndex: 1,
+          }}
+        />
 
-        <form onSubmit={handleSubmit}>
-          <label style={T.label}>Email</label>
-          <input data-testid="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)}
-            placeholder="you@example.com" style={{ ...T.input, marginBottom: "14px" }} onFocus={onFocus} onBlur={onBlur} required />
-          <label style={T.label}>Password</label>
-          <input data-testid="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)}
-            placeholder="Enter your password" style={{ ...T.input, marginBottom: "6px" }} onFocus={onFocus} onBlur={onBlur} required />
-          <div style={{ textAlign: "right", marginBottom: "20px" }}>
-            <Link to="/forgot-password" data-testid="forgot-password-link"
-              style={{ fontSize: "12px", color: colors.text.muted, textDecoration: "none" }}>
-              Forgot password?
-            </Link>
-          </div>
-          <button data-testid="login-submit" type="submit"
-            style={{
-              ...T.btnPrimary, width: "100%", justifyContent: "center",
-              padding: "12px", borderRadius: radius.md,
-              opacity: loading ? 0.7 : 1,
-            }} disabled={loading}>
-            {loading ? "Signing in..." : <>Sign In <ArrowRight size={15} /></>}
-          </button>
-        </form>
-
-        <p style={{ textAlign: "center", marginTop: "24px", fontSize: "13px", color: colors.text.secondary }}>
-          Don't have an account?{" "}
-          <Link to="/register" style={{ color: colors.brand.light, textDecoration: "none", fontWeight: "600" }}>Create one</Link>
-        </p>
+        {/* Edge blend gradients */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `linear-gradient(to right, ${colors.bg.base} 0%, transparent 20%)`,
+          pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `linear-gradient(to top, ${colors.bg.base} 0%, transparent 25%)`,
+          pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `linear-gradient(to bottom, ${colors.bg.base} 0%, transparent 25%)`,
+          pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `linear-gradient(to left, ${colors.bg.base} 0%, transparent 15%)`,
+          pointerEvents: "none",
+        }} />
       </div>
     </div>
   );
