@@ -88,7 +88,7 @@ export default function Users() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.border.subtle}` }}>
-                {["Email", "Role", "Status", "Assigned Instances", "Joined"].map(h => (<th key={h} style={T.th}>{h}</th>))}
+                {["Email", "Username", "Role", "Status", "Assigned Instances", "Joined"].map(h => (<th key={h} style={T.th}>{h}</th>))}
               </tr>
             </thead>
             <tbody>
@@ -97,6 +97,7 @@ export default function Users() {
                   style={{ borderBottom: `1px solid ${colors.border.faint}`, transition: "background 0.2s" }}
                   onMouseEnter={rowEnter} onMouseLeave={rowLeave}>
                   <td style={{ ...T.td, fontWeight: "500" }}>{user.email}</td>
+                  <td style={{ ...T.td, fontFamily: fonts.mono, fontSize: "12px", color: colors.text.secondary }}>{user.username || "—"}</td>
                   <td style={T.td}>
                     {user.role === "superadmin" ? <span style={badge("green")}><Shield size={10} /> Admin</span> : <span style={badge("grey")}>User</span>}
                   </td>

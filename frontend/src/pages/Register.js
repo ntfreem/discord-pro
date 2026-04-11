@@ -19,9 +19,10 @@ export default function Register() {
     e.preventDefault(); setError("");
     if (password !== confirm) { setError("Passwords do not match"); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    if (!username.trim()) { setError("Username is required"); return; }
     setLoading(true);
     try {
-      await axios.post(`${BASE}/auth/register`, { email, password });
+      await axios.post(`${BASE}/auth/register`, { email, password, username: username.trim() });
       setSuccess("Account created! Check your email for the verification code.");
       setTimeout(() => navigate(`/verify?email=${encodeURIComponent(email)}`), 1800);
     } catch (err) { setError(err.response?.data?.detail || "Registration failed."); }
@@ -60,6 +61,9 @@ export default function Register() {
           <label style={T.label}>Email</label>
           <input data-testid="register-email" type="email" value={email} onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com" style={{ ...T.input, marginBottom: "14px" }} onFocus={onFocus} onBlur={onBlur} required />
+          <label style={T.label}>Username</label>
+          <input data-testid="register-username" type="text" value={username} onChange={e => setUsername(e.target.value)}
+            placeholder="Choose a unique username" style={{ ...T.input, marginBottom: "14px" }} onFocus={onFocus} onBlur={onBlur} required />
           <label style={T.label}>Password</label>
           <input data-testid="register-password" type="password" value={password} onChange={e => setPassword(e.target.value)}
             placeholder="At least 6 characters" style={{ ...T.input, marginBottom: "14px" }} onFocus={onFocus} onBlur={onBlur} required />

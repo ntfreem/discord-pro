@@ -20,7 +20,7 @@ export default function Login() {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
-      const res = await axios.post(`${BASE}/auth/login`, { email, password });
+      const res = await axios.post(`${BASE}/auth/login`, { email_or_username: email, password });
       const { token, user, instances } = res.data;
       login(token, user, instances);
       navigate(instances.length > 1 ? "/select-instance" : "/admin");
@@ -62,9 +62,9 @@ export default function Login() {
           {error && <div style={T.err} data-testid="login-error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
-            <label style={T.label}>Email</label>
-            <input data-testid="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com" style={{ ...T.input, marginBottom: "16px" }} onFocus={onFocus} onBlur={onBlur} required />
+            <label style={T.label}>Email or Username</label>
+            <input data-testid="login-email" type="text" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com or username" style={{ ...T.input, marginBottom: "16px" }} onFocus={onFocus} onBlur={onBlur} required />
 
             <label style={T.label}>Password</label>
             <input data-testid="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)}

@@ -193,7 +193,7 @@ export default function AdminLayout() {
                 fontFamily: fonts.body, fontSize: "12px", fontWeight: "500",
                 color: colors.text.primary, margin: 0,
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>{user?.email}</p>
+              }}>{user?.username || user?.email}</p>
               <p style={{
                 fontFamily: fonts.mono, fontSize: "9px",
                 color: user?.role === "superadmin" ? colors.brand.light : colors.text.muted,

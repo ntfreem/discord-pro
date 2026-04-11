@@ -115,7 +115,7 @@ class UserRegister(BaseModel):
     password: str
 
 class UserLogin(BaseModel):
-    email: str
+    email_or_username: str
     password: str
 
 class VerifyEmailBody(BaseModel):
@@ -573,6 +573,7 @@ async def startup_event():
         await db.users.insert_one({
             "id": str(uuid.uuid4()),
             "email": ADMIN_EMAIL,
+            "username": "administrator",
             "hashed_password": hashed_pw,
             "is_verified": True,
             "verification_code": None,
@@ -580,6 +581,12 @@ async def startup_event():
             "created_at": datetime.now(timezone.utc).isoformat()
         })
         logger.info(f"Seeded admin: {ADMIN_EMAIL}")
+    else:
+        # Ensure existing admin has username
+        await db.users.update_one(
+            {"email": ADMIN_EMAIL, "username": {"$exists": False}},
+            {"$set": {"username": "administrator"}}
+        )
 
     # Migrate single-tenant data to multi-tenant if needed
     # (updates any existing docs that lack instance_id — safe to run on every startup)
@@ -617,12 +624,17 @@ async def root():
 
 @api_router.post("/auth/register")
 async def register(body: UserRegister):
-    if not body.email or not body.password:
-        raise HTTPException(status_code=400, detail="Email and password required")
+    if not body.email or not body.password or not body.username:
+        raise HTTPException(status_code=400, detail="Email, username, and password required")
     if len(body.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    username_lower = body.username.strip().lower()
+    if not username_lower:
+        raise HTTPException(status_code=400, detail="Username cannot be empty")
     if await db.users.find_one({"email": body.email.lower()}):
         raise HTTPException(status_code=400, detail="Email already registered")
+    if await db.users.find_one({"username": username_lower}):
+        raise HTTPException(status_code=400, detail="Username already taken")
     code = str(secrets.randbelow(900000) + 100000)
     expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
     hashed_pw = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
@@ -630,6 +642,7 @@ async def register(body: UserRegister):
     await db.users.insert_one({
         "id": user_id,
         "email": body.email.lower(),
+        "username": username_lower,
         "hashed_password": hashed_pw,
         "is_verified": False,
         "verification_code": code,
@@ -677,9 +690,13 @@ async def verify_email(body: VerifyEmailBody):
 
 @api_router.post("/auth/login")
 async def login(body: UserLogin, response: Response):
-    user = await db.users.find_one({"email": body.email.lower()})
+    identifier = body.email_or_username.strip().lower()
+    # Try email first, then username
+    user = await db.users.find_one({"email": identifier})
+    if not user:
+        user = await db.users.find_one({"username": identifier})
     if not user or not bcrypt.checkpw(body.password.encode(), user["hashed_password"].encode()):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.get("is_verified"):
         raise HTTPException(status_code=403, detail="Email not verified. Check your email for the verification code.")
     token = create_access_token(user["id"], user["email"], user["role"])
@@ -706,7 +723,7 @@ async def login(body: UserLogin, response: Response):
             )
     return {
         "token": token,  # Kept for curl/API client use — frontend uses cookie
-        "user": {"id": user["id"], "email": user["email"], "role": user["role"]},
+        "user": {"id": user["id"], "email": user["email"], "role": user["role"], "username": user.get("username", "")},
         "instances": instances
     }
 
