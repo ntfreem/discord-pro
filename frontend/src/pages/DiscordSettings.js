@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../utils/api";
 import { toast } from "sonner";
-import { Zap, CheckCircle, AlertCircle, ExternalLink, RefreshCw, Radio, Hash, MessageSquare, AtSign } from "lucide-react";
+import { Zap, CheckCircle, AlertCircle, ExternalLink, RefreshCw, Radio, Hash, MessageSquare, AtSign, Link2, Server, Shield } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur } from "../theme";
 
 const LISTEN_MODES = [
@@ -13,15 +14,6 @@ const LISTEN_MODES = [
 const REPLY_STYLES = [
   { key: "natural", icon: MessageSquare, label: "Natural reply", desc: "Replies without mentioning the user" },
   { key: "with_mention", icon: AtSign, label: "With @mention", desc: "Pings the user in the reply" },
-];
-
-const steps = [
-  { num: "01", title: "Create a Discord Application", desc: "Go to the Discord Developer Portal and create a new application.", link: { label: "Open Discord Developer Portal", url: "https://discord.com/developers/applications" } },
-  { num: "02", title: "Add a Bot", desc: 'Navigate to the "Bot" section and click "Add Bot".' },
-  { num: "03", title: "Enable Message Content Intent", desc: 'Under Bot settings, enable "Message Content Intent".' },
-  { num: "04", title: "Copy Your Bot Token", desc: 'Click "Reset Token" and paste it into the field below.' },
-  { num: "05", title: "Invite Bot to Your Server", desc: 'Go to OAuth2, select "bot" scope, add Send Messages + Read Message History permissions.' },
-  { num: "06", title: "Activate & Start", desc: "Configure listen mode below, toggle Active, save, then start the bot." },
 ];
 
 const modeBtn = (active) => ({
@@ -43,6 +35,7 @@ const channelChip = (selected) => ({
 });
 
 export default function DiscordSettings() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [token, setToken] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [listenMode, setListenMode] = useState("mention_only");
@@ -55,7 +48,22 @@ export default function DiscordSettings() {
   const [syncing, setSyncing] = useState(false);
   const [channels, setChannels] = useState([]);
   const [fetchingChannels, setFetchingChannels] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const pollRef = useRef(null);
+
+  // Handle OAuth callback query params
+  useEffect(() => {
+    const oauthStatus = searchParams.get("oauth");
+    const guild = searchParams.get("guild");
+    const reason = searchParams.get("reason");
+    if (oauthStatus === "success") {
+      toast.success(guild ? `Bot invited to "${guild}" successfully!` : "Bot invited successfully!");
+      setSearchParams({}, { replace: true });
+    } else if (oauthStatus === "error") {
+      toast.error(reason === "access_denied" ? "Bot invitation was cancelled." : `Failed to invite bot: ${reason || "unknown error"}`);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const loadConfig = useCallback(() => {
     api.get(`/discord/config`).then(r => {
@@ -112,7 +120,21 @@ export default function DiscordSettings() {
     finally { setStarting(false); }
   };
 
+  const inviteBot = async () => {
+    setInviting(true);
+    try {
+      const res = await api.get(`/discord/oauth-url`);
+      window.location.href = res.data.url;
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to generate invite link");
+      setInviting(false);
+    }
+  };
+
   const isOnline = status.status === "online";
+  const oauthEnabled = existing?.oauth_enabled;
+  const oauthConnected = existing?.oauth_connected;
+  const hasBotToken = existing?.has_bot_token;
 
   const channelsByGuild = channels.reduce((acc, ch) => {
     (acc[ch.guild_name] = acc[ch.guild_name] || []).push(ch);
@@ -125,11 +147,77 @@ export default function DiscordSettings() {
       <h1 style={T.h1}>Discord Bot</h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-        {/* Left: Setup guide */}
+        {/* Left: Setup guide + Invite */}
         <div>
+          {/* Invite Bot Card */}
+          <div style={{ ...T.card, marginBottom: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", backgroundColor: "rgba(88,101,242,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Server size={18} color={colors.brand.discord} />
+              </div>
+              <div>
+                <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Connect to Discord</p>
+                <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.secondary, margin: "2px 0 0" }}>Invite the bot to your Discord server</p>
+              </div>
+            </div>
+
+            {oauthConnected && existing?.guild_name && (
+              <div data-testid="oauth-guild-info" style={{
+                display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px",
+                backgroundColor: "rgba(52,211,153,0.06)", border: "1px solid rgba(52,211,153,0.2)",
+                borderRadius: "10px", marginBottom: "16px",
+              }}>
+                <CheckCircle size={15} color={colors.brand.success} />
+                <div>
+                  <p style={{ fontFamily: fonts.body, fontSize: "12px", fontWeight: "500", color: colors.brand.success, margin: 0 }}>
+                    Connected to "{existing.guild_name}"
+                  </p>
+                  <p style={{ fontFamily: fonts.mono, fontSize: "10px", color: colors.text.secondary, margin: "2px 0 0" }}>
+                    Guild ID: {existing.guild_id}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {oauthEnabled ? (
+              <button
+                onClick={inviteBot}
+                disabled={inviting}
+                data-testid="invite-bot-btn"
+                style={{
+                  width: "100%", padding: "13px 20px",
+                  backgroundColor: colors.brand.discord,
+                  color: "#FFFFFF", border: "none", borderRadius: "10px",
+                  fontSize: "14px", fontFamily: fonts.body, fontWeight: "600",
+                  cursor: inviting ? "not-allowed" : "pointer",
+                  opacity: inviting ? 0.7 : 1,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                  transition: "all 0.2s",
+                }}
+              >
+                <Link2 size={16} />
+                {inviting ? "Redirecting to Discord..." : oauthConnected ? "Invite to Another Server" : "Invite Bot to Server"}
+              </button>
+            ) : (
+              <div style={{
+                padding: "14px", backgroundColor: colors.bg.base, borderRadius: "10px",
+                border: `1px solid ${colors.border.subtle}`,
+              }}>
+                <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, margin: 0 }}>
+                  Discord OAuth is not configured. Contact the administrator to set up the Discord Application credentials.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Setup Guide */}
           <div style={{ ...T.card, marginBottom: "20px" }}>
             <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: "0 0 24px" }}>Setup Guide</p>
-            {steps.map(({ num, title, desc, link }) => (
+            {[
+              { num: "01", title: "Enable Message Content Intent", desc: 'Go to the Discord Developer Portal, select your app, navigate to "Bot" settings, and enable "Message Content Intent".', link: { label: "Open Discord Developer Portal", url: "https://discord.com/developers/applications" } },
+              { num: "02", title: "Invite Bot to Your Server", desc: 'Click the "Invite Bot to Server" button above. Select a server and authorize the bot.' },
+              { num: "03", title: "Configure & Start", desc: "Set your preferred listen mode and reply style, toggle Active, save, then start the bot." },
+            ].map(({ num, title, desc, link }) => (
               <div key={num} style={{ display: "flex", gap: "16px", marginBottom: "22px" }}>
                 <span style={{ fontFamily: fonts.mono, fontSize: "11px", color: colors.brand.cyan, flexShrink: 0, paddingTop: "2px", minWidth: "24px" }}>{num}</span>
                 <div>
@@ -140,6 +228,30 @@ export default function DiscordSettings() {
               </div>
             ))}
           </div>
+
+          {/* Bot Token (Advanced) — only show if no OAuth or for fallback */}
+          {!oauthConnected && (
+            <div style={{ ...T.card, opacity: 0.85 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                <Shield size={14} color={colors.text.muted} />
+                <p style={{ fontFamily: fonts.heading, fontSize: "13px", fontWeight: "600", color: colors.text.secondary, margin: 0 }}>Manual Setup (Advanced)</p>
+              </div>
+              <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.muted, margin: "0 0 12px", lineHeight: "1.6" }}>
+                If you prefer, you can paste your bot token directly instead of using the invite button.
+              </p>
+              <input
+                type="password"
+                value={token}
+                onChange={e => setToken(e.target.value)}
+                placeholder={existing?.bot_token_display ? `Current: ${existing.bot_token_display}` : "Paste your Discord bot token..."}
+                data-testid="discord-token-input"
+                style={T.input}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+              <p style={T.hint}>Leave empty to keep existing token.</p>
+            </div>
+          )}
         </div>
 
         {/* Right: Config */}
@@ -166,16 +278,9 @@ export default function DiscordSettings() {
             </div>
           </div>
 
-          {/* Token + Active */}
+          {/* Active toggle */}
           <div style={{ ...T.card, marginBottom: "20px" }}>
             <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: "0 0 20px" }}>Configuration</p>
-            <div style={{ marginBottom: "20px" }}>
-              <label style={T.label}>Bot Token</label>
-              <input type="password" value={token} onChange={e => setToken(e.target.value)}
-                placeholder={existing?.bot_token_display ? `Current: ${existing.bot_token_display}` : "Paste your Discord bot token..."}
-                data-testid="discord-token-input" style={T.input} onFocus={onFocus} onBlur={onBlur} />
-              <p style={T.hint}>Leave empty to keep existing token.</p>
-            </div>
             <div style={{ marginBottom: "20px" }}>
               <label style={T.label}>Bot Active</label>
               <button onClick={() => setIsActive(!isActive)} data-testid="discord-active-toggle"

@@ -1,5 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Header, Response, Cookie
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Header, Response, Cookie, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 from typing import List, Optional, Dict
@@ -29,6 +30,11 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
 ADMIN_EMAIL = os.environ["ADMIN_EMAIL"]
 ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
+
+DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID", "")
+DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET", "")
+DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "")
+DISCORD_BOT_PERMISSIONS = 68608  # View Channels + Send Messages + Read Message History
 
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client[DB_NAME]
@@ -1222,6 +1228,118 @@ async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
 
 # ==================== DISCORD (PROTECTED) ====================
 
+
+@api_router.get("/discord/oauth-url")
+async def get_discord_oauth_url(instance_id: str = Depends(get_instance_access)):
+    """Generate Discord OAuth2 URL to invite the bot to a server."""
+    if not DISCORD_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="Discord Client ID not configured")
+    if not DISCORD_REDIRECT_URI:
+        raise HTTPException(status_code=400, detail="Discord Redirect URI not configured")
+    from urllib.parse import urlencode
+    params = {
+        "client_id": DISCORD_CLIENT_ID,
+        "permissions": str(DISCORD_BOT_PERMISSIONS),
+        "scope": "bot",
+        "redirect_uri": DISCORD_REDIRECT_URI,
+        "response_type": "code",
+        "state": instance_id,
+    }
+    url = f"https://discord.com/oauth2/authorize?{urlencode(params)}"
+    return {"url": url}
+
+
+@api_router.get("/discord/callback")
+async def discord_oauth_callback(
+    request: Request,
+    code: str = None,
+    guild_id: str = None,
+    state: str = None,
+    error: str = None,
+    error_description: str = None,
+):
+    """Handle Discord OAuth2 callback after bot is invited to a server."""
+    # Derive frontend base URL from the redirect URI
+    frontend_base = DISCORD_REDIRECT_URI.replace("/api/discord/callback", "")
+
+    if error:
+        logger.warning(f"Discord OAuth error: {error} - {error_description}")
+        return RedirectResponse(url=f"{frontend_base}/admin/discord?oauth=error&reason={error}")
+
+    if not code:
+        return RedirectResponse(url=f"{frontend_base}/admin/discord?oauth=error&reason=no_code")
+
+    instance_id = state or "default"
+
+    # Exchange authorization code for access token
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://discord.com/api/oauth2/token",
+                data={
+                    "client_id": DISCORD_CLIENT_ID,
+                    "client_secret": DISCORD_CLIENT_SECRET,
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": DISCORD_REDIRECT_URI,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            if resp.status_code != 200:
+                logger.error(f"Discord token exchange failed: {resp.status_code} {resp.text}")
+                return RedirectResponse(url=f"{frontend_base}/admin/discord?oauth=error&reason=token_exchange_failed")
+
+            data = resp.json()
+            guild = data.get("guild", {})
+            bot_info = data.get("bot", {})
+
+            update_fields = {
+                "oauth_connected": True,
+                "guild_id": guild.get("id", guild_id or ""),
+                "guild_name": guild.get("name", ""),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "instance_id": instance_id,
+                "is_active": True,
+            }
+
+            # If the token exchange returned a bot token, save it
+            if bot_info.get("token"):
+                update_fields["bot_token"] = bot_info["token"]
+
+            await db.discord_config.update_one(
+                {"instance_id": instance_id},
+                {"$set": update_fields},
+                upsert=True,
+            )
+
+            logger.info(f"Discord OAuth success: bot invited to guild {guild.get('name', 'unknown')}")
+
+            # Auto-start the bot if we have a token
+            config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
+            if config and config.get("bot_token"):
+                global discord_task, discord_client_instance
+                if discord_client_instance:
+                    try:
+                        await discord_client_instance.close()
+                    except Exception:
+                        pass
+                    discord_client_instance = None
+                if discord_task:
+                    discord_task.cancel()
+                    discord_task = None
+                discord_task = asyncio.create_task(
+                    start_discord_bot(config["bot_token"], instance_id, config)
+                )
+
+            return RedirectResponse(
+                url=f"{frontend_base}/admin/discord?oauth=success&guild={guild.get('name', '')}"
+            )
+
+    except Exception as e:
+        logger.error(f"Discord OAuth callback error: {e}")
+        return RedirectResponse(url=f"{frontend_base}/admin/discord?oauth=error&reason=server_error")
+
+
 @api_router.post("/discord/sync-name")
 async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
     """Push the bot_config name to Discord as the bot's username immediately."""
@@ -1299,8 +1417,15 @@ async def get_discord_config(instance_id: str = Depends(get_instance_access)):
         token = config.get("bot_token", "")
         if token:
             config["bot_token_display"] = token[:8] + "..." + token[-4:] if len(token) > 12 else "***"
+            config["has_bot_token"] = True
+        else:
+            config["has_bot_token"] = False
         config.pop("bot_token", None)
-    return config or {"is_active": False}
+        config.pop("oauth_access_token", None)
+    else:
+        config = {"is_active": False, "has_bot_token": False, "oauth_connected": False}
+    config["oauth_enabled"] = bool(DISCORD_CLIENT_ID)
+    return config
 
 
 @api_router.put("/discord/config")
