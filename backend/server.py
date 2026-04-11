@@ -459,6 +459,26 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
         @discord_client_instance.event
         async def on_ready():
             logger.info(f"Discord bot online: {discord_client_instance.user} | mode={listen_mode}")
+            # Sync bot name from bot_config to Discord username
+            try:
+                bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
+                desired_name = (bot_config or {}).get("name", "").strip()
+                current_name = discord_client_instance.user.name if discord_client_instance.user else ""
+                if desired_name and desired_name != current_name:
+                    import aiohttp
+                    async with aiohttp.ClientSession() as session:
+                        async with session.patch(
+                            "https://discord.com/api/v10/users/@me",
+                            headers={"Authorization": f"Bot {token}"},
+                            json={"username": desired_name}
+                        ) as resp:
+                            if resp.status == 200:
+                                logger.info(f"Discord bot name synced to: {desired_name}")
+                            else:
+                                body = await resp.text()
+                                logger.warning(f"Discord name sync failed ({resp.status}): {body}")
+            except Exception as e:
+                logger.warning(f"Discord name sync error: {e}")
 
         @discord_client_instance.event
         async def on_message(message):
@@ -1184,6 +1204,35 @@ async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
 
 
 # ==================== DISCORD (PROTECTED) ====================
+
+@api_router.post("/discord/sync-name")
+async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
+    """Push the bot_config name to Discord as the bot's username immediately."""
+    import aiohttp
+    config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
+    if not config or not config.get("bot_token"):
+        raise HTTPException(status_code=400, detail="Bot token not configured")
+    bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
+    name = (bot_config or {}).get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Bot name not set. Configure it in Bot Settings first.")
+    token = config["bot_token"]
+    async with aiohttp.ClientSession() as session:
+        async with session.patch(
+            "https://discord.com/api/v10/users/@me",
+            headers={"Authorization": f"Bot {token}"},
+            json={"username": name}
+        ) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                return {"success": True, "discord_username": data.get("username"), "message": f"Discord name updated to '{name}'"}
+            body = await resp.json()
+            detail = body.get("message") or body.get("error") or "Discord API error"
+            # Rate limit info
+            if resp.status == 429:
+                raise HTTPException(status_code=429, detail="Discord rate limit: bot name can only be changed twice per hour. Try again later.")
+            raise HTTPException(status_code=400, detail=detail)
+
 
 @api_router.get("/discord/channels")
 async def get_discord_channels(instance_id: str = Depends(get_instance_access)):

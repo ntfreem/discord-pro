@@ -64,6 +64,7 @@ export default function DiscordSettings() {
   const [status, setStatus] = useState({ status: "offline", bot_name: null });
   const [saving, setSaving] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [channels, setChannels] = useState([]);
   const [fetchingChannels, setFetchingChannels] = useState(false);
   const pollRef = useRef(null);
@@ -122,6 +123,19 @@ export default function DiscordSettings() {
     finally { setSaving(false); }
   };
 
+  const syncName = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.post(`/discord/sync-name`);
+      toast.success(res.data.message || "Name synced to Discord");
+      setTimeout(loadStatus, 2000);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to sync name");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const startBot = async () => {
     setStarting(true);
     try {
@@ -175,6 +189,17 @@ export default function DiscordSettings() {
                 {status.bot_name && <p style={{ fontFamily: "JetBrains Mono", fontSize: "11px", color: "#A1A1AA", margin: "2px 0 0" }}>{status.bot_name}</p>}
               </div>
               <button onClick={loadStatus} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#A1A1AA" }}><RefreshCw size={14} /></button>
+            </div>
+            {/* Sync name button */}
+            <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #1E1E1E" }}>
+              <p style={{ fontFamily: "IBM Plex Sans", fontSize: "12px", color: "#A1A1AA", margin: "0 0 10px" }}>
+                Bot name is set in <strong style={{ color: "#FFFFFF" }}>Bot Settings → Name</strong>. Sync it to Discord here.
+              </p>
+              <button onClick={syncName} disabled={syncing} data-testid="sync-name-btn"
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", backgroundColor: "#0A0A0A", border: "1px solid #262626", borderRadius: "4px", color: "#A1A1AA", fontFamily: "IBM Plex Sans", fontSize: "12px", cursor: syncing ? "not-allowed" : "pointer", opacity: syncing ? 0.6 : 1 }}>
+                <RefreshCw size={11} />
+                {syncing ? "Syncing..." : "Sync Name to Discord"}
+              </button>
             </div>
           </div>
 
