@@ -6,7 +6,7 @@ import { Bot, ArrowRight } from "lucide-react";
 import { colors, fonts, radius, T, onFocus, onBlur } from "../theme";
 
 const BASE = `/api`;
-const SPACE_ART = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/14a8efcbd4d630c175eea7c6d1542e55cf5676070cd4fafb306fec57d11bd329.png";
+const SPACE_ART = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/3de979e2c3b335079b84ee11ac249da81178965c052df728cb3dbc4ad7e61ea0.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
