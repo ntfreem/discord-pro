@@ -7,8 +7,6 @@ import {
 import { useState } from "react";
 import { colors, fonts, radius } from "@/theme";
 
-const BOT_IMG = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/c0ece9583d8b3c245af6236456deaff237aae7a9fbb92cff5b832e779f437c4d.png";
-
 const baseNavItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { path: "/admin/knowledge", label: "Knowledge Base", icon: BookOpen },
@@ -169,11 +167,6 @@ export default function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-
-        {/* Bot mascot */}
-        <div style={{ padding: "0 20px 4px", display: "flex", justifyContent: "center" }}>
-          <img src={BOT_IMG} alt="" style={{ width: "70px", height: "70px", objectFit: "contain", opacity: 0.5, filter: "grayscale(20%)" }} />
-        </div>
 
         {/* Bottom */}
         <div style={{ padding: "12px 16px", borderTop: `1px solid ${colors.border.default}` }}>
