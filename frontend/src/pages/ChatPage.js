@@ -11,7 +11,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [botConfig, setBotConfig] = useState({ name: "BridgeBot Assistant" });
+  const [botConfig, setBotConfig] = useState({ name: "Discord-Pro Assistant" });
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const [searchParams] = useSearchParams();
@@ -64,15 +64,15 @@ export default function ChatPage() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{
-            width: "34px", height: "34px", backgroundColor: colors.brand.blue,
-            borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: `0 0 12px rgba(0, 136, 255, 0.4)`,
+            width: "34px", height: "34px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`,
+            borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: `0 0 12px rgba(59, 130, 246, 0.4)`,
           }}>
             <Bot size={18} color="#FFFFFF" />
           </div>
           <div>
             <p style={{ fontFamily: fonts.heading, fontSize: "16px", fontWeight: "700", color: colors.text.primary, margin: 0, letterSpacing: "-0.3px" }}>
-              {botConfig.name || "BridgeBot Assistant"}
+              {botConfig.name || "Discord-Pro Assistant"}
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: colors.brand.success, boxShadow: `0 0 6px ${colors.brand.success}` }} />
@@ -84,7 +84,7 @@ export default function ChatPage() {
           <a href="/admin" style={{
             display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px",
             backgroundColor: "transparent", border: `1px solid ${colors.border.default}`,
-            color: colors.text.secondary, borderRadius: "2px", fontSize: "12px", fontFamily: fonts.body,
+            color: colors.text.secondary, borderRadius: "10px", fontSize: "12px", fontFamily: fonts.body,
             textDecoration: "none", transition: "border-color 0.2s",
           }}>
             <ExternalLink size={12} /> Admin
@@ -93,7 +93,7 @@ export default function ChatPage() {
             style={{
               display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px",
               backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`,
-              color: colors.text.primary, borderRadius: "2px", fontSize: "12px", fontFamily: fonts.body,
+              color: colors.text.primary, borderRadius: "10px", fontSize: "12px", fontFamily: fonts.body,
               cursor: "pointer", transition: "border-color 0.2s",
             }}>
             <Plus size={12} /> New Chat
@@ -106,9 +106,9 @@ export default function ChatPage() {
         {messages.length === 0 && !isLoading && (
           <div style={{ textAlign: "center", paddingTop: "100px", animation: "fade-in 0.4s ease" }}>
             <div style={{
-              width: "60px", height: "60px", backgroundColor: colors.brand.blue,
-              borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 20px", boxShadow: `0 0 30px rgba(0, 136, 255, 0.3)`,
+              width: "60px", height: "60px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`,
+              borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 20px", boxShadow: `0 0 30px rgba(59, 130, 246, 0.3)`,
             }}>
               <Bot size={28} color="#FFFFFF" />
             </div>
@@ -126,17 +126,17 @@ export default function ChatPage() {
             style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: "16px" }}>
             {msg.role === "assistant" && (
               <div style={{
-                width: "28px", height: "28px", backgroundColor: colors.brand.blue,
-                borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center",
+                width: "28px", height: "28px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`,
+                borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
                 marginRight: "10px", flexShrink: 0, marginTop: "4px",
               }}>
                 <Bot size={14} color="#FFFFFF" />
               </div>
             )}
             <div style={{
-              maxWidth: "72%", padding: "12px 16px", borderRadius: "4px",
-              backgroundColor: msg.role === "user" ? colors.brand.blue : (msg.isError ? "rgba(255,0,60,0.08)" : colors.bg.panel),
-              border: msg.role === "user" ? `1px solid rgba(0, 245, 255, 0.2)` : `1px solid ${msg.isError ? "rgba(255,0,60,0.2)" : colors.border.default}`,
+              maxWidth: "72%", padding: "12px 16px", borderRadius: "12px",
+              backgroundColor: msg.role === "user" ? colors.brand.blue : (msg.isError ? "rgba(244,63,94,0.08)" : colors.bg.panel),
+              border: msg.role === "user" ? `1px solid rgba(96, 165, 250, 0.2)` : `1px solid ${msg.isError ? "rgba(244,63,94,0.2)" : colors.border.default}`,
               color: msg.isError ? colors.brand.error : colors.text.primary,
               fontFamily: fonts.body, fontSize: "14px", lineHeight: "1.7",
             }}>
@@ -150,10 +150,10 @@ export default function ChatPage() {
 
         {isLoading && (
           <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: "16px" }}>
-            <div style={{ width: "28px", height: "28px", backgroundColor: colors.brand.blue, borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "10px", flexShrink: 0 }}>
+            <div style={{ width: "28px", height: "28px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "10px", flexShrink: 0 }}>
               <Bot size={14} color="#FFFFFF" />
             </div>
-            <div style={{ padding: "14px 18px", backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`, borderRadius: "4px", display: "flex", gap: "5px", alignItems: "center" }}>
+            <div style={{ padding: "14px 18px", backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`, borderRadius: "12px", display: "flex", gap: "5px", alignItems: "center" }}>
               {[0, 1, 2].map(i => (
                 <div key={i} style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: colors.brand.cyan, animation: "typing-dot 1.4s infinite ease-in-out", animationDelay: `${i * 0.16}s` }} />
               ))}
@@ -172,23 +172,23 @@ export default function ChatPage() {
               placeholder="Type your message... (Enter to send)" data-testid="chat-input" rows={1}
               style={{
                 flex: 1, backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`,
-                borderRadius: "2px", padding: "12px 16px", color: colors.text.primary,
+                borderRadius: "10px", padding: "12px 16px", color: colors.text.primary,
                 fontFamily: fonts.body, fontSize: "14px", outline: "none",
                 resize: "none", lineHeight: "1.5", maxHeight: "120px", overflowY: "auto",
                 transition: "border-color 0.3s ease, box-shadow 0.3s ease",
               }}
-              onFocus={e => { e.target.style.borderColor = colors.brand.cyan; e.target.style.boxShadow = `0 0 8px rgba(0,245,255,0.15)`; }}
-              onBlur={e => { e.target.style.borderColor = "rgba(0,136,255,0.3)"; e.target.style.boxShadow = "none"; }}
+              onFocus={e => { e.target.style.borderColor = colors.brand.cyan; e.target.style.boxShadow = `0 0 8px rgba(96,165,250,0.15)`; }}
+              onBlur={e => { e.target.style.borderColor = "rgba(59,130,246,0.3)"; e.target.style.boxShadow = "none"; }}
             />
             <button onClick={sendMessage} disabled={isLoading || !input.trim()} data-testid="send-message-btn"
               style={{
                 width: "44px", height: "44px",
                 backgroundColor: !isLoading && input.trim() ? colors.brand.blue : colors.bg.panel,
-                border: !isLoading && input.trim() ? `1px solid rgba(0,245,255,0.5)` : `1px solid ${colors.border.default}`,
-                borderRadius: "2px", cursor: !isLoading && input.trim() ? "pointer" : "not-allowed",
+                border: !isLoading && input.trim() ? `1px solid rgba(96,165,250,0.5)` : `1px solid ${colors.border.default}`,
+                borderRadius: "10px", cursor: !isLoading && input.trim() ? "pointer" : "not-allowed",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 transition: "all 0.2s ease", flexShrink: 0,
-                boxShadow: !isLoading && input.trim() ? `0 0 10px rgba(0,136,255,0.3)` : "none",
+                boxShadow: !isLoading && input.trim() ? `0 0 10px rgba(59,130,246,0.3)` : "none",
               }}>
               <Send size={16} color={!isLoading && input.trim() ? "#FFFFFF" : colors.text.muted} />
             </button>

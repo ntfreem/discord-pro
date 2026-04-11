@@ -26,7 +26,7 @@ function CreateInstanceModal({ onClose, onCreate }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", padding: "32px", width: "100%", maxWidth: "420px" }}>
+      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", padding: "32px", width: "100%", maxWidth: "420px" }}>
         <h2 style={{ fontFamily: fonts.heading, fontSize: "18px", fontWeight: "700", color: colors.text.primary, margin: "0 0 24px" }}>
           New Bot Instance
         </h2>
@@ -75,10 +75,10 @@ function InstanceRow({ instance, onRefresh }) {
   };
 
   return (
-    <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", overflow: "hidden", marginBottom: "8px", transition: "border-color 0.3s" }}>
+    <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", overflow: "hidden", marginBottom: "8px", transition: "border-color 0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", padding: "16px 20px", gap: "14px", cursor: "pointer" }}
         onClick={() => setExpanded(!expanded)}>
-        <div style={{ width: "36px", height: "36px", backgroundColor: "rgba(0,136,255,0.1)", border: `1px solid ${colors.border.default}`, borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <div style={{ width: "36px", height: "36px", backgroundColor: "rgba(59,130,246,0.1)", border: `1px solid ${colors.border.default}`, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Bot size={16} color={colors.brand.blue} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -86,11 +86,11 @@ function InstanceRow({ instance, onRefresh }) {
           {instance.description && <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, margin: "2px 0 0" }}>{instance.description}</p>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontFamily: fonts.mono, fontSize: "11px", color: colors.text.secondary, backgroundColor: colors.bg.panel, padding: "3px 8px", borderRadius: "2px" }}>
+          <span style={{ fontFamily: fonts.mono, fontSize: "11px", color: colors.text.secondary, backgroundColor: colors.bg.panel, padding: "3px 8px", borderRadius: "10px" }}>
             {(instance.assigned_users || []).length} user{(instance.assigned_users || []).length !== 1 ? "s" : ""}
           </span>
           <button data-testid={`delete-instance-${instance.id}`} onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-            style={{ background: "none", border: `1px solid rgba(255,0,60,0.2)`, borderRadius: "2px", padding: "5px 8px", cursor: "pointer", color: colors.brand.error, display: "flex", alignItems: "center", gap: "4px", transition: "all 0.2s", fontSize: "12px", fontFamily: fonts.body }}>
+            style={{ background: "none", border: `1px solid rgba(244,63,94,0.2)`, borderRadius: "10px", padding: "5px 8px", cursor: "pointer", color: colors.brand.error, display: "flex", alignItems: "center", gap: "4px", transition: "all 0.2s", fontSize: "12px", fontFamily: fonts.body }}>
             <Trash2 size={12} />
           </button>
           {expanded ? <ChevronUp size={14} color={colors.text.muted} /> : <ChevronDown size={14} color={colors.text.muted} />}
@@ -115,7 +115,7 @@ function InstanceRow({ instance, onRefresh }) {
               {(instance.assigned_users || []).map(u => (
                 <div key={u.id} style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 12px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "2px",
+                  padding: "8px 12px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "10px",
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{ width: "26px", height: "26px", borderRadius: "50%", backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -123,7 +123,7 @@ function InstanceRow({ instance, onRefresh }) {
                     </div>
                     <span style={{ fontFamily: fonts.body, fontSize: "13px", color: colors.text.primary }}>{u.email}</span>
                     {u.is_verified === false && (
-                      <span style={{ fontFamily: fonts.mono, fontSize: "9px", color: colors.brand.warning, backgroundColor: "rgba(245,158,11,0.1)", padding: "2px 6px", borderRadius: "2px", textTransform: "uppercase" }}>unverified</span>
+                      <span style={{ fontFamily: fonts.mono, fontSize: "9px", color: colors.brand.warning, backgroundColor: "rgba(245,158,11,0.1)", padding: "2px 6px", borderRadius: "10px", textTransform: "uppercase" }}>unverified</span>
                     )}
                   </div>
                   <button data-testid={`unassign-user-${u.id}`} onClick={() => handleUnassign(u.id, u.email)} style={T.btnGhost}>
@@ -178,7 +178,7 @@ export default function Instances() {
       </div>
 
       {instances.length === 0 ? (
-        <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", padding: "48px", textAlign: "center" }}>
+        <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", padding: "48px", textAlign: "center" }}>
           <Bot size={32} color={colors.text.muted} style={{ marginBottom: "16px" }} />
           <p style={{ color: colors.text.secondary, fontSize: "15px", fontFamily: fonts.body, marginBottom: "8px" }}>No instances yet</p>
           <p style={{ color: colors.text.muted, fontSize: "13px", fontFamily: fonts.body, marginBottom: "20px" }}>Create your first bot instance to get started</p>

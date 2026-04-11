@@ -21,10 +21,10 @@ function CodeBlock({ code, label, testId }) {
         <button onClick={copy} data-testid={testId}
           style={{
             display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px",
-            backgroundColor: copied ? "rgba(0,255,102,0.08)" : colors.bg.panel,
+            backgroundColor: copied ? "rgba(52,211,153,0.08)" : colors.bg.panel,
             color: copied ? colors.brand.success : colors.text.secondary,
-            border: `1px solid ${copied ? "rgba(0,255,102,0.3)" : colors.border.default}`,
-            borderRadius: "2px", fontSize: "12px", fontFamily: fonts.body, cursor: "pointer",
+            border: `1px solid ${copied ? "rgba(52,211,153,0.3)" : colors.border.default}`,
+            borderRadius: "10px", fontSize: "12px", fontFamily: fonts.body, cursor: "pointer",
             transition: "all 0.15s ease",
           }}>
           {copied ? <Check size={12} /> : <Copy size={12} />}
@@ -32,7 +32,7 @@ function CodeBlock({ code, label, testId }) {
         </button>
       </div>
       <pre style={{
-        backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "2px",
+        backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "10px",
         padding: "16px 20px", color: colors.text.secondary, fontFamily: fonts.mono,
         fontSize: "12px", lineHeight: "1.7", whiteSpace: "pre-wrap", wordBreak: "break-all",
         margin: 0, overflowX: "auto"
@@ -49,11 +49,11 @@ export default function EmbedCode() {
   const widgetUrl = `${window.location.origin}/widget${instanceParam}`;
   const chatUrl = `${window.location.origin}/chat${instanceParam}`;
 
-  const iframeCode = `<!-- BridgeBot Chat Widget -->\n<iframe\n  src="${widgetUrl}"\n  style="position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)"\n  title="BridgeBot Chat"\n></iframe>`;
+  const iframeCode = `<!-- Discord-Pro Chat Widget -->\n<iframe\n  src="${widgetUrl}"\n  style="position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)"\n  title="Discord-Pro Chat"\n></iframe>`;
 
-  const scriptCode = `<!-- BridgeBot Chat Widget (Auto-inject) -->\n<script>\n(function() {\n  var iframe = document.createElement('iframe');\n  iframe.src = '${widgetUrl}';\n  iframe.title = 'BridgeBot Chat';\n  iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)';\n  document.body.appendChild(iframe);\n})();\n</script>`;
+  const scriptCode = `<!-- Discord-Pro Chat Widget (Auto-inject) -->\n<script>\n(function() {\n  var iframe = document.createElement('iframe');\n  iframe.src = '${widgetUrl}';\n  iframe.title = 'Discord-Pro Chat';\n  iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;z-index:9999;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5)';\n  document.body.appendChild(iframe);\n})();\n</script>`;
 
-  const reactCode = `// React component embed\nimport React from 'react';\n\nexport function BridgeBotWidget() {\n  return (\n    <iframe\n      src="${widgetUrl}"\n      title="BridgeBot Chat"\n      style={{\n        position: 'fixed', bottom: '20px', right: '20px',\n        width: '380px', height: '600px', border: 'none',\n        zIndex: 9999, borderRadius: '8px',\n        boxShadow: '0 8px 32px rgba(0,0,0,0.5)'\n      }}\n    />\n  );\n}`;
+  const reactCode = `// React component embed\nimport React from 'react';\n\nexport function DiscordProWidget() {\n  return (\n    <iframe\n      src="${widgetUrl}"\n      title="Discord-Pro Chat"\n      style={{\n        position: 'fixed', bottom: '20px', right: '20px',\n        width: '380px', height: '600px', border: 'none',\n        zIndex: 9999, borderRadius: '8px',\n        boxShadow: '0 8px 32px rgba(0,0,0,0.5)'\n      }}\n    />\n  );\n}`;
 
   return (
     <div style={T.page}>
@@ -84,7 +84,7 @@ export default function EmbedCode() {
               backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "4px",
               overflow: "hidden", height: "520px", position: "relative"
             }}>
-              <iframe src={widgetUrl} title="BridgeBot Widget Preview" data-testid="widget-preview-iframe"
+              <iframe src={widgetUrl} title="Discord-Pro Widget Preview" data-testid="widget-preview-iframe"
                 style={{ width: "100%", height: "100%", border: "none" }} />
             </div>
             <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.muted, marginTop: "12px" }}>
@@ -101,7 +101,7 @@ export default function EmbedCode() {
               { label: "Standalone Chat Page", url: chatUrl, desc: "Full-page chat experience for sharing" },
               { label: "Embeddable Widget", url: widgetUrl, desc: "Compact widget for iframe embedding" },
             ].map(({ label, url, desc }) => (
-              <div key={label} style={{ marginBottom: "12px", padding: "14px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "2px" }}>
+              <div key={label} style={{ marginBottom: "12px", padding: "14px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "10px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
                     <p style={{ fontFamily: fonts.body, fontSize: "13px", fontWeight: "500", color: colors.text.primary, margin: "0 0 4px" }}>{label}</p>
@@ -112,7 +112,7 @@ export default function EmbedCode() {
                     style={{
                       padding: "6px 12px", backgroundColor: colors.bg.panel,
                       border: `1px solid ${colors.border.default}`, color: colors.brand.cyan,
-                      borderRadius: "2px", fontSize: "12px", fontFamily: fonts.body,
+                      borderRadius: "10px", fontSize: "12px", fontFamily: fonts.body,
                       textDecoration: "none", flexShrink: 0, transition: "border-color 0.2s",
                     }}>
                     Open \u2192

@@ -8,7 +8,7 @@ import { MessageSquare, BookOpen, CheckCircle, Zap, Activity, AlertTriangle, Ref
 import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
 
 const tooltipStyle = {
-  contentStyle: { backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`, borderRadius: "2px", color: colors.text.primary, fontFamily: fonts.body },
+  contentStyle: { backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`, borderRadius: "10px", color: colors.text.primary, fontFamily: fonts.body },
   labelStyle: { color: colors.text.primary, fontFamily: fonts.body, fontSize: "13px" },
   itemStyle: { color: colors.text.secondary, fontFamily: fonts.body, fontSize: "12px" },
 };
@@ -27,8 +27,8 @@ function StatCard({ title, value, icon: Icon, color }) {
     <div style={{
       ...T.card,
       transition: "border-color 0.3s, box-shadow 0.3s",
-      borderColor: hovered ? colors.brand.cyan : "rgba(0, 136, 255, 0.3)",
-      boxShadow: hovered ? `0 4px 20px rgba(0, 136, 255, 0.15)` : "none",
+      borderColor: hovered ? colors.brand.cyan : "rgba(59, 130, 246, 0.3)",
+      boxShadow: hovered ? `0 4px 20px rgba(59, 130, 246, 0.15)` : "none",
     }}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     >
@@ -91,7 +91,7 @@ export default function Analytics() {
           <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: "0 0 24px" }}>Activity — Last 7 Days</p>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={daily} margin={CHART_MARGIN}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,136,255,0.1)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.1)" vertical={false} />
               <XAxis dataKey="date" stroke={colors.text.muted} tick={AXIS_TICK} axisLine={false} tickLine={false} />
               <YAxis stroke={colors.text.muted} tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip {...tooltipStyle} />
@@ -117,7 +117,7 @@ export default function Analytics() {
           <div style={{ display: "flex", justifyContent: "center", gap: "24px", marginTop: "12px" }}>
             {platformData.map((item, i) => (
               <div key={item.name} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: PLATFORM_COLORS[i] }} />
+                <div style={{ width: "10px", height: "10px", borderRadius: "10px", backgroundColor: PLATFORM_COLORS[i] }} />
                 <span style={{ fontFamily: fonts.body, fontSize: "13px", color: colors.text.secondary }}>{item.name}</span>
                 <span style={{ fontFamily: fonts.heading, fontWeight: "700", fontSize: "15px", color: colors.text.primary }}>{item.value}</span>
               </div>
@@ -127,7 +127,7 @@ export default function Analytics() {
       </div>
 
       {/* Daily Table */}
-      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", overflow: "hidden", marginBottom: "32px" }}>
+      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", overflow: "hidden", marginBottom: "32px" }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${colors.border.default}` }}>
           <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Daily Breakdown</p>
         </div>
@@ -157,9 +157,9 @@ export default function Analytics() {
           <h2 style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary, margin: 0 }}>AI Usage & Reliability</h2>
         </div>
         <a href="https://app.emergent.sh/profile/universal-key" target="_blank" rel="noreferrer"
-          style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px", backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", color: colors.text.secondary, fontSize: "12px", fontFamily: fonts.body, textDecoration: "none", transition: "border-color 0.3s" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px", backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", color: colors.text.secondary, fontSize: "12px", fontFamily: fonts.body, textDecoration: "none", transition: "border-color 0.3s" }}
           onMouseEnter={e => e.currentTarget.style.borderColor = colors.brand.cyan}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0, 136, 255, 0.3)"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(59, 130, 246, 0.3)"}
           data-testid="balance-link">
           <ExternalLink size={12} /> Check Balance
         </a>
@@ -178,7 +178,7 @@ export default function Analytics() {
           <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: "0 0 24px" }}>API Calls — Last 7 Days</p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={llmUsage?.daily ?? []} margin={CHART_MARGIN}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,136,255,0.1)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.1)" vertical={false} />
               <XAxis dataKey="date" stroke={colors.text.muted} tick={AXIS_TICK} axisLine={false} tickLine={false} />
               <YAxis stroke={colors.text.muted} tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip {...tooltipStyle} />
@@ -211,7 +211,7 @@ export default function Analytics() {
               </div>
             </div>
           )}
-          <div style={{ marginTop: "20px", padding: "10px 12px", backgroundColor: colors.bg.base, borderRadius: "2px", border: `1px solid ${colors.border.subtle}` }}>
+          <div style={{ marginTop: "20px", padding: "10px 12px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}` }}>
             <p style={{ margin: 0, fontFamily: fonts.body, fontSize: "11px", color: colors.text.secondary, lineHeight: "1.5" }}>
               On failure: retries up to 2x on Claude Opus, then falls back to Claude Sonnet automatically.
             </p>

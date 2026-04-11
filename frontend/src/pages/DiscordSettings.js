@@ -26,7 +26,7 @@ const steps = [
 
 const modeBtn = (active) => ({
   flex: 1, padding: "10px 12px", border: `1px solid ${active ? colors.brand.cyan : colors.border.default}`,
-  borderRadius: "2px", backgroundColor: active ? "rgba(0,245,255,0.06)" : colors.bg.base,
+  borderRadius: "10px", backgroundColor: active ? "rgba(96,165,250,0.06)" : colors.bg.base,
   color: active ? colors.text.primary : colors.text.secondary, cursor: "pointer",
   fontFamily: fonts.body, fontSize: "12px", fontWeight: active ? "600" : "400",
   display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "3px",
@@ -36,7 +36,7 @@ const modeBtn = (active) => ({
 const channelChip = (selected) => ({
   display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px",
   border: `1px solid ${selected ? colors.brand.cyan : colors.border.default}`,
-  borderRadius: "2px", backgroundColor: selected ? "rgba(0,245,255,0.06)" : colors.bg.base,
+  borderRadius: "10px", backgroundColor: selected ? "rgba(96,165,250,0.06)" : colors.bg.base,
   cursor: "pointer", transition: "all 0.2s",
   fontFamily: fonts.body, fontSize: "12px",
   color: selected ? colors.text.primary : colors.text.secondary,
@@ -145,7 +145,7 @@ export default function DiscordSettings() {
         {/* Right: Config */}
         <div>
           {/* Status */}
-          <div style={{ ...T.card, borderColor: isOnline ? "rgba(0,255,102,0.3)" : colors.border.default, marginBottom: "20px" }}>
+          <div style={{ ...T.card, borderColor: isOnline ? "rgba(52,211,153,0.3)" : colors.border.default, marginBottom: "20px" }}>
             <p style={{ ...T.monoLabel, marginBottom: "12px", fontSize: "10px" }}>Bot Status</p>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: isOnline ? colors.brand.success : colors.text.muted, boxShadow: isOnline ? `0 0 12px ${colors.brand.success}` : "none", flexShrink: 0 }} />
@@ -181,9 +181,9 @@ export default function DiscordSettings() {
               <button onClick={() => setIsActive(!isActive)} data-testid="discord-active-toggle"
                 style={{
                   display: "flex", alignItems: "center", gap: "10px", padding: "10px 16px",
-                  backgroundColor: isActive ? "rgba(0,255,102,0.06)" : colors.bg.panel,
-                  border: `1px solid ${isActive ? "rgba(0,255,102,0.3)" : colors.border.default}`,
-                  borderRadius: "2px", cursor: "pointer",
+                  backgroundColor: isActive ? "rgba(52,211,153,0.06)" : colors.bg.panel,
+                  border: `1px solid ${isActive ? "rgba(52,211,153,0.3)" : colors.border.default}`,
+                  borderRadius: "10px", cursor: "pointer",
                   color: isActive ? colors.brand.success : colors.text.secondary,
                   fontFamily: fonts.body, fontSize: "13px", fontWeight: "500", transition: "all 0.2s",
                 }}>
@@ -216,7 +216,7 @@ export default function DiscordSettings() {
                   </button>
                 </div>
                 {channels.length === 0 && (
-                  <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, padding: "16px", backgroundColor: colors.bg.base, borderRadius: "2px", border: `1px solid ${colors.border.subtle}`, margin: 0 }}>
+                  <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, padding: "16px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}`, margin: 0 }}>
                     Click "Fetch Channels" to load channels from your Discord server.
                     {monitoredChannelIds.length > 0 && ` (${monitoredChannelIds.length} saved)`}
                   </p>
@@ -265,8 +265,8 @@ export default function DiscordSettings() {
             <button onClick={startBot} disabled={starting} data-testid="start-discord-btn"
               style={{
                 padding: "11px 20px", backgroundColor: colors.bg.panel,
-                color: colors.brand.success, border: `1px solid rgba(0,255,102,0.3)`,
-                borderRadius: "2px", fontSize: "13px", fontFamily: fonts.body, fontWeight: "500",
+                color: colors.brand.success, border: `1px solid rgba(52,211,153,0.3)`,
+                borderRadius: "10px", fontSize: "13px", fontFamily: fonts.body, fontWeight: "500",
                 cursor: starting ? "not-allowed" : "pointer", opacity: starting ? 0.6 : 1,
                 display: "flex", alignItems: "center", gap: "7px", transition: "all 0.2s",
               }}>

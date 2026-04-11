@@ -12,7 +12,7 @@ function TypeBadge({ type }) {
   const c = typeColor[type] || colors.brand.blue;
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: "5px", padding: "2px 8px", borderRadius: "2px",
+      display: "inline-flex", alignItems: "center", gap: "5px", padding: "2px 8px", borderRadius: "10px",
       fontSize: "11px", fontFamily: fonts.mono, textTransform: "uppercase", letterSpacing: "0.05em",
       backgroundColor: `${c}18`, color: c
     }}>
@@ -204,7 +204,7 @@ export default function KnowledgeBase() {
       )}
 
       {/* Sources List */}
-      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", overflow: "hidden", marginTop: "24px" }}>
+      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", overflow: "hidden", marginTop: "24px" }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${colors.border.default}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>
             All Sources

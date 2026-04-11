@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { MessageSquare, BookOpen, CheckCircle, Zap } from "lucide-react";
-import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
+import { colors, fonts, radius, T, rowEnter, rowLeave } from "../theme";
 
 function StatCard({ title, value, icon: Icon, color }) {
   const [hovered, setHovered] = useState(false);
@@ -11,19 +11,20 @@ function StatCard({ title, value, icon: Icon, color }) {
       data-testid={`stat-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
       style={{
         ...T.card,
-        transition: "transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
-        transform: hovered ? "translateY(-2px)" : "none",
-        borderColor: hovered ? colors.brand.cyan : "rgba(0, 136, 255, 0.3)",
-        boxShadow: hovered ? `0 4px 20px rgba(0, 136, 255, 0.15)` : "none",
+        transition: "transform 0.25s ease, box-shadow 0.25s ease",
+        transform: hovered ? "translateY(-3px)" : "none",
+        boxShadow: hovered ? colors.shadow.cardHover : colors.shadow.card,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <p style={T.monoLabel}>{title}</p>
-        <Icon size={16} color={color} />
+        <div style={{ width: "32px", height: "32px", borderRadius: radius.md, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon size={16} color={color} />
+        </div>
       </div>
-      <p style={{ fontFamily: fonts.heading, fontSize: "40px", fontWeight: "700", color: colors.text.primary, margin: "8px 0 0", letterSpacing: "-1px" }}>
+      <p style={{ fontFamily: fonts.heading, fontSize: "38px", fontWeight: "700", color: colors.text.primary, margin: "6px 0 0", letterSpacing: "-1px" }}>
         {value ?? "\u2014"}
       </p>
     </div>
@@ -33,10 +34,10 @@ function StatCard({ title, value, icon: Icon, color }) {
 function PlatformBadge({ platform }) {
   const c = platform === "discord"
     ? { bg: "rgba(88,101,242,0.12)", text: colors.brand.discord }
-    : { bg: "rgba(0,136,255,0.12)", text: colors.brand.blue };
+    : { bg: "rgba(59,130,246,0.12)", text: colors.brand.primary };
   return (
     <span style={{
-      display: "inline-block", padding: "2px 8px", borderRadius: "2px",
+      display: "inline-block", padding: "2px 8px", borderRadius: radius.sm,
       fontSize: "11px", fontFamily: fonts.mono,
       textTransform: "uppercase", letterSpacing: "0.05em",
       backgroundColor: c.bg, color: c.text
@@ -120,13 +121,13 @@ export default function Dashboard() {
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <a href="/admin/knowledge" data-testid="quick-add-knowledge" style={{
               display: "block", padding: "10px 16px", backgroundColor: colors.brand.blue,
-              color: colors.text.primary, borderRadius: "2px", fontSize: "13px",
+              color: colors.text.primary, borderRadius: "10px", fontSize: "13px",
               fontFamily: fonts.body, fontWeight: "500", textDecoration: "none",
-              border: `1px solid rgba(0, 245, 255, 0.3)`, transition: "box-shadow 0.3s",
+              border: `1px solid rgba(96, 165, 250, 0.3)`, transition: "box-shadow 0.3s",
             }}>Add Knowledge Source</a>
             <a href="/chat" target="_blank" rel="noopener noreferrer" data-testid="quick-test-chat" style={{
               display: "block", padding: "10px 16px", backgroundColor: colors.bg.panel,
-              border: `1px solid ${colors.border.default}`, color: colors.text.primary, borderRadius: "2px",
+              border: `1px solid ${colors.border.default}`, color: colors.text.primary, borderRadius: "6px",
               fontSize: "13px", fontFamily: fonts.body, fontWeight: "500", textDecoration: "none",
               transition: "border-color 0.3s",
             }}>Test Chat Demo</a>
@@ -135,7 +136,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Conversations */}
-      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", overflow: "hidden" }}>
+      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", overflow: "hidden" }}>
         <div style={{ padding: "18px 20px", borderBottom: `1px solid ${colors.border.default}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Recent Conversations</p>
           <a href="/admin/conversations" style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.brand.cyan, textDecoration: "none" }}>View all</a>

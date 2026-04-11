@@ -132,7 +132,7 @@ export default function BotSettings() {
 
               {(config.manual_tone_examples || []).map((ex, i) => (
                 <div key={ex.id || i} style={{
-                  backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "2px",
+                  backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "10px",
                   padding: "12px", marginBottom: "8px",
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
@@ -156,7 +156,7 @@ export default function BotSettings() {
               ))}
 
               {showAddForm && (
-                <div style={{ backgroundColor: colors.bg.base, border: `1px dashed ${colors.border.default}`, borderRadius: "2px", padding: "14px", marginBottom: "10px" }}>
+                <div style={{ backgroundColor: colors.bg.base, border: `1px dashed ${colors.border.default}`, borderRadius: "10px", padding: "14px", marginBottom: "10px" }}>
                   <p style={{ fontFamily: fonts.mono, fontSize: "10px", color: colors.text.secondary, textTransform: "uppercase", letterSpacing: "0.15em", margin: "0 0 12px" }}>
                     New Example Exchange
                   </p>
@@ -175,7 +175,7 @@ export default function BotSettings() {
                 </div>
               )}
 
-              <div style={{ marginTop: "12px", padding: "11px 14px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "2px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ marginTop: "12px", padding: "11px 14px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <MessageSquare size={13} color={colors.text.secondary} />
                   <span style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary }}>
@@ -188,7 +188,7 @@ export default function BotSettings() {
                 </a>
               </div>
 
-              <div style={{ marginTop: "8px", padding: "10px 14px", backgroundColor: "rgba(0,136,255,0.05)", border: `1px solid rgba(0,136,255,0.15)`, borderRadius: "2px" }}>
+              <div style={{ marginTop: "8px", padding: "10px 14px", backgroundColor: "rgba(59,130,246,0.05)", border: `1px solid rgba(59,130,246,0.15)`, borderRadius: "10px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <Lightbulb size={12} color={colors.brand.blue} style={{ flexShrink: 0, marginTop: "2px" }} />
                   <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, margin: 0, lineHeight: "1.5" }}>
@@ -207,7 +207,7 @@ export default function BotSettings() {
                 Exactly what Claude receives. Knowledge and tone examples are injected at runtime.
               </p>
               <pre style={{
-                backgroundColor: colors.bg.base, border: `1px solid ${colors.border.default}`, borderRadius: "2px",
+                backgroundColor: colors.bg.base, border: `1px solid ${colors.border.default}`, borderRadius: "10px",
                 padding: "14px 16px", color: colors.text.secondary, fontFamily: fonts.mono,
                 fontSize: "11px", lineHeight: "1.7", whiteSpace: "pre-wrap", wordBreak: "break-word",
                 margin: 0, maxHeight: "420px", overflowY: "auto"

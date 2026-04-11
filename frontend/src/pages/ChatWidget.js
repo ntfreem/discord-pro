@@ -55,9 +55,9 @@ export default function ChatWidget() {
       {/* Header */}
       <div style={{ backgroundColor: colors.bg.surface, borderBottom: `1px solid ${colors.border.default}`, padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
         <div style={{
-          width: "30px", height: "30px", backgroundColor: colors.brand.blue,
-          borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: `0 0 10px rgba(0, 136, 255, 0.4)`,
+          width: "30px", height: "30px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`,
+          borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: `0 0 10px rgba(59, 130, 246, 0.4)`,
         }}>
           <Bot size={16} color="#FFFFFF" />
         </div>
@@ -81,9 +81,9 @@ export default function ChatWidget() {
         {messages.length === 0 && !isLoading && (
           <div style={{ textAlign: "center", paddingTop: "40px" }}>
             <div style={{
-              width: "44px", height: "44px", backgroundColor: colors.brand.blue,
-              borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 14px", boxShadow: `0 0 20px rgba(0, 136, 255, 0.3)`,
+              width: "44px", height: "44px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`,
+              borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 14px", boxShadow: `0 0 20px rgba(59, 130, 246, 0.3)`,
             }}>
               <Bot size={22} color="#FFFFFF" />
             </div>
@@ -96,17 +96,17 @@ export default function ChatWidget() {
           <div key={`${msg.role}-${msg.timestamp || i}`} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: "10px" }}>
             {msg.role === "assistant" && (
               <div style={{
-                width: "22px", height: "22px", backgroundColor: colors.brand.blue,
-                borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center",
+                width: "22px", height: "22px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`,
+                borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center",
                 marginRight: "7px", flexShrink: 0, marginTop: "3px",
               }}>
                 <Bot size={11} color="#FFFFFF" />
               </div>
             )}
             <div style={{
-              maxWidth: "80%", padding: "9px 12px", borderRadius: "4px",
-              backgroundColor: msg.role === "user" ? colors.brand.blue : (msg.isError ? "rgba(255,0,60,0.08)" : colors.bg.panel),
-              border: msg.role === "user" ? `1px solid rgba(0,245,255,0.2)` : `1px solid ${msg.isError ? "rgba(255,0,60,0.2)" : colors.border.default}`,
+              maxWidth: "80%", padding: "9px 12px", borderRadius: "12px",
+              backgroundColor: msg.role === "user" ? colors.brand.blue : (msg.isError ? "rgba(244,63,94,0.08)" : colors.bg.panel),
+              border: msg.role === "user" ? `1px solid rgba(96,165,250,0.2)` : `1px solid ${msg.isError ? "rgba(244,63,94,0.2)" : colors.border.default}`,
               color: msg.isError ? colors.brand.error : colors.text.primary,
               fontSize: "13px", lineHeight: "1.6",
             }}>
@@ -117,10 +117,10 @@ export default function ChatWidget() {
 
         {isLoading && (
           <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: "10px" }}>
-            <div style={{ width: "22px", height: "22px", backgroundColor: colors.brand.blue, borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "7px", flexShrink: 0 }}>
+            <div style={{ width: "22px", height: "22px", background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.light})`, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "7px", flexShrink: 0 }}>
               <Bot size={11} color="#FFFFFF" />
             </div>
-            <div style={{ padding: "10px 14px", backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`, borderRadius: "4px", display: "flex", gap: "4px" }}>
+            <div style={{ padding: "10px 14px", backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`, borderRadius: "12px", display: "flex", gap: "4px" }}>
               {[0, 1, 2].map(i => (
                 <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: colors.brand.cyan, animation: "typing-dot 1.4s infinite ease-in-out", animationDelay: `${i * 0.16}s` }} />
               ))}
@@ -137,19 +137,19 @@ export default function ChatWidget() {
             placeholder="Type a message..." data-testid="widget-input"
             style={{
               flex: 1, backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`,
-              borderRadius: "2px", padding: "9px 12px", color: colors.text.primary,
+              borderRadius: "10px", padding: "9px 12px", color: colors.text.primary,
               fontFamily: fonts.body, fontSize: "13px", outline: "none",
               transition: "border-color 0.3s ease, box-shadow 0.3s ease",
             }}
-            onFocus={e => { e.target.style.borderColor = colors.brand.cyan; e.target.style.boxShadow = `0 0 6px rgba(0,245,255,0.15)`; }}
-            onBlur={e => { e.target.style.borderColor = "rgba(0,136,255,0.3)"; e.target.style.boxShadow = "none"; }}
+            onFocus={e => { e.target.style.borderColor = colors.brand.cyan; e.target.style.boxShadow = `0 0 6px rgba(96,165,250,0.15)`; }}
+            onBlur={e => { e.target.style.borderColor = "rgba(59,130,246,0.3)"; e.target.style.boxShadow = "none"; }}
           />
           <button onClick={sendMessage} disabled={isLoading || !input.trim()} data-testid="widget-send-btn"
             style={{
               width: "36px", height: "36px",
               backgroundColor: !isLoading && input.trim() ? colors.brand.blue : colors.bg.panel,
-              border: !isLoading && input.trim() ? `1px solid rgba(0,245,255,0.5)` : `1px solid ${colors.border.default}`,
-              borderRadius: "2px", cursor: !isLoading && input.trim() ? "pointer" : "not-allowed",
+              border: !isLoading && input.trim() ? `1px solid rgba(96,165,250,0.5)` : `1px solid ${colors.border.default}`,
+              borderRadius: "10px", cursor: !isLoading && input.trim() ? "pointer" : "not-allowed",
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
               transition: "all 0.2s ease",
             }}>
@@ -157,7 +157,7 @@ export default function ChatWidget() {
           </button>
         </div>
         <p style={{ fontFamily: fonts.mono, fontSize: "9px", color: colors.text.muted, margin: "6px 0 0", textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "center" }}>
-          Powered by BridgeBot
+          Powered by Discord-Pro
         </p>
       </div>
     </div>

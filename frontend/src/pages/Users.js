@@ -6,16 +6,16 @@ import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
 
 const badge = (color) => ({
   display: "inline-flex", alignItems: "center", gap: "4px",
-  padding: "3px 8px", borderRadius: "2px", fontSize: "11px", fontFamily: fonts.mono,
-  backgroundColor: color === "green" ? "rgba(0,255,102,0.08)" : color === "yellow" ? "rgba(245,158,11,0.08)" : "rgba(148,163,184,0.08)",
+  padding: "3px 8px", borderRadius: "10px", fontSize: "11px", fontFamily: fonts.mono,
+  backgroundColor: color === "green" ? "rgba(52,211,153,0.08)" : color === "yellow" ? "rgba(245,158,11,0.08)" : "rgba(148,163,184,0.08)",
   color: color === "green" ? colors.brand.success : color === "yellow" ? colors.brand.warning : colors.text.secondary,
-  border: `1px solid ${color === "green" ? "rgba(0,255,102,0.2)" : color === "yellow" ? "rgba(245,158,11,0.2)" : "rgba(148,163,184,0.15)"}`,
+  border: `1px solid ${color === "green" ? "rgba(52,211,153,0.2)" : color === "yellow" ? "rgba(245,158,11,0.2)" : "rgba(148,163,184,0.15)"}`,
 });
 
 const instanceChip = {
-  display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 8px", borderRadius: "2px",
-  fontSize: "11px", fontFamily: fonts.body, backgroundColor: "rgba(0,136,255,0.1)",
-  color: colors.brand.blue, border: "1px solid rgba(0,136,255,0.2)", marginRight: "4px", marginBottom: "2px",
+  display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 8px", borderRadius: "10px",
+  fontSize: "11px", fontFamily: fonts.body, backgroundColor: "rgba(59,130,246,0.1)",
+  color: colors.brand.blue, border: "1px solid rgba(59,130,246,0.2)", marginRight: "4px", marginBottom: "2px",
 };
 
 export default function Users() {
@@ -46,7 +46,7 @@ export default function Users() {
         <h1 style={{ ...T.h1, margin: "0 0 32px" }}>Users</h1>
         {unassignedCount > 0 && (
           <span style={{
-            padding: "2px 8px", borderRadius: "2px", fontSize: "11px", fontFamily: fonts.mono,
+            padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontFamily: fonts.mono,
             backgroundColor: "rgba(245,158,11,0.12)", color: colors.brand.warning,
             border: "1px solid rgba(245,158,11,0.25)",
           }} data-testid="unassigned-count">
@@ -84,7 +84,7 @@ export default function Users() {
           <p>No users in this category</p>
         </div>
       ) : (
-        <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", overflow: "hidden" }}>
+        <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.border.subtle}` }}>

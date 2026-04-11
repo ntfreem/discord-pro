@@ -7,8 +7,8 @@ import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
 function PlatformBadge({ platform }) {
   const c = platform === "discord"
     ? { bg: "rgba(88,101,242,0.12)", text: colors.brand.discord }
-    : { bg: "rgba(0,136,255,0.12)", text: colors.brand.blue };
-  return <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: "2px", fontSize: "11px", fontFamily: fonts.mono, textTransform: "uppercase", letterSpacing: "0.05em", backgroundColor: c.bg, color: c.text }}>{platform}</span>;
+    : { bg: "rgba(59,130,246,0.12)", text: colors.brand.blue };
+  return <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontFamily: fonts.mono, textTransform: "uppercase", letterSpacing: "0.05em", backgroundColor: c.bg, color: c.text }}>{platform}</span>;
 }
 
 function MessageBubble({ msg }) {
@@ -20,8 +20,8 @@ function MessageBubble({ msg }) {
       </div>
       <div style={{
         maxWidth: "80%", padding: "10px 14px", borderRadius: "4px",
-        backgroundColor: isUser ? "rgba(0,136,255,0.12)" : colors.bg.panel,
-        border: isUser ? `1px solid rgba(0,136,255,0.3)` : `1px solid ${colors.border.default}`,
+        backgroundColor: isUser ? "rgba(59,130,246,0.12)" : colors.bg.panel,
+        border: isUser ? `1px solid rgba(59,130,246,0.3)` : `1px solid ${colors.border.default}`,
         color: colors.text.primary, fontFamily: fonts.body, fontSize: "13px", lineHeight: "1.6",
         whiteSpace: "pre-wrap", wordBreak: "break-word"
       }}>
@@ -73,7 +73,7 @@ export default function Conversations() {
   const selectConv = (conv) => setSelected(conv.session_id === selected?.session_id ? null : conv);
 
   const filterBtn = (color, active) => ({
-    padding: "6px 14px", borderRadius: "2px", border: `1px solid ${active ? color : colors.border.default}`,
+    padding: "6px 14px", borderRadius: "10px", border: `1px solid ${active ? color : colors.border.default}`,
     backgroundColor: active ? `${color}15` : "transparent", color: active ? color : colors.text.secondary,
     fontSize: "12px", fontFamily: fonts.body, cursor: "pointer", transition: "all 0.2s ease",
   });
@@ -84,7 +84,7 @@ export default function Conversations() {
       <h1 style={T.h1}>Conversations</h1>
 
       {/* Training Guide */}
-      <div style={{ backgroundColor: "rgba(0,136,255,0.05)", border: `1px solid rgba(0,136,255,0.15)`, borderRadius: "2px", padding: "14px 18px", marginBottom: "24px", display: "flex", gap: "12px" }}>
+      <div style={{ backgroundColor: "rgba(59,130,246,0.05)", border: `1px solid rgba(59,130,246,0.15)`, borderRadius: "10px", padding: "14px 18px", marginBottom: "24px", display: "flex", gap: "12px" }}>
         <Lightbulb size={16} color={colors.brand.blue} style={{ flexShrink: 0, marginTop: "1px" }} />
         <div>
           <p style={{ fontFamily: fonts.body, fontSize: "13px", fontWeight: "500", color: colors.text.primary, margin: "0 0 4px" }}>How Tone Training Works</p>
@@ -107,7 +107,7 @@ export default function Conversations() {
 
       <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: "20px" }}>
         {/* List */}
-        <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", overflow: "hidden" }}>
+        <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", overflow: "hidden" }}>
           {loading ? (
             <div style={{ padding: "48px", textAlign: "center", color: colors.text.secondary, fontFamily: fonts.body }}>Loading...</div>
           ) : conversations.length === 0 ? (
@@ -119,10 +119,10 @@ export default function Conversations() {
               <div key={conv.session_id} data-testid="conversation-item" onClick={() => selectConv(conv)}
                 style={{
                   padding: "14px 20px", borderBottom: `1px solid ${colors.border.faint}`, cursor: "pointer",
-                  backgroundColor: selected?.session_id === conv.session_id ? "rgba(0,245,255,0.04)" : "transparent",
+                  backgroundColor: selected?.session_id === conv.session_id ? "rgba(96,165,250,0.04)" : "transparent",
                   transition: "background-color 0.2s ease",
                 }}
-                onMouseEnter={e => { if (selected?.session_id !== conv.session_id) e.currentTarget.style.backgroundColor = "rgba(0,136,255,0.04)"; }}
+                onMouseEnter={e => { if (selected?.session_id !== conv.session_id) e.currentTarget.style.backgroundColor = "rgba(59,130,246,0.04)"; }}
                 onMouseLeave={e => { if (selected?.session_id !== conv.session_id) e.currentTarget.style.backgroundColor = "transparent"; }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -164,7 +164,7 @@ export default function Conversations() {
 
         {/* Detail Panel */}
         {selected && (
-          <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", display: "flex", flexDirection: "column", maxHeight: "700px" }}>
+          <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", display: "flex", flexDirection: "column", maxHeight: "700px" }}>
             <div style={{ padding: "14px 20px", borderBottom: `1px solid ${colors.border.default}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -193,12 +193,12 @@ export default function Conversations() {
               <div style={{ display: "flex", gap: "10px" }}>
                 <button data-testid="approve-training-btn" onClick={() => approve(selected.session_id, !selected.is_approved_for_training)}
                   style={{
-                    flex: 1, padding: "9px 14px", borderRadius: "2px", cursor: "pointer",
+                    flex: 1, padding: "9px 14px", borderRadius: "10px", cursor: "pointer",
                     fontSize: "13px", fontFamily: fonts.body, fontWeight: "500",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
-                    backgroundColor: selected.is_approved_for_training ? colors.bg.panel : "rgba(0,255,102,0.08)",
+                    backgroundColor: selected.is_approved_for_training ? colors.bg.panel : "rgba(52,211,153,0.08)",
                     color: selected.is_approved_for_training ? colors.text.secondary : colors.brand.success,
-                    border: `1px solid ${selected.is_approved_for_training ? colors.border.default : "rgba(0,255,102,0.3)"}`,
+                    border: `1px solid ${selected.is_approved_for_training ? colors.border.default : "rgba(52,211,153,0.3)"}`,
                     transition: "all 0.2s ease",
                   }}>
                   <CheckCircle size={13} />
@@ -206,8 +206,8 @@ export default function Conversations() {
                 </button>
                 <button data-testid="delete-conversation-btn" onClick={() => deleteConv(selected.session_id)}
                   style={{
-                    padding: "9px 14px", borderRadius: "2px",
-                    border: `1px solid rgba(255,0,60,0.2)`, backgroundColor: "rgba(255,0,60,0.06)",
+                    padding: "9px 14px", borderRadius: "6px",
+                    border: `1px solid rgba(244,63,94,0.2)`, backgroundColor: "rgba(244,63,94,0.06)",
                     color: colors.brand.error, cursor: "pointer",
                     fontSize: "13px", fontFamily: fonts.body, fontWeight: "500",
                     display: "flex", alignItems: "center", gap: "7px",
