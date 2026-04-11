@@ -158,10 +158,12 @@ class FAQEntry(BaseModel):
     title: str
     content: str
     tags: Optional[List[str]] = []
+    priority: Optional[int] = 0
 
 class URLEntry(BaseModel):
     url: str
     title: Optional[str] = None
+    priority: Optional[int] = 0
 
 class ChatMessage(BaseModel):
     message: str
@@ -242,15 +244,17 @@ async def get_instance_access(
 
 async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
     try:
+        # First, try text search across all active sources, sorted by priority then relevance
         results = await db.knowledge_sources.find(
             {"$text": {"$search": query}, "is_active": True, "instance_id": instance_id},
             {"score": {"$meta": "textScore"}, "_id": 0}
-        ).sort([("score", {"$meta": "textScore"})]).limit(limit).to_list(limit)
+        ).sort([("priority", -1), ("score", {"$meta": "textScore"})]).limit(limit).to_list(limit)
 
         if not results:
+            # Fallback: return highest-priority sources if no text match
             results = await db.knowledge_sources.find(
                 {"is_active": True, "instance_id": instance_id}, {"_id": 0}
-            ).sort("created_at", -1).limit(3).to_list(3)
+            ).sort([("priority", -1), ("created_at", -1)]).limit(3).to_list(3)
 
         if not results:
             return ""
@@ -259,7 +263,9 @@ async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
         for r in results:
             title = r.get("title", "Unknown")
             content = r.get("content", "")[:800]
-            chunks.append(f"[{title}]\n{content}")
+            pri = r.get("priority", 0)
+            pri_label = f" [PRIORITY: HIGH]" if pri >= 2 else (f" [PRIORITY: MEDIUM]" if pri == 1 else "")
+            chunks.append(f"[{title}]{pri_label}\n{content}")
         return "\n\n".join(chunks)
     except Exception as e:
         logger.warning(f"Knowledge search: {e}")
@@ -977,7 +983,7 @@ async def update_bot_config(body: BotConfigUpdate, instance_id: str = Depends(ge
 async def get_knowledge_sources(instance_id: str = Depends(get_instance_access)):
     sources = await db.knowledge_sources.find(
         {"instance_id": instance_id}, {"_id": 0}
-    ).sort("created_at", -1).to_list(200)
+    ).sort([("priority", -1), ("created_at", -1)]).to_list(200)
     return sources
 
 
@@ -986,7 +992,7 @@ async def add_faq(entry: FAQEntry, instance_id: str = Depends(get_instance_acces
     doc = {
         "id": str(uuid.uuid4()), "type": "faq", "title": entry.title,
         "content": entry.content, "tags": entry.tags or [],
-        "instance_id": instance_id,
+        "instance_id": instance_id, "priority": entry.priority or 0,
         "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.knowledge_sources.insert_one(doc)
@@ -1010,6 +1016,7 @@ async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_inst
         doc = {
             "id": str(uuid.uuid4()), "type": "url", "title": str(title)[:150],
             "content": text, "url": entry.url, "instance_id": instance_id,
+            "priority": entry.priority or 0,
             "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.knowledge_sources.insert_one(doc)
@@ -1025,6 +1032,7 @@ async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_inst
 async def upload_document(
     file: UploadFile = File(...),
     title: str = Form(...),
+    priority: int = Form(0),
     x_instance_id: Optional[str] = Header(None, alias="X-Instance-ID"),
     authorization: Optional[str] = Header(None)
 ):
@@ -1050,6 +1058,7 @@ async def upload_document(
         doc = {
             "id": str(uuid.uuid4()), "type": "document", "title": title or filename,
             "content": text, "filename": filename, "instance_id": instance_id,
+            "priority": priority,
             "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.knowledge_sources.insert_one(doc)
@@ -1077,6 +1086,20 @@ async def toggle_source(source_id: str, instance_id: str = Depends(get_instance_
     new_status = not source.get("is_active", True)
     await db.knowledge_sources.update_one({"id": source_id}, {"$set": {"is_active": new_status}})
     return {"is_active": new_status}
+
+
+class PriorityUpdate(BaseModel):
+    priority: int
+
+@api_router.patch("/knowledge/sources/{source_id}/priority")
+async def update_source_priority(source_id: str, body: PriorityUpdate, instance_id: str = Depends(get_instance_access)):
+    result = await db.knowledge_sources.update_one(
+        {"id": source_id, "instance_id": instance_id},
+        {"$set": {"priority": body.priority}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Source not found")
+    return {"success": True, "priority": body.priority}
 
 
 # ==================== CONVERSATIONS (PROTECTED) ====================

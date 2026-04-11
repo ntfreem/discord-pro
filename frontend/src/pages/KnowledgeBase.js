@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../utils/api";
 import { toast } from "sonner";
-import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
+import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2, ChevronUp, ChevronDown, ArrowUpCircle } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur, rowEnter, rowLeave } from "../theme";
 
 const typeIcon = { faq: HelpCircle, url: Globe, document: FileText };
 const typeColor = { faq: colors.brand.blue, url: colors.brand.success, document: colors.text.secondary };
+
+const PRIORITY_LEVELS = [
+  { value: 0, label: "Normal", color: colors.text.secondary },
+  { value: 1, label: "Medium", color: colors.brand.warning },
+  { value: 2, label: "High", color: colors.brand.error },
+];
 
 function TypeBadge({ type }) {
   const Icon = typeIcon[type] || HelpCircle;
@@ -21,13 +27,52 @@ function TypeBadge({ type }) {
   );
 }
 
+function PriorityBadge({ priority }) {
+  const level = PRIORITY_LEVELS.find(p => p.value === priority) || PRIORITY_LEVELS[0];
+  return (
+    <span data-testid="priority-badge" style={{
+      display: "inline-flex", alignItems: "center", gap: "4px", padding: "2px 8px", borderRadius: "10px",
+      fontSize: "11px", fontFamily: fonts.mono, letterSpacing: "0.03em",
+      backgroundColor: `${level.color}18`, color: level.color
+    }}>
+      {priority >= 2 && <ArrowUpCircle size={10} />}
+      {level.label}
+    </span>
+  );
+}
+
+function PrioritySelector({ value, onChange, style }) {
+  return (
+    <div style={{ display: "flex", gap: "6px", ...style }}>
+      {PRIORITY_LEVELS.map(({ value: v, label, color }) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          data-testid={`priority-${label.toLowerCase()}`}
+          style={{
+            padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontFamily: fonts.body,
+            fontWeight: value === v ? "600" : "400", cursor: "pointer", transition: "all 0.2s",
+            border: `1px solid ${value === v ? color : colors.border.default}`,
+            backgroundColor: value === v ? `${color}12` : colors.bg.base,
+            color: value === v ? color : colors.text.secondary,
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function KnowledgeBase() {
   const [activeTab, setActiveTab] = useState("faq");
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [faq, setFaq] = useState({ title: "", content: "" });
-  const [urlEntry, setUrlEntry] = useState({ url: "", title: "" });
+  const [faq, setFaq] = useState({ title: "", content: "", priority: 0 });
+  const [urlEntry, setUrlEntry] = useState({ url: "", title: "", priority: 0 });
   const [docTitle, setDocTitle] = useState("");
+  const [docPriority, setDocPriority] = useState(0);
   const [scraping, setScraping] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -44,7 +89,7 @@ export default function KnowledgeBase() {
     try {
       await api.post(`/knowledge/sources/faq`, faq);
       toast.success("FAQ added successfully");
-      setFaq({ title: "", content: "" });
+      setFaq({ title: "", content: "", priority: 0 });
       loadSources();
     } catch { toast.error("Failed to add FAQ"); }
     finally { setLoading(false); }
@@ -56,7 +101,7 @@ export default function KnowledgeBase() {
     try {
       await api.post(`/knowledge/sources/url`, urlEntry);
       toast.success("URL scraped and saved successfully");
-      setUrlEntry({ url: "", title: "" });
+      setUrlEntry({ url: "", title: "", priority: 0 });
       loadSources();
     } catch (e) { toast.error(e.response?.data?.detail || "Failed to scrape URL"); }
     finally { setScraping(false); }
@@ -69,11 +114,13 @@ export default function KnowledgeBase() {
     const form = new FormData();
     form.append("file", file);
     form.append("title", docTitle);
+    form.append("priority", docPriority);
     setUploading(true);
     try {
       await api.post(`/knowledge/sources/upload`, form);
       toast.success("Document uploaded successfully");
       setDocTitle("");
+      setDocPriority(0);
       if (fileRef.current) fileRef.current.value = "";
       loadSources();
     } catch (e) { toast.error(e.response?.data?.detail || "Upload failed"); }
@@ -93,6 +140,18 @@ export default function KnowledgeBase() {
       const r = await api.patch(`/knowledge/sources/${id}/toggle`);
       setSources(prev => prev.map(s => s.id === id ? { ...s, is_active: r.data.is_active } : s));
     } catch { toast.error("Failed to toggle"); }
+  };
+
+  const updatePriority = async (id, newPriority) => {
+    try {
+      await api.patch(`/knowledge/sources/${id}/priority`, { priority: newPriority });
+      setSources(prev => {
+        const updated = prev.map(s => s.id === id ? { ...s, priority: newPriority } : s);
+        return updated.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      });
+      const label = PRIORITY_LEVELS.find(p => p.value === newPriority)?.label || "Normal";
+      toast.success(`Priority set to ${label}`);
+    } catch { toast.error("Failed to update priority"); }
   };
 
   const tabs = [
@@ -140,6 +199,11 @@ export default function KnowledgeBase() {
                 onFocus={onFocus} onBlur={onBlur} />
             </div>
             <div>
+              <label style={T.label}>Priority</label>
+              <PrioritySelector value={faq.priority} onChange={v => setFaq(p => ({ ...p, priority: v }))} />
+              <p style={T.hint}>High priority sources are checked first when answering questions.</p>
+            </div>
+            <div>
               <button onClick={addFaq} disabled={loading} data-testid="faq-add-btn" style={{ ...T.btnPrimary, opacity: loading ? 0.6 : 1 }}>
                 {loading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                 Add FAQ
@@ -168,6 +232,11 @@ export default function KnowledgeBase() {
                 placeholder="Auto-detected from page title" data-testid="url-title-input" onFocus={onFocus} onBlur={onBlur} />
             </div>
             <div>
+              <label style={T.label}>Priority</label>
+              <PrioritySelector value={urlEntry.priority} onChange={v => setUrlEntry(p => ({ ...p, priority: v }))} />
+              <p style={T.hint}>High priority sources are checked first when answering questions.</p>
+            </div>
+            <div>
               <button onClick={scrapeUrl} disabled={scraping} data-testid="url-scrape-btn" style={{ ...T.btnPrimary, opacity: scraping ? 0.6 : 1 }}>
                 {scraping ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
                 {scraping ? "Scraping..." : "Scrape & Save"}
@@ -194,6 +263,11 @@ export default function KnowledgeBase() {
                 style={{ ...T.input, padding: "8px 14px", cursor: "pointer" }} />
             </div>
             <div>
+              <label style={T.label}>Priority</label>
+              <PrioritySelector value={docPriority} onChange={setDocPriority} />
+              <p style={T.hint}>High priority sources are checked first when answering questions.</p>
+            </div>
+            <div>
               <button onClick={uploadFile} disabled={uploading} data-testid="doc-upload-btn" style={{ ...T.btnPrimary, opacity: uploading ? 0.6 : 1 }}>
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                 {uploading ? "Uploading..." : "Upload Document"}
@@ -210,6 +284,9 @@ export default function KnowledgeBase() {
             All Sources
             <span style={{ marginLeft: "10px", fontFamily: fonts.mono, fontSize: "11px", color: colors.text.secondary }}>{sources.length}</span>
           </p>
+          <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.muted, margin: 0 }}>
+            Sorted by priority (highest first)
+          </p>
         </div>
         {sources.length === 0 ? (
           <div style={{ padding: "48px", textAlign: "center" }}>
@@ -219,7 +296,7 @@ export default function KnowledgeBase() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.border.subtle}` }}>
-                {["Type", "Title", "Added", "Active", "Actions"].map(h => (
+                {["Type", "Title", "Priority", "Active", "Actions"].map(h => (
                   <th key={h} style={T.th}>{h}</th>
                 ))}
               </tr>
@@ -233,8 +310,36 @@ export default function KnowledgeBase() {
                     <div style={{ fontWeight: 500 }}>{source.title}</div>
                     {source.url && <div style={{ fontSize: "11px", color: colors.text.secondary, marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{source.url}</div>}
                   </td>
-                  <td style={{ padding: "12px 20px", fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary }}>
-                    {source.created_at ? new Date(source.created_at).toLocaleDateString() : "\u2014"}
+                  <td style={{ padding: "12px 20px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <PriorityBadge priority={source.priority || 0} />
+                      <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                        <button
+                          onClick={() => updatePriority(source.id, Math.min((source.priority || 0) + 1, 2))}
+                          disabled={(source.priority || 0) >= 2}
+                          data-testid="priority-up-btn"
+                          style={{
+                            background: "none", border: "none", cursor: (source.priority || 0) >= 2 ? "default" : "pointer",
+                            color: (source.priority || 0) >= 2 ? colors.border.subtle : colors.text.secondary,
+                            padding: "0", lineHeight: 1,
+                          }}
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <button
+                          onClick={() => updatePriority(source.id, Math.max((source.priority || 0) - 1, 0))}
+                          disabled={(source.priority || 0) <= 0}
+                          data-testid="priority-down-btn"
+                          style={{
+                            background: "none", border: "none", cursor: (source.priority || 0) <= 0 ? "default" : "pointer",
+                            color: (source.priority || 0) <= 0 ? colors.border.subtle : colors.text.secondary,
+                            padding: "0", lineHeight: 1,
+                          }}
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+                    </div>
                   </td>
                   <td style={{ padding: "12px 20px" }}>
                     <button onClick={() => toggleSource(source.id)} data-testid="toggle-source-btn"

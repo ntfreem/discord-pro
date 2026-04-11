@@ -1,0 +1,66 @@
+{
+  "summary": "Comprehensive testing of Knowledge Source Priority feature. All 13 backend API tests passed (100%). All frontend UI tests passed - verified Priority selector on FAQ/URL/Document tabs, Priority badges in table, up/down arrows for inline priority changes, and proper sorting by priority (highest first).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_knowledge_priority.py",
+    "/app/test_reports/pytest/priority_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_knowledge_priority.py"
+  ],
+  "success_rate": {
+    "backend": "100% - 13/13 tests passed",
+    "frontend": "100% - all UI elements and interactions verified"
+  },
+  "features_tested": {
+    "backend_api": {
+      "faq_with_priority_normal": "PASS - POST /api/knowledge/sources/faq with priority=0 saves correctly",
+      "faq_with_priority_medium": "PASS - POST /api/knowledge/sources/faq with priority=1 saves correctly",
+      "faq_with_priority_high": "PASS - POST /api/knowledge/sources/faq with priority=2 saves correctly",
+      "faq_default_priority": "PASS - POST /api/knowledge/sources/faq without priority defaults to 0",
+      "url_with_priority": "PASS - POST /api/knowledge/sources/url with priority field works (SSL skip in test env)",
+      "get_sources_sorted": "PASS - GET /api/knowledge/sources returns sources sorted by priority descending",
+      "update_priority": "PASS - PATCH /api/knowledge/sources/{id}/priority updates priority correctly",
+      "update_priority_medium": "PASS - Priority can be updated to 1 (Medium)",
+      "update_priority_404": "PASS - Returns 404 for nonexistent source",
+      "toggle_still_works": "PASS - PATCH /api/knowledge/sources/{id}/toggle still toggles active status",
+      "existing_sources_priority": "PASS - Existing sources (Refund Policy, General Info) have priority field",
+      "upload_with_priority": "PASS - POST /api/knowledge/sources/upload with priority form field works",
+      "upload_default_priority": "PASS - Document upload without priority defaults to 0"
+    },
+    "frontend_ui": {
+      "faq_tab_priority_selector": "PASS - FAQ tab shows Priority selector with Normal/Medium/High buttons",
+      "url_tab_priority_selector": "PASS - URL Scraper tab shows Priority selector",
+      "document_tab_priority_selector": "PASS - Upload Document tab shows Priority selector",
+      "priority_column_in_table": "PASS - Sources table has Priority column",
+      "priority_badges": "PASS - Priority badges show with correct colors (Normal=gray, Medium=yellow, High=red)",
+      "priority_up_down_arrows": "PASS - Up/down arrows visible next to priority badges",
+      "priority_up_click": "PASS - Clicking up arrow increases priority",
+      "priority_down_click": "PASS - Clicking down arrow decreases priority and shows toast 'Priority set to Medium'",
+      "sorted_by_priority": "PASS - Table header shows 'Sorted by priority (highest first)'",
+      "list_reorders_on_change": "PASS - List re-sorts when priority changes",
+      "add_faq_with_priority": "PASS - Adding FAQ with High priority places it at top of list",
+      "toast_notifications": "PASS - Toast shows 'FAQ added successfully' and 'Priority set to X'"
+    }
+  },
+  "test_credentials": {
+    "admin_username": "administrator",
+    "admin_password": "Admin@123",
+    "instance_id": "db4bc405-143a-42b4-9df4-60cf20047c0a",
+    "instance_name": "James - Support Agent"
+  },
+  "seed_data_creation": "None - used existing test data (Refund Policy priority=2, General Info priority=1)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Knowledge Source Priority feature fully tested. Priority values: 0=Normal, 1=Medium, 2=High. Sources are sorted by priority descending. Existing sources: Refund Policy (High), General Info (Medium). All CRUD operations with priority work correctly. Frontend shows priority selector on all 3 tabs (FAQ, URL, Document) and priority badges with up/down arrows in the sources table."
+}
