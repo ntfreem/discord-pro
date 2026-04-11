@@ -2,17 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { MessageSquare, BookOpen, CheckCircle, Zap } from "lucide-react";
-
-const S = {
-  page: { padding: "40px 48px", backgroundColor: "#0A0A0A", minHeight: "100vh" },
-  overline: { fontFamily: "JetBrains Mono, monospace", fontSize: "11px", color: "#0055FF", textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: "8px" },
-  h1: { fontFamily: "Chivo, sans-serif", fontSize: "30px", fontWeight: "900", color: "#FFFFFF", margin: "0 0 32px", letterSpacing: "-0.5px" },
-  card: { backgroundColor: "#121212", border: "1px solid #262626", borderRadius: "4px", padding: "24px" },
-  label: { fontFamily: "JetBrains Mono, monospace", fontSize: "11px", color: "#A1A1AA", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 },
-  value: { fontFamily: "Chivo, sans-serif", fontSize: "40px", fontWeight: "900", color: "#FFFFFF", margin: "8px 0 0", letterSpacing: "-1px" },
-  th: { padding: "10px 20px", textAlign: "left", fontFamily: "JetBrains Mono, monospace", fontSize: "10px", color: "#A1A1AA", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: "400" },
-  td: { padding: "12px 20px", fontFamily: "IBM Plex Sans, sans-serif", fontSize: "13px", color: "#FFFFFF" },
-};
+import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
 
 function StatCard({ title, value, icon: Icon, color }) {
   const [hovered, setHovered] = useState(false);
@@ -20,30 +10,34 @@ function StatCard({ title, value, icon: Icon, color }) {
     <div
       data-testid={`stat-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
       style={{
-        ...S.card,
-        transition: "transform 0.2s ease, border-color 0.2s ease",
+        ...T.card,
+        transition: "transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
         transform: hovered ? "translateY(-2px)" : "none",
-        borderColor: hovered ? "rgba(255,255,255,0.2)" : "#262626",
+        borderColor: hovered ? colors.brand.cyan : "rgba(0, 136, 255, 0.3)",
+        boxShadow: hovered ? `0 4px 20px rgba(0, 136, 255, 0.15)` : "none",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <p style={S.label}>{title}</p>
+        <p style={T.monoLabel}>{title}</p>
         <Icon size={16} color={color} />
       </div>
-      <p style={S.value}>{value ?? "—"}</p>
+      <p style={{ fontFamily: fonts.heading, fontSize: "40px", fontWeight: "700", color: colors.text.primary, margin: "8px 0 0", letterSpacing: "-1px" }}>
+        {value ?? "\u2014"}
+      </p>
     </div>
   );
 }
 
 function PlatformBadge({ platform }) {
-  const colors = { discord: { bg: "rgba(88,101,242,0.15)", text: "#7289DA" }, web: { bg: "rgba(0,85,255,0.15)", text: "#0055FF" } };
-  const c = colors[platform] || colors.web;
+  const c = platform === "discord"
+    ? { bg: "rgba(88,101,242,0.12)", text: colors.brand.discord }
+    : { bg: "rgba(0,136,255,0.12)", text: colors.brand.blue };
   return (
     <span style={{
-      display: "inline-block", padding: "2px 8px", borderRadius: "3px",
-      fontSize: "11px", fontFamily: "JetBrains Mono, monospace",
+      display: "inline-block", padding: "2px 8px", borderRadius: "2px",
+      fontSize: "11px", fontFamily: fonts.mono,
       textTransform: "uppercase", letterSpacing: "0.05em",
       backgroundColor: c.bg, color: c.text
     }}>{platform}</span>
@@ -57,10 +51,7 @@ export default function Dashboard() {
   const { selectedInstance, user } = useAuth();
 
   useEffect(() => {
-    if (!selectedInstance) {
-      setLoading(false);
-      return;
-    }
+    if (!selectedInstance) { setLoading(false); return; }
     setLoading(true);
     Promise.all([
       api.get(`/analytics/overview`),
@@ -73,19 +64,19 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontFamily: "JetBrains Mono", color: "#A1A1AA", fontSize: "13px" }}>Loading...</p>
+      <div style={{ ...T.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ fontFamily: fonts.mono, color: colors.text.secondary, fontSize: "13px" }}>Loading...</p>
       </div>
     );
   }
 
   if (!selectedInstance) {
     return (
-      <div style={{ ...S.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontFamily: "Chivo, sans-serif", fontSize: "22px", fontWeight: "900", color: "#FFFFFF", margin: "0 0 8px" }}>
+      <div style={{ ...T.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary, margin: "0 0 8px" }}>
           No workspace selected
         </p>
-        <p style={{ fontFamily: "IBM Plex Sans, sans-serif", fontSize: "14px", color: "#A1A1AA" }}>
+        <p style={{ fontFamily: fonts.body, fontSize: "14px", color: colors.text.secondary }}>
           {user?.role === "superadmin"
             ? "Create an instance from the Instances page, then select it from the sidebar."
             : "Contact your admin to get access to a workspace."}
@@ -95,94 +86,95 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={S.page}>
-      <p style={S.overline}>Overview</p>
-      <h1 style={S.h1}>Dashboard</h1>
+    <div style={T.page}>
+      <p style={T.overline}>Overview</p>
+      <h1 style={T.h1}>Dashboard</h1>
 
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "32px" }}>
-        <StatCard title="Conversations" value={overview?.total_conversations ?? 0} icon={MessageSquare} color="#0055FF" />
-        <StatCard title="Total Messages" value={overview?.total_messages ?? 0} icon={Zap} color="#00FF66" />
-        <StatCard title="Knowledge Sources" value={overview?.knowledge_sources ?? 0} icon={BookOpen} color="#A1A1AA" />
-        <StatCard title="Training Examples" value={overview?.approved_for_training ?? 0} icon={CheckCircle} color="#00FF66" />
+        <StatCard title="Conversations" value={overview?.total_conversations ?? 0} icon={MessageSquare} color={colors.brand.blue} />
+        <StatCard title="Total Messages" value={overview?.total_messages ?? 0} icon={Zap} color={colors.brand.success} />
+        <StatCard title="Knowledge Sources" value={overview?.knowledge_sources ?? 0} icon={BookOpen} color={colors.text.secondary} />
+        <StatCard title="Training Examples" value={overview?.approved_for_training ?? 0} icon={CheckCircle} color={colors.brand.success} />
       </div>
 
       {/* Platform + Quick Actions */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "32px" }}>
-        <div style={S.card}>
-          <p style={{ ...S.label, marginBottom: "20px" }}>Platform Breakdown</p>
+        <div style={T.card}>
+          <p style={{ ...T.monoLabel, marginBottom: "20px" }}>Platform Breakdown</p>
           <div style={{ display: "flex", gap: "32px" }}>
             {[
-              { label: "Web", value: overview?.platform_breakdown?.web ?? 0, color: "#0055FF" },
-              { label: "Discord", value: overview?.platform_breakdown?.discord ?? 0, color: "#7289DA" }
+              { label: "Web", value: overview?.platform_breakdown?.web ?? 0, color: colors.brand.blue },
+              { label: "Discord", value: overview?.platform_breakdown?.discord ?? 0, color: colors.brand.discord }
             ].map(({ label, value, color }) => (
               <div key={label} data-testid={`platform-${label.toLowerCase()}`}>
-                <p style={{ fontFamily: "Chivo, sans-serif", fontSize: "36px", fontWeight: "900", color: "#FFFFFF", margin: 0 }}>{value}</p>
-                <p style={{ fontFamily: "IBM Plex Sans, sans-serif", fontSize: "13px", color, margin: "4px 0 0" }}>{label}</p>
+                <p style={{ fontFamily: fonts.heading, fontSize: "36px", fontWeight: "700", color: colors.text.primary, margin: 0 }}>{value}</p>
+                <p style={{ fontFamily: fonts.body, fontSize: "13px", color, margin: "4px 0 0" }}>{label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <div style={S.card}>
-          <p style={{ ...S.label, marginBottom: "16px" }}>Quick Actions</p>
+        <div style={T.card}>
+          <p style={{ ...T.monoLabel, marginBottom: "16px" }}>Quick Actions</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <a href="/admin/knowledge" data-testid="quick-add-knowledge" style={{
-              display: "block", padding: "10px 16px", backgroundColor: "#0055FF",
-              color: "#FFFFFF", borderRadius: "4px", fontSize: "13px",
-              fontFamily: "IBM Plex Sans, sans-serif", fontWeight: "500", textDecoration: "none"
+              display: "block", padding: "10px 16px", backgroundColor: colors.brand.blue,
+              color: colors.text.primary, borderRadius: "2px", fontSize: "13px",
+              fontFamily: fonts.body, fontWeight: "500", textDecoration: "none",
+              border: `1px solid rgba(0, 245, 255, 0.3)`, transition: "box-shadow 0.3s",
             }}>Add Knowledge Source</a>
             <a href="/chat" target="_blank" rel="noopener noreferrer" data-testid="quick-test-chat" style={{
-              display: "block", padding: "10px 16px", backgroundColor: "#1A1A1A",
-              border: "1px solid #262626", color: "#FFFFFF", borderRadius: "4px",
-              fontSize: "13px", fontFamily: "IBM Plex Sans, sans-serif",
-              fontWeight: "500", textDecoration: "none"
+              display: "block", padding: "10px 16px", backgroundColor: colors.bg.panel,
+              border: `1px solid ${colors.border.default}`, color: colors.text.primary, borderRadius: "2px",
+              fontSize: "13px", fontFamily: fonts.body, fontWeight: "500", textDecoration: "none",
+              transition: "border-color 0.3s",
             }}>Test Chat Demo</a>
           </div>
         </div>
       </div>
 
       {/* Recent Conversations */}
-      <div style={{ backgroundColor: "#121212", border: "1px solid #262626", borderRadius: "4px", overflow: "hidden" }}>
-        <div style={{ padding: "18px 20px", borderBottom: "1px solid #262626", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <p style={{ fontFamily: "Chivo, sans-serif", fontSize: "15px", fontWeight: "900", color: "#FFFFFF", margin: 0 }}>Recent Conversations</p>
-          <a href="/admin/conversations" style={{ fontFamily: "IBM Plex Sans, sans-serif", fontSize: "12px", color: "#0055FF", textDecoration: "none" }}>View all</a>
+      <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "2px", overflow: "hidden" }}>
+        <div style={{ padding: "18px 20px", borderBottom: `1px solid ${colors.border.default}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Recent Conversations</p>
+          <a href="/admin/conversations" style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.brand.cyan, textDecoration: "none" }}>View all</a>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid #1E1E1E" }}>
+            <tr style={{ borderBottom: `1px solid ${colors.border.subtle}` }}>
               {["Session ID", "Platform", "Messages", "Date", "Status"].map(h => (
-                <th key={h} style={S.th}>{h}</th>
+                <th key={h} style={T.th}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {conversations.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: "48px 20px", textAlign: "center", color: "#A1A1AA", fontFamily: "IBM Plex Sans", fontSize: "14px" }}>
-                  No conversations yet — <a href="/chat" target="_blank" rel="noopener noreferrer" style={{ color: "#0055FF" }}>start a chat demo</a>
+                <td colSpan={5} style={{ padding: "48px 20px", textAlign: "center", color: colors.text.secondary, fontFamily: fonts.body, fontSize: "14px" }}>
+                  No conversations yet — <a href="/chat" target="_blank" rel="noopener noreferrer" style={{ color: colors.brand.cyan }}>start a chat demo</a>
                 </td>
               </tr>
             ) : conversations.map((conv) => (
               <tr key={conv.session_id}
-                style={{ borderBottom: "1px solid #161616", transition: "background-color 0.15s ease", cursor: "pointer" }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = "#1A1A1A"}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                style={{ borderBottom: `1px solid ${colors.border.faint}`, transition: "background-color 0.2s ease", cursor: "pointer" }}
+                onMouseEnter={rowEnter}
+                onMouseLeave={rowLeave}
                 onClick={() => window.location.href = "/admin/conversations"}
                 data-testid="dashboard-conversation-row"
               >
-                <td style={{ ...S.td, fontFamily: "JetBrains Mono, monospace", fontSize: "12px", color: "#A1A1AA" }}>
+                <td style={{ ...T.td, fontFamily: fonts.mono, fontSize: "12px", color: colors.text.secondary }}>
                   {conv.session_id?.slice(0, 14)}...
                 </td>
-                <td style={S.td}><PlatformBadge platform={conv.platform} /></td>
-                <td style={S.td}>{conv.messages?.length ?? 0}</td>
-                <td style={{ ...S.td, color: "#A1A1AA", fontSize: "12px" }}>
-                  {conv.created_at ? new Date(conv.created_at).toLocaleDateString() : "—"}
+                <td style={T.td}><PlatformBadge platform={conv.platform} /></td>
+                <td style={T.td}>{conv.messages?.length ?? 0}</td>
+                <td style={{ ...T.td, color: colors.text.secondary, fontSize: "12px" }}>
+                  {conv.created_at ? new Date(conv.created_at).toLocaleDateString() : "\u2014"}
                 </td>
-                <td style={S.td}>
+                <td style={T.td}>
                   {conv.is_approved_for_training
-                    ? <span style={{ color: "#00FF66", fontFamily: "JetBrains Mono", fontSize: "11px" }}>APPROVED</span>
-                    : <span style={{ color: "#404040", fontFamily: "JetBrains Mono", fontSize: "11px" }}>PENDING</span>
+                    ? <span style={{ color: colors.brand.success, fontFamily: fonts.mono, fontSize: "11px" }}>APPROVED</span>
+                    : <span style={{ color: colors.text.muted, fontFamily: fonts.mono, fontSize: "11px" }}>PENDING</span>
                   }
                 </td>
               </tr>

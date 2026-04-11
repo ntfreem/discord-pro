@@ -1,26 +1,37 @@
 .App {
   min-height: 100vh;
-  background-color: #0A0A0A;
+  background-color: #030712;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* Tron-styled scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: #030712;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #262626;
+  background: rgba(0, 136, 255, 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: rgba(0, 245, 255, 0.5);
+}
+
+/* Spin animation for loaders */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }

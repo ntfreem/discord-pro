@@ -113,7 +113,7 @@ CLAUDE_API_KEY=<your-claude-api-key>
 JWT_SECRET=botforge-jwt-secret-change-in-production-2026
 
 # Frontend (.env)
-REACT_APP_BACKEND_URL=https://claude-support-bot.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://futurism-chat-ui.preview.emergentagent.com
 ```
 
 ## API Endpoints

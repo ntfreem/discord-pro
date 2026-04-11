@@ -2,67 +2,10 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { Bot } from "lucide-react";
+import { colors, fonts, T, onFocus, onBlur } from "../theme";
 
 const BASE = `/api`;
-
-const S = {
-  page: {
-    minHeight: "100vh", backgroundColor: "#0A0A0A",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontFamily: "IBM Plex Sans, sans-serif",
-  },
-  card: {
-    width: "100%", maxWidth: "400px",
-    backgroundColor: "#121212", border: "1px solid #262626",
-    borderRadius: "8px", padding: "40px 36px",
-  },
-  logo: {
-    display: "flex", alignItems: "center", gap: "10px",
-    marginBottom: "32px", justifyContent: "center",
-  },
-  logoIcon: {
-    width: "36px", height: "36px", backgroundColor: "#0055FF",
-    borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center",
-  },
-  heading: {
-    fontFamily: "Chivo, sans-serif", fontSize: "24px",
-    fontWeight: "900", color: "#FFFFFF", letterSpacing: "-0.5px",
-    textAlign: "center", marginBottom: "8px",
-  },
-  sub: {
-    fontSize: "13px", color: "#A1A1AA",
-    textAlign: "center", marginBottom: "28px",
-  },
-  label: {
-    display: "block", fontFamily: "JetBrains Mono, monospace",
-    fontSize: "11px", color: "#A1A1AA", textTransform: "uppercase",
-    letterSpacing: "0.1em", marginBottom: "6px",
-  },
-  input: {
-    width: "100%", padding: "10px 14px",
-    backgroundColor: "#0A0A0A", border: "1px solid #262626",
-    borderRadius: "4px", color: "#FFFFFF",
-    fontFamily: "IBM Plex Sans, sans-serif", fontSize: "14px",
-    outline: "none", boxSizing: "border-box", marginBottom: "16px",
-  },
-  btn: {
-    width: "100%", padding: "12px",
-    backgroundColor: "#0055FF", border: "none",
-    borderRadius: "4px", color: "#FFFFFF", cursor: "pointer",
-    fontFamily: "IBM Plex Sans, sans-serif", fontSize: "14px",
-    fontWeight: "600", marginTop: "8px", transition: "background 0.15s",
-  },
-  err: {
-    backgroundColor: "rgba(255,60,60,0.1)", border: "1px solid rgba(255,60,60,0.3)",
-    borderRadius: "4px", padding: "10px 14px",
-    color: "#FF6B6B", fontSize: "13px", marginBottom: "16px",
-  },
-  success: {
-    backgroundColor: "rgba(0,255,102,0.08)", border: "1px solid rgba(0,255,102,0.2)",
-    borderRadius: "4px", padding: "10px 14px",
-    color: "#00FF66", fontSize: "13px", marginBottom: "16px",
-  },
-};
+const AUTH_BG = "https://static.prod-images.emergentagent.com/jobs/6e59f39d-6021-4769-892a-e2326113d04a/images/893205511a91b267422b1500fd60870ae2321d4445e726851716a4e0fda83379.png";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -76,14 +19,8 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (password !== confirm) {
-      setError("Passwords do not match");
-      return;
-    }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
+    if (password !== confirm) { setError("Passwords do not match"); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
     setLoading(true);
     try {
       await axios.post(`${BASE}/auth/register`, { email, password });
@@ -97,70 +34,68 @@ export default function Register() {
   };
 
   return (
-    <div style={S.page}>
-      <div style={S.card}>
-        <div style={S.logo}>
-          <div style={S.logoIcon}>
-            <Bot size={20} color="#FFFFFF" />
+    <div style={{ minHeight: "100vh", display: "flex", backgroundColor: colors.bg.base }}>
+      {/* Left: Form */}
+      <div style={{
+        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "40px", fontFamily: fonts.body,
+      }}>
+        <div style={{ width: "100%", maxWidth: "400px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "48px" }}>
+            <div style={{
+              width: "36px", height: "36px", backgroundColor: colors.brand.blue,
+              borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: `0 0 15px rgba(0, 136, 255, 0.4)`,
+            }}>
+              <Bot size={20} color="#FFFFFF" />
+            </div>
+            <span style={{ fontFamily: fonts.heading, fontSize: "20px", fontWeight: "700", color: colors.text.primary }}>
+              Bridge<span style={{ color: colors.brand.cyan }}>Bot</span>
+            </span>
           </div>
-          <span style={{ fontFamily: "Chivo, sans-serif", fontSize: "20px", fontWeight: "900", color: "#FFFFFF" }}>
-            Bridge<span style={{ color: "#0055FF" }}>Bot</span>
-          </span>
+
+          <h1 style={{ fontFamily: fonts.heading, fontSize: "28px", fontWeight: "700", color: colors.text.primary, margin: "0 0 8px" }}>
+            Create account
+          </h1>
+          <p style={{ fontFamily: fonts.body, fontSize: "14px", color: colors.text.secondary, marginBottom: "32px" }}>
+            Join BridgeBot and start building
+          </p>
+
+          {error && <div style={T.err} data-testid="register-error">{error}</div>}
+          {success && <div style={T.success} data-testid="register-success">{success}</div>}
+
+          <form onSubmit={handleSubmit}>
+            <label style={{ ...T.monoLabel, display: "block", marginBottom: "6px", fontSize: "10px" }}>Email</label>
+            <input data-testid="register-email" type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com" style={{ ...T.input, marginBottom: "16px" }} onFocus={onFocus} onBlur={onBlur} required />
+
+            <label style={{ ...T.monoLabel, display: "block", marginBottom: "6px", fontSize: "10px" }}>Password</label>
+            <input data-testid="register-password" type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="At least 6 characters" style={{ ...T.input, marginBottom: "16px" }} onFocus={onFocus} onBlur={onBlur} required />
+
+            <label style={{ ...T.monoLabel, display: "block", marginBottom: "6px", fontSize: "10px" }}>Confirm Password</label>
+            <input data-testid="register-confirm" type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
+              placeholder="Repeat password" style={{ ...T.input, marginBottom: "20px" }} onFocus={onFocus} onBlur={onBlur} required />
+
+            <button data-testid="register-submit" type="submit"
+              style={{ ...T.btnPrimary, width: "100%", justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
+              disabled={loading}>
+              {loading ? "Creating account..." : "Create Account"}
+            </button>
+          </form>
+
+          <p style={{ textAlign: "center", marginTop: "24px", fontSize: "13px", color: colors.text.secondary }}>
+            Already have an account?{" "}
+            <Link to="/login" style={{ color: colors.brand.cyan, textDecoration: "none", fontWeight: "600" }}>Sign in</Link>
+          </p>
         </div>
+      </div>
 
-        <h1 style={S.heading}>Create account</h1>
-        <p style={S.sub}>Join BridgeBot and start building</p>
-
-        {error && <div style={S.err} data-testid="register-error">{error}</div>}
-        {success && <div style={S.success} data-testid="register-success">{success}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <label style={S.label}>Email</label>
-          <input
-            data-testid="register-email"
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            style={S.input}
-            required
-          />
-          <label style={S.label}>Password</label>
-          <input
-            data-testid="register-password"
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="At least 6 characters"
-            style={S.input}
-            required
-          />
-          <label style={S.label}>Confirm Password</label>
-          <input
-            data-testid="register-confirm"
-            type="password"
-            value={confirm}
-            onChange={e => setConfirm(e.target.value)}
-            placeholder="Repeat password"
-            style={S.input}
-            required
-          />
-          <button
-            data-testid="register-submit"
-            type="submit"
-            style={{ ...S.btn, opacity: loading ? 0.7 : 1 }}
-            disabled={loading}
-          >
-            {loading ? "Creating account..." : "Create Account"}
-          </button>
-        </form>
-
-        <p style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "#A1A1AA" }}>
-          Already have an account?{" "}
-          <Link to="/login" style={{ color: "#0055FF", textDecoration: "none", fontWeight: "600" }}>
-            Sign in
-          </Link>
-        </p>
+      {/* Right: Background */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <img src={AUTH_BG} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.6 }} />
+        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to right, ${colors.bg.base} 0%, transparent 40%)` }} />
+        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${colors.bg.base} 0%, transparent 30%)` }} />
       </div>
     </div>
   );
