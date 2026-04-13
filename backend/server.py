@@ -255,28 +255,28 @@ async def get_instance_access(
 
 async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
     try:
-        # First, try text search across all active sources, sorted by priority then relevance
-        results = await db.knowledge_sources.find(
-            {"$text": {"$search": query}, "is_active": True, "instance_id": instance_id},
-            {"score": {"$meta": "textScore"}, "_id": 0}
-        ).sort([("priority", -1), ("score", {"$meta": "textScore"})]).limit(limit).to_list(limit)
+        # Load ALL active sources for this instance, sorted by priority
+        # This lets the LLM do semantic matching rather than relying on keyword search
+        all_sources = await db.knowledge_sources.find(
+            {"is_active": True, "instance_id": instance_id}, {"_id": 0}
+        ).sort([("priority", -1), ("created_at", -1)]).to_list(100)
 
-        if not results:
-            # Fallback: return highest-priority sources if no text match
-            results = await db.knowledge_sources.find(
-                {"is_active": True, "instance_id": instance_id}, {"_id": 0}
-            ).sort([("priority", -1), ("created_at", -1)]).limit(3).to_list(3)
-
-        if not results:
+        if not all_sources:
             return ""
 
         chunks = []
-        for r in results:
+        total_chars = 0
+        for r in all_sources:
             title = r.get("title", "Unknown")
-            content = r.get("content", "")[:800]
+            content = r.get("content", "")[:1200]
             pri = r.get("priority", 0)
             pri_label = f" [PRIORITY: HIGH]" if pri >= 2 else (f" [PRIORITY: MEDIUM]" if pri == 1 else "")
-            chunks.append(f"[{title}]{pri_label}\n{content}")
+            chunk = f"[{title}]{pri_label}\n{content}"
+            # Stay within ~30K chars to leave room for the rest of the prompt
+            if total_chars + len(chunk) > 30000:
+                break
+            chunks.append(chunk)
+            total_chars += len(chunk)
         return "\n\n".join(chunks)
     except Exception as e:
         logger.warning(f"Knowledge search: {e}")
