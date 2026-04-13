@@ -1091,6 +1091,13 @@ async def toggle_source(source_id: str, instance_id: str = Depends(get_instance_
 class PriorityUpdate(BaseModel):
     priority: int
 
+class SourceUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    tags: Optional[List[str]] = None
+    url: Optional[str] = None
+    priority: Optional[int] = None
+
 @api_router.patch("/knowledge/sources/{source_id}/priority")
 async def update_source_priority(source_id: str, body: PriorityUpdate, instance_id: str = Depends(get_instance_access)):
     result = await db.knowledge_sources.update_one(
@@ -1100,6 +1107,20 @@ async def update_source_priority(source_id: str, body: PriorityUpdate, instance_
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Source not found")
     return {"success": True, "priority": body.priority}
+
+
+@api_router.put("/knowledge/sources/{source_id}")
+async def update_source(source_id: str, body: SourceUpdate, instance_id: str = Depends(get_instance_access)):
+    source = await db.knowledge_sources.find_one({"id": source_id, "instance_id": instance_id}, {"_id": 0})
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    update = {k: v for k, v in body.dict().items() if v is not None}
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.knowledge_sources.update_one({"id": source_id, "instance_id": instance_id}, {"$set": update})
+    updated = await db.knowledge_sources.find_one({"id": source_id}, {"_id": 0})
+    return updated
 
 
 # ==================== CONVERSATIONS (PROTECTED) ====================

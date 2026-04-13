@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../utils/api";
 import { toast } from "sonner";
-import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2, ChevronUp, ChevronDown, ArrowUpCircle } from "lucide-react";
+import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2, ChevronUp, ChevronDown, ArrowUpCircle, Pencil, X, Save } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur, rowEnter, rowLeave } from "../theme";
 
 const typeIcon = { faq: HelpCircle, url: Globe, document: FileText };
@@ -65,6 +65,104 @@ function PrioritySelector({ value, onChange, style }) {
   );
 }
 
+function EditModal({ source, onClose, onSaved }) {
+  const [title, setTitle] = useState(source.title || "");
+  const [content, setContent] = useState(source.content || "");
+  const [url, setUrl] = useState(source.url || "");
+  const [priority, setPriority] = useState(source.priority || 0);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!title.trim()) { toast.error("Title is required"); return; }
+    setSaving(true);
+    try {
+      const payload = { title: title.trim(), content: content.trim(), priority };
+      if (source.type === "url" && url.trim()) payload.url = url.trim();
+      const res = await api.put(`/knowledge/sources/${source.id}`, payload);
+      toast.success("Source updated");
+      onSaved(res.data);
+    } catch (e) { toast.error(e.response?.data?.detail || "Failed to update"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        data-testid="edit-source-modal"
+        style={{
+          width: "100%", maxWidth: "600px", maxHeight: "85vh", overflowY: "auto",
+          backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`,
+          borderRadius: "14px", padding: "28px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Pencil size={16} color={colors.brand.cyan} />
+            <h2 style={{ fontFamily: fonts.heading, fontSize: "17px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>
+              Edit Source
+            </h2>
+            <TypeBadge type={source.type} />
+          </div>
+          <button onClick={onClose} data-testid="edit-modal-close" style={{ background: "none", border: "none", cursor: "pointer", color: colors.text.secondary, padding: "4px" }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gap: "16px" }}>
+          <div>
+            <label style={T.label}>Title *</label>
+            <input
+              style={T.input} value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="Source title" data-testid="edit-title-input"
+              onFocus={onFocus} onBlur={onBlur}
+            />
+          </div>
+
+          {source.type === "url" && (
+            <div>
+              <label style={T.label}>URL</label>
+              <input
+                style={T.input} value={url} onChange={e => setUrl(e.target.value)}
+                placeholder="https://..." data-testid="edit-url-input"
+                onFocus={onFocus} onBlur={onBlur}
+              />
+            </div>
+          )}
+
+          <div>
+            <label style={T.label}>Content</label>
+            <textarea
+              style={{ ...T.textarea, minHeight: "180px" }} value={content} onChange={e => setContent(e.target.value)}
+              placeholder="Source content..." data-testid="edit-content-input"
+              onFocus={onFocus} onBlur={onBlur}
+            />
+            <p style={T.hint}>{content.length.toLocaleString()} characters</p>
+          </div>
+
+          <div>
+            <label style={T.label}>Priority</label>
+            <PrioritySelector value={priority} onChange={setPriority} />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", marginTop: "24px", justifyContent: "flex-end" }}>
+          <button onClick={onClose} data-testid="edit-cancel-btn" style={T.btnGhost}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} data-testid="edit-save-btn"
+            style={{ ...T.btnPrimary, opacity: saving ? 0.6 : 1 }}>
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function KnowledgeBase() {
   const [activeTab, setActiveTab] = useState("faq");
   const [sources, setSources] = useState([]);
@@ -75,6 +173,7 @@ export default function KnowledgeBase() {
   const [docPriority, setDocPriority] = useState(0);
   const [scraping, setScraping] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editing, setEditing] = useState(null);
   const fileRef = useRef(null);
 
   const loadSources = useCallback(() => {
@@ -152,6 +251,14 @@ export default function KnowledgeBase() {
       const label = PRIORITY_LEVELS.find(p => p.value === newPriority)?.label || "Normal";
       toast.success(`Priority set to ${label}`);
     } catch { toast.error("Failed to update priority"); }
+  };
+
+  const handleEditSaved = (updated) => {
+    setSources(prev => {
+      const list = prev.map(s => s.id === updated.id ? updated : s);
+      return list.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    });
+    setEditing(null);
   };
 
   const tabs = [
@@ -348,12 +455,20 @@ export default function KnowledgeBase() {
                     </button>
                   </td>
                   <td style={{ padding: "12px 20px" }}>
-                    <button onClick={() => deleteSource(source.id)} data-testid="delete-source-btn"
-                      style={{ background: "none", border: "none", cursor: "pointer", color: colors.text.secondary, padding: "4px", transition: "color 0.2s ease" }}
-                      onMouseEnter={e => e.currentTarget.style.color = colors.brand.error}
-                      onMouseLeave={e => e.currentTarget.style.color = colors.text.secondary}>
-                      <Trash2 size={15} />
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <button onClick={() => setEditing(source)} data-testid="edit-source-btn"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: colors.text.secondary, padding: "4px", transition: "color 0.2s ease" }}
+                        onMouseEnter={e => e.currentTarget.style.color = colors.brand.cyan}
+                        onMouseLeave={e => e.currentTarget.style.color = colors.text.secondary}>
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => deleteSource(source.id)} data-testid="delete-source-btn"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: colors.text.secondary, padding: "4px", transition: "color 0.2s ease" }}
+                        onMouseEnter={e => e.currentTarget.style.color = colors.brand.error}
+                        onMouseLeave={e => e.currentTarget.style.color = colors.text.secondary}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -361,6 +476,11 @@ export default function KnowledgeBase() {
           </table>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editing && (
+        <EditModal source={editing} onClose={() => setEditing(null)} onSaved={handleEditSaved} />
+      )}
     </div>
   );
 }
