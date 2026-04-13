@@ -37,6 +37,17 @@ DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "")
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 DISCORD_BOT_PERMISSIONS = 68608 | 67108864  # View Channels + Send Messages + Read Message History + Change Nickname
 
+
+async def get_discord_credentials():
+    """Read Discord app credentials from DB first, fall back to .env"""
+    creds = await db.discord_app_config.find_one({"_id": "discord_app"}) or {}
+    return {
+        "client_id": creds.get("client_id") or DISCORD_CLIENT_ID,
+        "client_secret": creds.get("client_secret") or DISCORD_CLIENT_SECRET,
+        "redirect_uri": creds.get("redirect_uri") or DISCORD_REDIRECT_URI,
+        "bot_token": creds.get("bot_token") or DISCORD_BOT_TOKEN,
+    }
+
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client[DB_NAME]
 
@@ -615,7 +626,8 @@ async def startup_event():
             await col.update_many({"instance_id": {"$exists": False}}, {"$set": {"instance_id": migrate_id}})
 
     discord_config = await db.discord_config.find_one({"is_active": True}, {"_id": 0})
-    bot_token = (discord_config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+    app_creds = await get_discord_credentials()
+    bot_token = (discord_config or {}).get("bot_token") or app_creds["bot_token"]
     if discord_config and bot_token:
         iid = discord_config.get("instance_id", "default")
         discord_task = asyncio.create_task(start_discord_bot(bot_token, iid, discord_config))
@@ -1280,19 +1292,55 @@ async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
 # ==================== DISCORD (PROTECTED) ====================
 
 
+@api_router.get("/discord/app-config")
+async def get_discord_app_config(current_user: dict = Depends(require_admin)):
+    """Get Discord app credentials (admin only). Secrets are masked."""
+    creds = await get_discord_credentials()
+    return {
+        "client_id": creds["client_id"],
+        "client_secret": ("***" + creds["client_secret"][-4:]) if len(creds.get("client_secret", "")) > 4 else ("***" if creds.get("client_secret") else ""),
+        "redirect_uri": creds["redirect_uri"],
+        "bot_token": ("***" + creds["bot_token"][-4:]) if len(creds.get("bot_token", "")) > 4 else ("***" if creds.get("bot_token") else ""),
+        "has_client_id": bool(creds["client_id"]),
+        "has_client_secret": bool(creds["client_secret"]),
+        "has_redirect_uri": bool(creds["redirect_uri"]),
+        "has_bot_token": bool(creds["bot_token"]),
+    }
+
+
+class DiscordAppConfigUpdate(BaseModel):
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    redirect_uri: Optional[str] = None
+    bot_token: Optional[str] = None
+
+@api_router.put("/discord/app-config")
+async def update_discord_app_config(body: DiscordAppConfigUpdate, current_user: dict = Depends(require_admin)):
+    """Update Discord app credentials (admin only). Stored in DB."""
+    update = {k: v.strip() for k, v in body.dict().items() if v is not None and v.strip()}
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.discord_app_config.update_one(
+        {"_id": "discord_app"}, {"$set": update}, upsert=True
+    )
+    return {"success": True, "message": "Discord credentials updated"}
+
+
 @api_router.get("/discord/oauth-url")
 async def get_discord_oauth_url(instance_id: str = Depends(get_instance_access)):
     """Generate Discord OAuth2 URL to invite the bot to a server."""
-    if not DISCORD_CLIENT_ID:
+    creds = await get_discord_credentials()
+    if not creds["client_id"]:
         raise HTTPException(status_code=400, detail="Discord Client ID not configured")
-    if not DISCORD_REDIRECT_URI:
+    if not creds["redirect_uri"]:
         raise HTTPException(status_code=400, detail="Discord Redirect URI not configured")
     from urllib.parse import urlencode
     params = {
-        "client_id": DISCORD_CLIENT_ID,
+        "client_id": creds["client_id"],
         "permissions": str(DISCORD_BOT_PERMISSIONS),
         "scope": "bot",
-        "redirect_uri": DISCORD_REDIRECT_URI,
+        "redirect_uri": creds["redirect_uri"],
         "response_type": "code",
         "state": instance_id,
     }
@@ -1310,8 +1358,9 @@ async def discord_oauth_callback(
     error_description: str = None,
 ):
     """Handle Discord OAuth2 callback after bot is invited to a server."""
-    # Derive frontend base URL from the redirect URI
-    frontend_base = DISCORD_REDIRECT_URI.replace("/api/discord/callback", "")
+    creds = await get_discord_credentials()
+    redirect_uri = creds["redirect_uri"]
+    frontend_base = redirect_uri.replace("/api/discord/callback", "") if redirect_uri else ""
 
     if error:
         logger.warning(f"Discord OAuth error: {error} - {error_description}")
@@ -1322,17 +1371,16 @@ async def discord_oauth_callback(
 
     instance_id = state or "default"
 
-    # Exchange authorization code for access token
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 "https://discord.com/api/oauth2/token",
                 data={
-                    "client_id": DISCORD_CLIENT_ID,
-                    "client_secret": DISCORD_CLIENT_SECRET,
+                    "client_id": creds["client_id"],
+                    "client_secret": creds["client_secret"],
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": DISCORD_REDIRECT_URI,
+                    "redirect_uri": redirect_uri,
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
@@ -1367,7 +1415,8 @@ async def discord_oauth_callback(
 
             # Auto-start the bot if we have a token
             config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
-            bot_token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+            app_creds = await get_discord_credentials()
+            bot_token = (config or {}).get("bot_token") or app_creds["bot_token"]
             if bot_token:
                 global discord_task, discord_client_instance
                 if discord_client_instance:
@@ -1397,7 +1446,8 @@ async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
     """Push the bot_config name to Discord as the bot's nickname in connected guilds."""
     import aiohttp
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
-    token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+    app_creds = await get_discord_credentials()
+    token = (config or {}).get("bot_token") or app_creds["bot_token"]
     if not token:
         raise HTTPException(status_code=400, detail="Bot token not configured")
     bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
@@ -1465,7 +1515,8 @@ async def get_discord_channels(instance_id: str = Depends(get_instance_access)):
     """Fetch text channels from all guilds the bot is in, using the stored token."""
     import aiohttp
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
-    token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+    app_creds = await get_discord_credentials()
+    token = (config or {}).get("bot_token") or app_creds["bot_token"]
     if not token:
         raise HTTPException(status_code=400, detail="Bot token not configured. Save your token first.")
     headers = {"Authorization": f"Bot {token}"}
@@ -1504,19 +1555,20 @@ async def get_discord_channels(instance_id: str = Depends(get_instance_access)):
 @api_router.get("/discord/config")
 async def get_discord_config(instance_id: str = Depends(get_instance_access)):
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
+    app_creds = await get_discord_credentials()
     if config:
         token = config.get("bot_token", "")
-        has_token = bool(token or DISCORD_BOT_TOKEN)
+        has_token = bool(token or app_creds["bot_token"])
         if token:
             config["bot_token_display"] = token[:8] + "..." + token[-4:] if len(token) > 12 else "***"
-        elif DISCORD_BOT_TOKEN:
-            config["bot_token_display"] = "Configured via environment"
+        elif app_creds["bot_token"]:
+            config["bot_token_display"] = "Configured via app settings"
         config["has_bot_token"] = has_token
         config.pop("bot_token", None)
         config.pop("oauth_access_token", None)
     else:
-        config = {"is_active": False, "has_bot_token": bool(DISCORD_BOT_TOKEN), "oauth_connected": False}
-    config["oauth_enabled"] = bool(DISCORD_CLIENT_ID)
+        config = {"is_active": False, "has_bot_token": bool(app_creds["bot_token"]), "oauth_connected": False}
+    config["oauth_enabled"] = bool(app_creds["client_id"])
     return config
 
 
@@ -1542,7 +1594,8 @@ async def restart_discord_bot(instance_id: str = Depends(get_instance_access)):
         discord_task.cancel()
         discord_task = None
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
-    token = (config or {}).get("bot_token") or DISCORD_BOT_TOKEN
+    app_creds = await get_discord_credentials()
+    token = (config or {}).get("bot_token") or app_creds["bot_token"]
     if not token:
         raise HTTPException(status_code=400, detail="Discord bot token not configured")
     discord_task = asyncio.create_task(start_discord_bot(token, instance_id, config or {}))

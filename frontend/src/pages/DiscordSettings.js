@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
-import { Zap, CheckCircle, AlertCircle, ExternalLink, RefreshCw, Radio, Hash, MessageSquare, AtSign, Link2, Server, Shield } from "lucide-react";
+import { Zap, CheckCircle, AlertCircle, ExternalLink, RefreshCw, Radio, Hash, MessageSquare, AtSign, Link2, Server, Shield, Settings, Save, Eye, EyeOff } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur } from "../theme";
 
 const LISTEN_MODES = [
@@ -34,7 +35,149 @@ const channelChip = (selected) => ({
   color: selected ? colors.text.primary : colors.text.secondary,
 });
 
+function CredentialField({ label, value, onChange, placeholder, isSecret, testId, hint }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ marginBottom: "14px" }}>
+      <label style={T.label}>{label}</label>
+      <div style={{ position: "relative" }}>
+        <input
+          type={isSecret && !show ? "password" : "text"}
+          value={value} onChange={e => onChange(e.target.value)}
+          placeholder={placeholder} data-testid={testId}
+          style={{ ...T.input, paddingRight: isSecret ? "40px" : undefined }}
+          onFocus={onFocus} onBlur={onBlur}
+        />
+        {isSecret && (
+          <button onClick={() => setShow(!show)} type="button"
+            style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: colors.text.muted, padding: "4px" }}>
+            {show ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        )}
+      </div>
+      {hint && <p style={T.hint}>{hint}</p>}
+    </div>
+  );
+}
+
+function AppCredentialsPanel() {
+  const [creds, setCreds] = useState({ client_id: "", client_secret: "", redirect_uri: "", bot_token: "" });
+  const [existing, setExisting] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    api.get(`/discord/app-config`).then(r => {
+      setExisting(r.data);
+    }).catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    const payload = {};
+    if (creds.client_id.trim()) payload.client_id = creds.client_id.trim();
+    if (creds.client_secret.trim()) payload.client_secret = creds.client_secret.trim();
+    if (creds.redirect_uri.trim()) payload.redirect_uri = creds.redirect_uri.trim();
+    if (creds.bot_token.trim()) payload.bot_token = creds.bot_token.trim();
+    if (Object.keys(payload).length === 0) { toast.error("No changes to save"); return; }
+    setSaving(true);
+    try {
+      await api.put(`/discord/app-config`, payload);
+      toast.success("Discord credentials updated! Restart the bot to apply changes.");
+      setCreds({ client_id: "", client_secret: "", redirect_uri: "", bot_token: "" });
+      const r = await api.get(`/discord/app-config`);
+      setExisting(r.data);
+    } catch (e) { toast.error(e.response?.data?.detail || "Failed to update"); }
+    finally { setSaving(false); }
+  };
+
+  const allConfigured = existing?.has_client_id && existing?.has_client_secret && existing?.has_redirect_uri && existing?.has_bot_token;
+
+  return (
+    <div style={{ ...T.card, marginBottom: "20px", borderColor: allConfigured ? "rgba(52,211,153,0.2)" : colors.border.default }}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        data-testid="app-credentials-toggle"
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%",
+          background: "none", border: "none", cursor: "pointer", padding: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ width: "36px", height: "36px", borderRadius: "10px", backgroundColor: "rgba(96,165,250,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Settings size={18} color={colors.brand.cyan} />
+          </div>
+          <div style={{ textAlign: "left" }}>
+            <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Discord App Credentials</p>
+            <p style={{ fontFamily: fonts.body, fontSize: "11px", color: allConfigured ? colors.brand.success : colors.text.secondary, margin: "2px 0 0" }}>
+              {allConfigured ? "All credentials configured" : "Configure your Discord application details"}
+            </p>
+          </div>
+        </div>
+        <span style={{ color: colors.text.muted, fontSize: "18px", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>
+          &#9662;
+        </span>
+      </button>
+
+      {expanded && (
+        <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: `1px solid ${colors.border.subtle}` }}>
+          {/* Status indicators */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "20px" }}>
+            {[
+              { label: "Client ID", ok: existing?.has_client_id, display: existing?.client_id },
+              { label: "Client Secret", ok: existing?.has_client_secret, display: existing?.client_secret },
+              { label: "Redirect URI", ok: existing?.has_redirect_uri, display: existing?.redirect_uri },
+              { label: "Bot Token", ok: existing?.has_bot_token, display: existing?.bot_token },
+            ].map(({ label, ok, display }) => (
+              <div key={label} style={{
+                display: "flex", alignItems: "center", gap: "6px", padding: "8px 12px",
+                backgroundColor: ok ? "rgba(52,211,153,0.04)" : "rgba(244,63,94,0.04)",
+                border: `1px solid ${ok ? "rgba(52,211,153,0.15)" : "rgba(244,63,94,0.15)"}`,
+                borderRadius: "8px",
+              }}>
+                {ok ? <CheckCircle size={12} color={colors.brand.success} /> : <AlertCircle size={12} color={colors.brand.error} />}
+                <span style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.secondary }}>{label}</span>
+                {ok && display && <span style={{ fontFamily: fonts.mono, fontSize: "10px", color: colors.text.muted, marginLeft: "auto" }}>{display}</span>}
+              </div>
+            ))}
+          </div>
+
+          <CredentialField
+            label="Client ID" value={creds.client_id} onChange={v => setCreds(p => ({ ...p, client_id: v }))}
+            placeholder={existing?.client_id || "Your Discord Application Client ID"}
+            testId="app-client-id" hint="From Discord Developer Portal > Your App > General Information"
+          />
+          <CredentialField
+            label="Client Secret" value={creds.client_secret} onChange={v => setCreds(p => ({ ...p, client_secret: v }))}
+            placeholder={existing?.has_client_secret ? "Current: " + existing.client_secret : "Your Discord Application Client Secret"}
+            isSecret testId="app-client-secret" hint="From Discord Developer Portal > Your App > General Information"
+          />
+          <CredentialField
+            label="Redirect URI" value={creds.redirect_uri} onChange={v => setCreds(p => ({ ...p, redirect_uri: v }))}
+            placeholder={existing?.redirect_uri || window.location.origin + "/api/discord/callback"}
+            testId="app-redirect-uri"
+            hint={`Must match exactly in Discord Developer Portal > OAuth2 > Redirects. Suggested: ${window.location.origin}/api/discord/callback`}
+          />
+          <CredentialField
+            label="Bot Token" value={creds.bot_token} onChange={v => setCreds(p => ({ ...p, bot_token: v }))}
+            placeholder={existing?.has_bot_token ? "Current: " + existing.bot_token : "Your Discord Bot Token"}
+            isSecret testId="app-bot-token" hint="From Discord Developer Portal > Your App > Bot > Reset Token"
+          />
+
+          <button onClick={handleSave} disabled={saving} data-testid="save-app-credentials-btn"
+            style={{ ...T.btnPrimary, opacity: saving ? 0.6 : 1, marginTop: "4px" }}>
+            <Save size={14} /> {saving ? "Saving..." : "Save Credentials"}
+          </button>
+          <p style={{ ...T.hint, marginTop: "8px" }}>
+            Leave fields empty to keep existing values. Only filled fields are updated.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DiscordSettings() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [token, setToken] = useState("");
   const [isActive, setIsActive] = useState(false);
@@ -50,8 +193,8 @@ export default function DiscordSettings() {
   const [fetchingChannels, setFetchingChannels] = useState(false);
   const [inviting, setInviting] = useState(false);
   const pollRef = useRef(null);
+  const isAdmin = user?.role === "superadmin";
 
-  // Handle OAuth callback query params
   useEffect(() => {
     const oauthStatus = searchParams.get("oauth");
     const guild = searchParams.get("guild");
@@ -134,7 +277,6 @@ export default function DiscordSettings() {
   const isOnline = status.status === "online";
   const oauthEnabled = existing?.oauth_enabled;
   const oauthConnected = existing?.oauth_connected;
-  const hasBotToken = existing?.has_bot_token;
 
   const channelsByGuild = channels.reduce((acc, ch) => {
     (acc[ch.guild_name] = acc[ch.guild_name] || []).push(ch);
@@ -147,8 +289,11 @@ export default function DiscordSettings() {
       <h1 style={T.h1}>Discord Bot</h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-        {/* Left: Setup guide + Invite */}
+        {/* Left: Admin creds + Invite + Guide */}
         <div>
+          {/* App Credentials (admin only) */}
+          {isAdmin && <AppCredentialsPanel />}
+
           {/* Invite Bot Card */}
           <div style={{ ...T.card, marginBottom: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
@@ -181,16 +326,12 @@ export default function DiscordSettings() {
 
             {oauthEnabled ? (
               <button
-                onClick={inviteBot}
-                disabled={inviting}
-                data-testid="invite-bot-btn"
+                onClick={inviteBot} disabled={inviting} data-testid="invite-bot-btn"
                 style={{
-                  width: "100%", padding: "13px 20px",
-                  backgroundColor: colors.brand.discord,
+                  width: "100%", padding: "13px 20px", backgroundColor: colors.brand.discord,
                   color: "#FFFFFF", border: "none", borderRadius: "10px",
                   fontSize: "14px", fontFamily: fonts.body, fontWeight: "600",
-                  cursor: inviting ? "not-allowed" : "pointer",
-                  opacity: inviting ? 0.7 : 1,
+                  cursor: inviting ? "not-allowed" : "pointer", opacity: inviting ? 0.7 : 1,
                   display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
                   transition: "all 0.2s",
                 }}
@@ -199,12 +340,9 @@ export default function DiscordSettings() {
                 {inviting ? "Redirecting to Discord..." : oauthConnected ? "Invite to Another Server" : "Invite Bot to Server"}
               </button>
             ) : (
-              <div style={{
-                padding: "14px", backgroundColor: colors.bg.base, borderRadius: "10px",
-                border: `1px solid ${colors.border.subtle}`,
-              }}>
+              <div style={{ padding: "14px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}` }}>
                 <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, margin: 0 }}>
-                  Discord OAuth is not configured. Contact the administrator to set up the Discord Application credentials.
+                  Discord OAuth is not configured. {isAdmin ? "Open App Credentials above to set up." : "Contact the administrator to set up the Discord Application credentials."}
                 </p>
               </div>
             )}
@@ -229,7 +367,7 @@ export default function DiscordSettings() {
             ))}
           </div>
 
-          {/* Bot Token (Advanced) — only show if no OAuth or for fallback */}
+          {/* Manual Token (fallback) */}
           {!oauthConnected && (
             <div style={{ ...T.card, opacity: 0.85 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
@@ -239,16 +377,9 @@ export default function DiscordSettings() {
               <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.muted, margin: "0 0 12px", lineHeight: "1.6" }}>
                 If you prefer, you can paste your bot token directly instead of using the invite button.
               </p>
-              <input
-                type="password"
-                value={token}
-                onChange={e => setToken(e.target.value)}
+              <input type="password" value={token} onChange={e => setToken(e.target.value)}
                 placeholder={existing?.bot_token_display ? `Current: ${existing.bot_token_display}` : "Paste your Discord bot token..."}
-                data-testid="discord-token-input"
-                style={T.input}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
+                data-testid="discord-token-input" style={T.input} onFocus={onFocus} onBlur={onBlur} />
               <p style={T.hint}>Leave empty to keep existing token.</p>
             </div>
           )}
@@ -314,8 +445,7 @@ export default function DiscordSettings() {
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
                   <label style={{ ...T.label, margin: 0 }}>Select Channels to Monitor</label>
-                  <button onClick={fetchChannels} disabled={fetchingChannels} data-testid="fetch-channels-btn"
-                    style={T.btnGhost}>
+                  <button onClick={fetchChannels} disabled={fetchingChannels} data-testid="fetch-channels-btn" style={T.btnGhost}>
                     <RefreshCw size={11} className={fetchingChannels ? "animate-spin" : ""} />
                     {fetchingChannels ? "Fetching..." : "Fetch Channels"}
                   </button>
