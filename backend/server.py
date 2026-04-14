@@ -840,6 +840,26 @@ async def list_all_users(current_user: dict = Depends(require_admin)):
     return users
 
 
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user(user_id: str, current_user: dict = Depends(require_admin)):
+    """Delete a user (admin only). Cannot delete yourself."""
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.get("role") == "superadmin":
+        raise HTTPException(status_code=400, detail="Cannot delete admin accounts")
+    # Remove user from all instance assignments
+    await db.bot_instances.update_many(
+        {"assigned_user_ids": user_id},
+        {"$pull": {"assigned_user_ids": user_id}}
+    )
+    # Delete user
+    await db.users.delete_one({"id": user_id})
+    return {"success": True, "message": f"User {user.get('email', '')} deleted"}
+
+
 @api_router.get("/admin/instances")
 async def list_instances(current_user: dict = Depends(require_admin)):
     instances = await db.bot_instances.find({}, {"_id": 0}).to_list(100)

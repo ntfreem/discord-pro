@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../utils/api";
 import { toast } from "sonner";
-import { Users as UsersIcon, CheckCircle, XCircle, Shield, Clock } from "lucide-react";
+import { Users as UsersIcon, CheckCircle, XCircle, Shield, Clock, Trash2 } from "lucide-react";
 import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
 
 const badge = (color) => ({
@@ -22,6 +22,7 @@ export default function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
+  const [deleting, setDeleting] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     try { const res = await api.get("/admin/users"); setUsers(res.data); }
@@ -30,6 +31,17 @@ export default function Users() {
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const deleteUser = async (user) => {
+    if (!window.confirm(`Delete user "${user.email}"?\n\nThis will permanently remove their account and unassign them from all instances. They will need to register again.`)) return;
+    setDeleting(user.id);
+    try {
+      await api.delete(`/admin/users/${user.id}`);
+      toast.success(`User ${user.email} deleted`);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+    } catch (e) { toast.error(e.response?.data?.detail || "Failed to delete user"); }
+    finally { setDeleting(null); }
+  };
 
   const filtered = users.filter(u => {
     if (tab === "assigned") return u.assigned_instances?.length > 0;
@@ -88,7 +100,7 @@ export default function Users() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.border.subtle}` }}>
-                {["Email", "Username", "Role", "Status", "Assigned Instances", "Joined"].map(h => (<th key={h} style={T.th}>{h}</th>))}
+                {["Email", "Username", "Role", "Status", "Assigned Instances", "Joined", "Actions"].map(h => (<th key={h} style={T.th}>{h}</th>))}
               </tr>
             </thead>
             <tbody>
@@ -97,7 +109,7 @@ export default function Users() {
                   style={{ borderBottom: `1px solid ${colors.border.faint}`, transition: "background 0.2s" }}
                   onMouseEnter={rowEnter} onMouseLeave={rowLeave}>
                   <td style={{ ...T.td, fontWeight: "500" }}>{user.email}</td>
-                  <td style={{ ...T.td, fontFamily: fonts.mono, fontSize: "12px", color: colors.text.secondary }}>{user.username || "—"}</td>
+                  <td style={{ ...T.td, fontFamily: fonts.mono, fontSize: "12px", color: colors.text.secondary }}>{user.username || "\u2014"}</td>
                   <td style={T.td}>
                     {user.role === "superadmin" ? <span style={badge("green")}><Shield size={10} /> Admin</span> : <span style={badge("grey")}>User</span>}
                   </td>
@@ -115,6 +127,24 @@ export default function Users() {
                   </td>
                   <td style={{ ...T.td, color: colors.text.secondary, fontFamily: fonts.mono, fontSize: "11px" }}>
                     {user.created_at ? new Date(user.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "\u2014"}
+                  </td>
+                  <td style={T.td}>
+                    {user.role !== "superadmin" && (
+                      <button
+                        onClick={() => deleteUser(user)}
+                        disabled={deleting === user.id}
+                        data-testid={`delete-user-${user.id}`}
+                        style={{
+                          background: "none", border: "none", cursor: deleting === user.id ? "not-allowed" : "pointer",
+                          color: colors.text.secondary, padding: "4px", transition: "color 0.2s ease",
+                          opacity: deleting === user.id ? 0.4 : 1,
+                        }}
+                        onMouseEnter={e => { if (deleting !== user.id) e.currentTarget.style.color = colors.brand.error; }}
+                        onMouseLeave={e => e.currentTarget.style.color = colors.text.secondary}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
