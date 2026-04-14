@@ -176,6 +176,8 @@ class URLEntry(BaseModel):
     url: str
     title: Optional[str] = None
     priority: Optional[int] = 0
+    auth_username: Optional[str] = None
+    auth_password: Optional[str] = None
 
 class ChatMessage(BaseModel):
     message: str
@@ -1036,7 +1038,10 @@ async def add_faq(entry: FAQEntry, instance_id: str = Depends(get_instance_acces
 @api_router.post("/knowledge/sources/url")
 async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_instance_access)):
     try:
-        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as http:
+        auth = None
+        if entry.auth_username and entry.auth_password:
+            auth = httpx.BasicAuth(entry.auth_username, entry.auth_password)
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True, auth=auth) as http:
             resp = await http.get(entry.url, headers={"User-Agent": "Mozilla/5.0 (BridgeBot/1.0)"})
             resp.raise_for_status()
         from bs4 import BeautifulSoup

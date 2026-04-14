@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../utils/api";
 import { toast } from "sonner";
-import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2, ChevronUp, ChevronDown, ArrowUpCircle, Pencil, X, Save } from "lucide-react";
+import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2, ChevronUp, ChevronDown, ArrowUpCircle, Pencil, X, Save, Lock } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur, rowEnter, rowLeave } from "../theme";
 
 const typeIcon = { faq: HelpCircle, url: Globe, document: FileText };
@@ -168,7 +168,7 @@ export default function KnowledgeBase() {
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(false);
   const [faq, setFaq] = useState({ title: "", content: "", priority: 0 });
-  const [urlEntry, setUrlEntry] = useState({ url: "", title: "", priority: 0 });
+  const [urlEntry, setUrlEntry] = useState({ url: "", title: "", priority: 0, auth_username: "", auth_password: "" });
   const [docTitle, setDocTitle] = useState("");
   const [docPriority, setDocPriority] = useState(0);
   const [scraping, setScraping] = useState(false);
@@ -198,9 +198,12 @@ export default function KnowledgeBase() {
     if (!urlEntry.url.trim()) { toast.error("URL is required"); return; }
     setScraping(true);
     try {
-      await api.post(`/knowledge/sources/url`, urlEntry);
+      const payload = { url: urlEntry.url, title: urlEntry.title, priority: urlEntry.priority };
+      if (urlEntry.auth_username?.trim()) payload.auth_username = urlEntry.auth_username.trim();
+      if (urlEntry.auth_password?.trim()) payload.auth_password = urlEntry.auth_password.trim();
+      await api.post(`/knowledge/sources/url`, payload);
       toast.success("URL scraped and saved successfully");
-      setUrlEntry({ url: "", title: "", priority: 0 });
+      setUrlEntry({ url: "", title: "", priority: 0, auth_username: "", auth_password: "" });
       loadSources();
     } catch (e) { toast.error(e.response?.data?.detail || "Failed to scrape URL"); }
     finally { setScraping(false); }
@@ -342,6 +345,26 @@ export default function KnowledgeBase() {
               <label style={T.label}>Priority</label>
               <PrioritySelector value={urlEntry.priority} onChange={v => setUrlEntry(p => ({ ...p, priority: v }))} />
               <p style={T.hint}>High priority sources are checked first when answering questions.</p>
+            </div>
+            {/* Auth credentials for protected URLs */}
+            <div style={{ padding: "14px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px" }}>
+                <Lock size={12} color={colors.text.muted} />
+                <label style={{ ...T.label, margin: 0, fontSize: "12px" }}>Authentication (optional)</label>
+              </div>
+              <p style={{ ...T.hint, marginTop: 0, marginBottom: "10px" }}>If the URL requires login, enter credentials below. Uses HTTP Basic Auth.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div>
+                  <label style={{ ...T.label, fontSize: "11px" }}>Username / Email</label>
+                  <input style={T.input} value={urlEntry.auth_username} onChange={e => setUrlEntry(p => ({ ...p, auth_username: e.target.value }))}
+                    placeholder="username" data-testid="url-auth-username" onFocus={onFocus} onBlur={onBlur} />
+                </div>
+                <div>
+                  <label style={{ ...T.label, fontSize: "11px" }}>Password</label>
+                  <input style={T.input} type="password" value={urlEntry.auth_password} onChange={e => setUrlEntry(p => ({ ...p, auth_password: e.target.value }))}
+                    placeholder="password" data-testid="url-auth-password" onFocus={onFocus} onBlur={onBlur} />
+                </div>
+              </div>
             </div>
             <div>
               <button onClick={scrapeUrl} disabled={scraping} data-testid="url-scrape-btn" style={{ ...T.btnPrimary, opacity: scraping ? 0.6 : 1 }}>
