@@ -131,6 +131,7 @@ async def send_reset_email(to_email: str, code: str):
 class UserRegister(BaseModel):
     email: str
     password: str
+    username: str
 
 class UserLogin(BaseModel):
     email_or_username: str
