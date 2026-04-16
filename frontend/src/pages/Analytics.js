@@ -156,13 +156,10 @@ export default function Analytics() {
           <p style={{ ...T.overline, marginBottom: "4px" }}>Claude API</p>
           <h2 style={{ fontFamily: fonts.heading, fontSize: "22px", fontWeight: "700", color: colors.text.primary, margin: 0 }}>AI Usage & Reliability</h2>
         </div>
-        <a href="https://app.emergent.sh/profile/universal-key" target="_blank" rel="noreferrer"
-          style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px", backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", color: colors.text.secondary, fontSize: "12px", fontFamily: fonts.body, textDecoration: "none", transition: "border-color 0.3s" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = colors.brand.cyan}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(59, 130, 246, 0.3)"}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px", backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", color: colors.text.secondary, fontSize: "12px", fontFamily: fonts.body }}
           data-testid="balance-link">
-          <ExternalLink size={12} /> Check Balance
-        </a>
+          <ExternalLink size={12} /> AI Usage
+        </span>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>

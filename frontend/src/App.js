@@ -20,6 +20,7 @@ import Instances from "@/pages/Instances";
 import Users from "@/pages/Users";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+import Docs from "@/pages/Docs";
 import "@/App.css";
 
 function ProtectedRoute({ children }) {
@@ -72,6 +73,7 @@ function AppRoutes() {
       {/* Public chat pages */}
       <Route path="/chat" element={<ChatPage />} />
       <Route path="/widget" element={<ChatWidget />} />
+      <Route path="/docs" element={<Docs />} />
 
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/admin" replace />} />

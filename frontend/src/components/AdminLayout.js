@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard, BookOpen, MessageSquare, Settings,
-  BarChart2, Zap, Code2, ExternalLink, Bot, LogOut, ChevronDown, Shield, Users
+  BarChart2, Zap, Code2, ExternalLink, Bot, LogOut, ChevronDown, Shield, Users, HelpCircle
 } from "lucide-react";
 import { useState } from "react";
 import { colors, fonts, radius } from "@/theme";
@@ -183,6 +183,19 @@ export default function AdminLayout() {
             }}
           >
             <ExternalLink size={12} /> Open Chat Demo
+          </a>
+          <a
+            href="/docs" target="_blank" rel="noopener noreferrer"
+            data-testid="docs-link"
+            style={{
+              display: "flex", alignItems: "center", gap: "7px",
+              color: colors.text.secondary, fontSize: "12px",
+              fontFamily: fonts.body, fontWeight: "500",
+              textDecoration: "none", marginBottom: "14px",
+              transition: "color 0.2s",
+            }}
+          >
+            <HelpCircle size={12} /> Documentation
           </a>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
