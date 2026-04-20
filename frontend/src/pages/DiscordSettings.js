@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
-import { Zap, CheckCircle, AlertCircle, ExternalLink, RefreshCw, Radio, Hash, MessageSquare, AtSign, Link2, Server, Shield, Settings, Save, Eye, EyeOff } from "lucide-react";
+import { Zap, CheckCircle, AlertCircle, ExternalLink, RefreshCw, Radio, Hash, MessageSquare, AtSign, Link2, Server, Shield, Settings, Save, Eye, EyeOff, UserCheck } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur } from "../theme";
 
 const LISTEN_MODES = [
@@ -184,6 +184,9 @@ export default function DiscordSettings() {
   const [listenMode, setListenMode] = useState("mention_only");
   const [replyStyle, setReplyStyle] = useState("natural");
   const [monitoredChannelIds, setMonitoredChannelIds] = useState([]);
+  const [staffRoleName, setStaffRoleName] = useState("");
+  const [handoffCooldown, setHandoffCooldown] = useState(15);
+  const [handoffFollowup, setHandoffFollowup] = useState("Is there anything else I can help with?");
   const [existing, setExisting] = useState(null);
   const [status, setStatus] = useState({ status: "offline", bot_name: null });
   const [saving, setSaving] = useState(false);
@@ -215,6 +218,9 @@ export default function DiscordSettings() {
       setListenMode(r.data?.listen_mode || "mention_only");
       setReplyStyle(r.data?.reply_style || "natural");
       setMonitoredChannelIds(r.data?.monitored_channel_ids || []);
+      setStaffRoleName(r.data?.staff_role_name || "");
+      setHandoffCooldown(r.data?.handoff_cooldown_minutes || 15);
+      setHandoffFollowup(r.data?.handoff_followup_message || "Is there anything else I can help with?");
     }).catch(() => {});
   }, []);
 
@@ -242,7 +248,7 @@ export default function DiscordSettings() {
   const toggleChannel = (id) => setMonitoredChannelIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
 
   const save = async () => {
-    const update = { is_active: isActive, listen_mode: listenMode, reply_style: replyStyle, monitored_channel_ids: monitoredChannelIds };
+    const update = { is_active: isActive, listen_mode: listenMode, reply_style: replyStyle, monitored_channel_ids: monitoredChannelIds, staff_role_name: staffRoleName, handoff_cooldown_minutes: handoffCooldown, handoff_followup_message: handoffFollowup };
     if (token.trim()) update.bot_token = token.trim();
     setSaving(true);
     try { await api.put(`/discord/config`, update); toast.success("Discord settings saved"); setToken(""); loadConfig(); } catch { toast.error("Failed to save"); }
@@ -488,6 +494,48 @@ export default function DiscordSettings() {
                   <span style={{ fontSize: "10px", color: colors.text.secondary, fontFamily: fonts.body }}>{desc}</span>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Human Takeover */}
+          <div style={{ ...T.card, marginBottom: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+              <UserCheck size={16} color={colors.brand.cyan} />
+              <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Human Takeover</p>
+            </div>
+            <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, margin: "0 0 16px", lineHeight: "1.6" }}>
+              When a team member with the designated role replies in a channel, the bot automatically goes silent in that specific channel. It continues monitoring all other channels. After the cooldown, the bot re-engages.
+            </p>
+
+            <div style={{ marginBottom: "14px" }}>
+              <label style={T.label}>Staff Role Name</label>
+              <input style={T.input} value={staffRoleName} onChange={e => setStaffRoleName(e.target.value)}
+                placeholder="e.g. Support, Moderator" data-testid="staff-role-input" onFocus={onFocus} onBlur={onBlur} />
+              <p style={T.hint}>Discord role name for staff members. Leave empty to disable human takeover.</p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+              <div>
+                <label style={T.label}>Cooldown (minutes)</label>
+                <input style={T.input} type="number" min="1" max="120" value={handoffCooldown}
+                  onChange={e => setHandoffCooldown(Math.max(1, parseInt(e.target.value) || 15))}
+                  data-testid="handoff-cooldown-input" onFocus={onFocus} onBlur={onBlur} />
+                <p style={T.hint}>Time before bot re-engages after staff stops replying.</p>
+              </div>
+              <div>
+                <label style={T.label}>Resume Command</label>
+                <div style={{ padding: "10px 14px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}`, fontFamily: fonts.mono, fontSize: "13px", color: colors.brand.cyan }}>
+                  !bot resume
+                </div>
+                <p style={T.hint}>Staff can type this to hand back to the bot immediately.</p>
+              </div>
+            </div>
+
+            <div style={{ marginTop: "14px" }}>
+              <label style={T.label}>Follow-up Message</label>
+              <input style={T.input} value={handoffFollowup} onChange={e => setHandoffFollowup(e.target.value)}
+                placeholder="Is there anything else I can help with?" data-testid="handoff-followup-input" onFocus={onFocus} onBlur={onBlur} />
+              <p style={T.hint}>Message the bot sends when it re-engages after cooldown.</p>
             </div>
           </div>
 

@@ -193,6 +193,9 @@ class DiscordConfigUpdate(BaseModel):
     listen_mode: Optional[str] = None          # mention_only | all_channels | specific_channels
     monitored_channel_ids: Optional[List[str]] = None
     reply_style: Optional[str] = None          # natural | with_mention
+    staff_role_name: Optional[str] = None      # role name for human takeover detection
+    handoff_cooldown_minutes: Optional[int] = None  # minutes before bot re-engages after staff reply
+    handoff_followup_message: Optional[str] = None  # message bot sends when re-engaging
 
 
 # ==================== JWT AUTH HELPERS ====================
@@ -473,10 +476,14 @@ async def save_conversation(session_id: str, user_message: str, bot_response: st
 async def start_discord_bot(token: str, instance_id: str = "default", config: dict = None):
     global discord_client_instance
 
+    # Per-channel handoff state: {channel_id: last_staff_message_timestamp}
+    handoff_channels = {}
+
     try:
         import discord
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.members = True  # Needed to read member roles
         discord_client_instance = discord.Client(intents=intents)
 
         @discord_client_instance.event
@@ -505,7 +512,7 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
 
         @discord_client_instance.event
         async def on_message(message):
-            # Never respond to bots
+            # Never respond to ourselves
             if message.author.bot:
                 return
 
@@ -514,11 +521,57 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
             listen_mode = live_cfg.get("listen_mode", "mention_only")
             monitored_ids = set(live_cfg.get("monitored_channel_ids") or [])
             reply_style = live_cfg.get("reply_style", "natural")
+            staff_role_name = (live_cfg.get("staff_role_name") or "").strip().lower()
+            cooldown_minutes = live_cfg.get("handoff_cooldown_minutes", 15) or 15
+            followup_msg = live_cfg.get("handoff_followup_message") or "Is there anything else I can help with?"
 
             if not live_cfg.get("is_active", True):
                 return
 
             is_dm = isinstance(message.channel, discord.DMChannel)
+            channel_id = str(message.channel.id)
+
+            # --- Manual resume command ---
+            if message.content.strip().lower() == "!bot resume":
+                if channel_id in handoff_channels:
+                    del handoff_channels[channel_id]
+                    await message.channel.send("I'm back! How can I help?")
+                    logger.info(f"Bot manually resumed in channel {channel_id}")
+                return
+
+            # --- Check if author is staff (has the configured support role) ---
+            is_staff = False
+            if staff_role_name and hasattr(message.author, "roles"):
+                is_staff = any(
+                    role.name.lower() == staff_role_name
+                    for role in message.author.roles
+                    if role.name != "@everyone"
+                )
+
+            # --- If staff replies, mark this channel as handed off ---
+            if is_staff and not is_dm:
+                handoff_channels[channel_id] = datetime.now(timezone.utc)
+                logger.info(f"Human takeover: staff '{message.author.name}' active in channel {channel_id}")
+                return
+
+            # --- Check if this channel is in handoff mode ---
+            if channel_id in handoff_channels:
+                handoff_time = handoff_channels[channel_id]
+                elapsed = (datetime.now(timezone.utc) - handoff_time).total_seconds() / 60.0
+
+                if elapsed < cooldown_minutes:
+                    # Still in cooldown — bot stays silent
+                    return
+                else:
+                    # Cooldown expired — bot re-engages
+                    del handoff_channels[channel_id]
+                    logger.info(f"Bot re-engaging in channel {channel_id} after {elapsed:.0f}min cooldown")
+                    try:
+                        await message.channel.send(followup_msg)
+                    except Exception as e:
+                        logger.warning(f"Failed to send followup: {e}")
+                    # Now continue to process this message normally
+
             is_mentioned = (discord_client_instance.user in message.mentions
                             if discord_client_instance.user else False)
 
