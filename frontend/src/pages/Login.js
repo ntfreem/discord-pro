@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
-import { Bot, ArrowRight } from "lucide-react";
+import { Bot, ArrowRight, BookOpen } from "lucide-react";
 import { colors, fonts, radius, T, onFocus, onBlur } from "../theme";
 
 const BASE = `/api`;
@@ -90,6 +90,11 @@ export default function Login() {
           <p style={{ textAlign: "center", marginTop: "28px", fontSize: "14px", color: colors.text.secondary }}>
             Don't have an account?{" "}
             <Link to="/register" style={{ color: colors.brand.light, textDecoration: "none", fontWeight: "600" }}>Create one</Link>
+          </p>
+          <p style={{ textAlign: "center", marginTop: "12px", fontSize: "13px" }}>
+            <Link to="/docs" data-testid="login-docs-link" style={{ color: colors.text.muted, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+              <BookOpen size={13} /> Documentation
+            </Link>
           </p>
         </div>
       </div>

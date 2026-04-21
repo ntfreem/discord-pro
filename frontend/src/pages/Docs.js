@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bot, ChevronRight, ChevronDown, BookOpen, Users, MessageSquare, Database, Zap, Settings, Globe, Shield, BarChart3, Code, HelpCircle, ArrowLeft } from "lucide-react";
+import { Bot, ChevronRight, ChevronDown, BookOpen, Users, MessageSquare, Database, Zap, Settings, Globe, Shield, BarChart3, Code, HelpCircle, ArrowLeft, UserCheck } from "lucide-react";
 import { colors, fonts, radius } from "../theme";
 
 const sections = [
@@ -15,8 +15,9 @@ const sections = [
 
 **Key capabilities:**
 - Create multiple bot instances for different products or teams
-- Train your bot using FAQs, URLs, and documents
+- Train your bot using FAQs, URLs, and documents with priority levels
 - Deploy on web (chat page + widget) and Discord
+- Smart human takeover — bot steps aside when staff intervenes
 - Full analytics and conversation monitoring
 - Multi-user access with role-based permissions`
       },
@@ -25,18 +26,19 @@ const sections = [
         body: `1. **Log in** with your admin credentials
 2. **Select or create** a workspace (instance)
 3. **Add knowledge** — go to Knowledge Base and add FAQs, scrape URLs, or upload documents
-4. **Test your bot** — click "Open Chat Demo" in the sidebar
-5. **Deploy** — embed the widget on your site or connect to Discord
+4. **Set priority** — mark your most important FAQs as High priority
+5. **Test your bot** — click "Open Chat Demo" in the sidebar
+6. **Deploy** — embed the widget on your site or connect to Discord
 
-That's it! Your bot immediately starts answering questions based on your knowledge base.`
+That's it! Your bot immediately starts answering questions based on your knowledge base. It understands user intent semantically — users don't need to phrase questions exactly like your FAQs.`
       },
       {
         title: "Account Types",
         body: `**Admin (superadmin)**
 - Full access to all workspaces
-- Can create/delete instances, manage users
+- Can create/delete instances, manage users, delete users
 - Access to analytics, Discord settings, embed codes
-- Can configure Discord app credentials
+- Can configure Discord app credentials and human takeover settings
 
 **User**
 - Access only to assigned workspaces
@@ -55,15 +57,17 @@ That's it! Your bot immediately starts answering questions based on your knowled
         body: `Your bot's intelligence comes entirely from the knowledge base you build. Every FAQ, URL, and document you add is fed to the AI when answering questions.
 
 **The bot will:**
-- Search ALL your active knowledge sources for every question
-- Match user intent semantically (not just keywords)
+- Use ALL your active knowledge sources for every question
+- Match user intent semantically — users can ask in their own words
 - Answer confidently when it finds relevant information
 - Ask permission before using general knowledge if no match is found
 
 **Priority System:**
-- **High** — checked first, given preference in answers
+- **High** — given preference in answers, shown first to the AI
 - **Medium** — standard priority
-- **Normal** — lowest priority, used as supplementary context`
+- **Normal** — lowest priority, used as supplementary context
+
+Every new FAQ you add immediately makes the bot smarter. No retraining needed.`
       },
       {
         title: "Adding FAQs",
@@ -71,14 +75,15 @@ That's it! Your bot immediately starts answering questions based on your knowled
 
 **Tips for great FAQs:**
 - Write the title as a real customer question
-- Include multiple phrasings in the content (the AI will match similar questions)
+- Include detailed answers — the AI uses the full content
 - Set High priority for your most important FAQs
-- Be specific and detailed in answers
-- Include links, prices, or exact steps when relevant
+- Be specific: include links, prices, exact steps when relevant
+- Add variations of common questions as separate FAQs
 
 **Example:**
 - Title: "How long does a transfer take?"
-- Content: "Transfers require 400 confirmations and typically take 30-60 minutes. Status will show 'Submitting' during this time..."`
+- Content: "Transfers require 400 confirmations and typically take 30-60 minutes. Status will show 'Submitting' during this time. If stuck for 4+ hours, open a support ticket."
+- Priority: High`
       },
       {
         title: "Scraping URLs",
@@ -89,10 +94,10 @@ That's it! Your bot immediately starts answering questions based on your knowled
 2. Enter the URL
 3. Optionally add a custom title
 4. Set priority level
-5. If the page requires login, enter credentials in the Authentication section
+5. If the page requires login, enter credentials in the Authentication section (optional)
 6. Click "Scrape & Save"
 
-**Authentication:** For password-protected pages, enter the username/email and password. BridgeBot uses HTTP Basic Auth to access the page. Credentials are used only for scraping and are NOT stored.
+**Authentication:** For password-protected pages, enter the username/email and password. Uses HTTP Basic Auth to access the page. Credentials are used only for the scrape request and are NOT stored.
 
 **Best for:** Documentation pages, FAQ pages, product pages, help center articles`
       },
@@ -107,15 +112,15 @@ That's it! Your bot immediately starts answering questions based on your knowled
 4. Set priority level
 5. Click "Upload Document"
 
-**Limits:** Content is extracted up to ~6,000 characters per document. For longer documents, consider splitting them or using the most relevant sections as FAQs.`
+**Limits:** Content is extracted up to ~6,000 characters per document. For longer documents, consider splitting them or extracting the most relevant sections as FAQs.`
       },
       {
         title: "Managing Sources",
-        body: `**Edit:** Click the pencil icon on any source to update its title, content, URL, or priority.
+        body: `**Edit:** Click the pencil icon on any source to update its title, content, URL, or priority. All source types (FAQ, URL, document) are fully editable.
 
 **Toggle Active/Inactive:** Click the toggle to temporarily disable a source without deleting it. Inactive sources are not used when answering questions.
 
-**Change Priority:** Use the up/down arrows in the Priority column to quickly adjust priority levels.
+**Change Priority:** Use the up/down arrows in the Priority column to quickly adjust priority levels. Sources are automatically sorted highest priority first.
 
 **Delete:** Click the trash icon to permanently remove a source.`
       }
@@ -138,8 +143,10 @@ That's it! Your bot immediately starts answering questions based on your knowled
 **Step 1: Create a Discord Application**
 Go to https://discord.com/developers/applications and create a new application.
 
-**Step 2: Enable Message Content Intent**
-In your app's Bot settings, enable "Message Content Intent" under Privileged Gateway Intents.
+**Step 2: Enable Privileged Intents**
+In your app's Bot settings, enable:
+- "Message Content Intent"
+- "Server Members Intent" (required for Human Takeover feature)
 
 **Step 3: Configure Credentials**
 In BridgeBot, go to Discord settings and expand "Discord App Credentials". Enter:
@@ -154,7 +161,9 @@ In BridgeBot, go to Discord settings and expand "Discord App Credentials". Enter
 Click "Invite Bot to Server" and select your Discord server.
 
 **Step 5: Configure & Start**
-Set your preferred listen mode, save, and click "Start Bot".`
+Set your preferred listen mode, save, and click "Start Bot".
+
+**Note:** All credentials can be updated from the UI at any time — no redeployment needed.`
       },
       {
         title: "Listen Modes",
@@ -162,13 +171,32 @@ Set your preferred listen mode, save, and click "Start Bot".`
 
 **All Channels** — Bot responds to every human message in every channel. Best for dedicated support servers.
 
-**Specific Channels** — Bot only responds in channels you select. Click "Fetch Channels" to load your server's channels and pick which ones to monitor.`
+**Specific Channels** — Bot only responds in channels you select. Click "Fetch Channels" to load your server's channels and pick which ones to monitor.
+
+All listen mode changes take effect immediately — no need to restart the bot.`
       },
       {
         title: "Reply Styles",
         body: `**Natural Reply** — Bot replies normally without tagging the user. Cleaner conversation flow.
 
 **With @mention** — Bot tags the user in its reply. Useful in busy channels so users get notified.`
+      },
+      {
+        title: "Human Takeover",
+        body: `The Human Takeover feature lets your team seamlessly step in and take over conversations from the bot.
+
+**How it works:**
+1. When a team member with the designated **Staff Role** replies in a channel, the bot automatically goes silent **in that specific channel only**
+2. The bot continues monitoring and responding in **all other channels** — it's per-channel, not global
+3. After the configured **cooldown period** (default: 15 minutes) with no staff activity, the bot re-engages with a follow-up message
+4. Staff can type **!bot resume** to hand back to the bot immediately
+
+**Configuration:**
+- **Staff Role Name** — the Discord role name for your support staff (e.g., "Support", "Moderator")
+- **Cooldown** — how long the bot waits after the last staff message before re-engaging (1-120 minutes)
+- **Follow-up Message** — what the bot says when it re-engages (e.g., "Is there anything else I can help with?")
+
+**Important:** Enable "Server Members Intent" in Discord Developer Portal for role detection to work.`
       },
       {
         title: "Bot Name Sync",
@@ -218,7 +246,9 @@ The widget appears as a floating chat bubble in the bottom-right corner. Users c
     content: [
       {
         title: "Managing Users",
-        body: `**View Users:** Go to Users in the sidebar to see all registered accounts.
+        body: `**View Users:** Go to Users in the sidebar to see all registered accounts with their status, role, and workspace assignments.
+
+**Filter Users:** Use the tabs to filter by All, Assigned (have workspace access), or Unassigned.
 
 **Assign to Workspaces:** Go to Instances → select an instance → assign users by email.
 
@@ -232,13 +262,22 @@ The widget appears as a floating chat bubble in the bottom-right corner. Users c
       {
         title: "Password Reset",
         body: `If a user forgets their password:
-1. Go to the login page
-2. Click "Forgot password?"
-3. Enter the account email
-4. A 6-digit reset code is sent to their email
-5. Enter the code and choose a new password
+1. Go to the login page and click "Forgot password?"
+2. Enter the account email
+3. A 6-digit reset code is sent to their email
+4. Enter the code and choose a new password — all on the same page
+5. Click "Reset Password"
 
 The reset code expires after 15 minutes. Click "Resend" to get a new code.`
+      },
+      {
+        title: "Registration",
+        body: `New users can register with:
+- **Email** — used for password reset and notifications
+- **Username** — unique, used for login (along with email)
+- **Password** — minimum 6 characters
+
+After registration, a verification code is sent to their email. Users can log in with either their email or username.`
       }
     ]
   },
@@ -250,11 +289,11 @@ The reset code expires after 15 minutes. Click "Resend" to get a new code.`
       {
         title: "What Are Workspaces?",
         body: `Workspaces (instances) are isolated bot environments. Each workspace has its own:
-- Knowledge base
+- Knowledge base with priority-ranked sources
 - Bot personality and settings
-- Conversations
-- Discord connection
-- Analytics
+- Conversations and chat history
+- Discord connection and configuration
+- Analytics and usage tracking
 
 **Use cases:**
 - Separate bots for different products
@@ -283,6 +322,8 @@ The reset code expires after 15 minutes. Click "Resend" to get a new code.`
         body: `The dashboard shows:
 - **Total Conversations** — all chat sessions across web and Discord
 - **Total Messages** — individual messages exchanged
+- **Knowledge Sources** — how many sources are in your knowledge base
+- **Training Examples** — approved conversation examples for tone matching
 - **Platform Breakdown** — how many conversations come from web vs. Discord
 - **Recent Conversations** — latest chat sessions with preview`
       },
@@ -304,13 +345,15 @@ The reset code expires after 15 minutes. Click "Resend" to get a new code.`
     content: [
       {
         title: "Configuring Your Bot",
-        body: `**Bot Name** — The display name used in conversations and Discord.
+        body: `**Bot Name** — The display name used in conversations and Discord. Can be synced to Discord via the Discord settings page.
 
 **Persona** — Define your bot's personality. Example: "You are a friendly crypto support agent who specializes in USDCx on Cardano."
 
 **Custom Instructions** — Additional rules the bot should follow. Example: "Always recommend users open a support ticket for transaction issues."
 
-**Tone Instructions** — Guide the bot's communication style. Example: "Be professional but approachable. Use simple language. Avoid jargon."`
+**Tone Instructions** — Guide the bot's communication style. Example: "Be professional but approachable. Use simple language. Avoid jargon."
+
+**Tone Examples** — Add example conversations showing how the bot should respond. These are used as reference for the AI to match your desired communication style.`
       }
     ]
   }
@@ -331,26 +374,6 @@ function DocSection({ section, isOpen, onToggle }) {
         </span>
         {isOpen ? <ChevronDown size={16} color={colors.text.muted} /> : <ChevronRight size={16} color={colors.text.muted} />}
       </button>
-      {isOpen && (
-        <div style={{ padding: "8px 0 8px 48px" }}>
-          {section.content.map((item, i) => (
-            <div key={i} style={{ marginBottom: "24px" }}>
-              <h3 style={{ fontFamily: fonts.heading, fontSize: "16px", fontWeight: "600", color: colors.text.primary, margin: "0 0 10px" }}>{item.title}</h3>
-              <div style={{ fontFamily: fonts.body, fontSize: "14px", color: colors.text.secondary, lineHeight: "1.8", whiteSpace: "pre-line" }}>
-                {item.body.split(/(\*\*[^*]+\*\*|\`[^`]+\`)/).map((part, j) => {
-                  if (part.startsWith("**") && part.endsWith("**")) {
-                    return <strong key={j} style={{ color: colors.text.primary, fontWeight: "600" }}>{part.slice(2, -2)}</strong>;
-                  }
-                  if (part.startsWith("`") && part.endsWith("`")) {
-                    return <code key={j} style={{ backgroundColor: colors.bg.panel, padding: "2px 6px", borderRadius: "4px", fontFamily: fonts.mono, fontSize: "12px", color: colors.brand.cyan }}>{part.slice(1, -1)}</code>;
-                  }
-                  return part;
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
