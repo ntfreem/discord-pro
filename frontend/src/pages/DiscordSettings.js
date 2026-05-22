@@ -177,7 +177,7 @@ function AppCredentialsPanel() {
 }
 
 export default function DiscordSettings() {
-  const { user } = useAuth();
+  const { user, selectedInstance } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [token, setToken] = useState("");
   const [isActive, setIsActive] = useState(false);
@@ -222,11 +222,11 @@ export default function DiscordSettings() {
       setHandoffCooldown(r.data?.handoff_cooldown_minutes || 15);
       setHandoffFollowup(r.data?.handoff_followup_message || "Is there anything else I can help with?");
     }).catch(() => {});
-  }, []);
+  }, [selectedInstance]);
 
   const loadStatus = useCallback(() => {
     api.get(`/discord/status`).then(r => setStatus(r.data)).catch(() => {});
-  }, []);
+  }, [selectedInstance]);
 
   useEffect(() => {
     loadConfig(); loadStatus();

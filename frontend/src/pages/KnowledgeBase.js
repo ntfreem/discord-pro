@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { Plus, Trash2, Globe, FileText, HelpCircle, ToggleLeft, ToggleRight, Loader2, ChevronUp, ChevronDown, ArrowUpCircle, Pencil, X, Save, Lock } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur, rowEnter, rowLeave } from "../theme";
@@ -164,6 +165,7 @@ function EditModal({ source, onClose, onSaved }) {
 }
 
 export default function KnowledgeBase() {
+  const { selectedInstance } = useAuth();
   const [activeTab, setActiveTab] = useState("faq");
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -178,7 +180,7 @@ export default function KnowledgeBase() {
 
   const loadSources = useCallback(() => {
     api.get(`/knowledge/sources`).then(r => setSources(r.data)).catch(() => {});
-  }, []);
+  }, [selectedInstance]);
 
   useEffect(() => { loadSources(); }, [loadSources]);
 

@@ -547,12 +547,23 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
 
             # --- Check if author is staff (has the configured support role) ---
             is_staff = False
-            if staff_role_name and hasattr(message.author, "roles"):
-                is_staff = any(
-                    role.name.lower() == staff_role_name
-                    for role in message.author.roles
-                    if role.name != "@everyone"
-                )
+            if staff_role_name and not is_dm and message.guild:
+                try:
+                    # Fetch member fresh from API to avoid stale role cache
+                    member = await message.guild.fetch_member(message.author.id)
+                    is_staff = any(
+                        role.name.lower() == staff_role_name
+                        for role in member.roles
+                        if role.name != "@everyone"
+                    )
+                except Exception:
+                    # Fallback to cached roles if fetch fails
+                    if hasattr(message.author, "roles"):
+                        is_staff = any(
+                            role.name.lower() == staff_role_name
+                            for role in message.author.roles
+                            if role.name != "@everyone"
+                        )
 
             # --- If staff replies, mark this channel as handed off ---
             if is_staff and not is_dm:
