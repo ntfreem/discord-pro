@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { Save, Eye, EyeOff, Plus, X, ExternalLink, MessageSquare, Lightbulb } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur } from "../theme";
 
 export default function BotSettings() {
+  const { selectedInstance } = useAuth();
+  const instanceId = selectedInstance?.id;
   const [config, setConfig] = useState({ name: "", persona: "", custom_instructions: "", tone_instructions: "", manual_tone_examples: [] });
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -17,7 +20,7 @@ export default function BotSettings() {
       if (r.data) setConfig({ name: r.data.name || "", persona: r.data.persona || "", custom_instructions: r.data.custom_instructions || "", tone_instructions: r.data.tone_instructions || "", manual_tone_examples: r.data.manual_tone_examples || [] });
     }).catch(() => {});
     api.get(`/analytics/overview`).then(r => setApprovedCount(r.data?.approved_for_training ?? 0)).catch(() => {});
-  }, []);
+  }, [instanceId]);
 
   const save = async () => {
     if (!config.name.trim()) { toast.error("Bot name is required"); return; }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar
@@ -42,12 +43,15 @@ function StatCard({ title, value, icon: Icon, color }) {
 }
 
 export default function Analytics() {
+  const { selectedInstance } = useAuth();
+  const instanceId = selectedInstance?.id;
   const [overview, setOverview] = useState(null);
   const [daily, setDaily] = useState([]);
   const [llmUsage, setLlmUsage] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
       api.get(`/analytics/overview`),
       api.get(`/analytics/daily`),
@@ -57,7 +61,7 @@ export default function Analytics() {
       setDaily(dl.data);
       setLlmUsage(llm.data);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [instanceId]);
 
   const platformData = overview ? [
     { name: "Web", value: overview.platform_breakdown?.web ?? 0 },
