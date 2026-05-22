@@ -563,6 +563,8 @@ async def start_shared_discord_bot(token: str):
             monitored_ids = set(live_cfg.get("monitored_channel_ids") or [])
             reply_style = live_cfg.get("reply_style", "natural")
             staff_role_name = (live_cfg.get("staff_role_name") or "").strip().lower()
+            # Normalize: remove extra spaces and special chars for fuzzy matching
+            staff_role_normalized = "".join(staff_role_name.split()).replace("-", "").replace("_", "")
             cooldown_minutes = live_cfg.get("handoff_cooldown_minutes", 15) or 15
             followup_msg = live_cfg.get("handoff_followup_message") or "Is there anything else I can help with?"
             if not live_cfg.get("is_active", True):
@@ -600,9 +602,11 @@ async def start_shared_discord_bot(token: str):
                                         user_role_names = [role_names.get(rid, "?") for rid in member_role_ids]
                                         logger.info(f"[ROLE CHECK] user_role_names={user_role_names}")
                                         for role in guild_roles:
-                                            if role["id"] in member_role_ids and role["name"].lower() == staff_role_name:
+                                            role_name_lower = role["name"].lower()
+                                            role_normalized = "".join(role_name_lower.split()).replace("-", "").replace("_", "")
+                                            if role["id"] in member_role_ids and (role_name_lower == staff_role_name or role_normalized == staff_role_normalized):
                                                 is_staff = True
-                                                logger.info(f"[ROLE CHECK] MATCH FOUND: role={role['name']}")
+                                                logger.info(f"[ROLE CHECK] MATCH FOUND: role='{role['name']}' config='{staff_role_name}'")
                                                 break
                                         if not is_staff:
                                             logger.info(f"[ROLE CHECK] NO MATCH for '{staff_role_name}' in user roles {user_role_names}")
