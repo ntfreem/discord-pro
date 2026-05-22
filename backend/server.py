@@ -1739,18 +1739,18 @@ async def restart_discord_bot_endpoint(instance_id: str = Depends(get_instance_a
 @api_router.get("/discord/status")
 async def get_discord_status(instance_id: str = Depends(get_instance_access)):
     if _shared_discord_client and _shared_discord_client.is_ready():
-        # Check if this instance's guild is in the bot's guild list
         config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
         guild_id = (config or {}).get("guild_id")
+        display_name = None
         if guild_id:
             guild = _shared_discord_client.get_guild(int(guild_id))
-            if guild:
-                # Get nickname in this guild
-                me = guild.me
-                display_name = me.nick if me and me.nick else str(_shared_discord_client.user)
-                return {"status": "online", "bot_name": display_name}
-        # Bot is online but not in this instance's guild
-        return {"status": "online", "bot_name": str(_shared_discord_client.user)}
+            if guild and guild.me:
+                display_name = guild.me.nick or guild.me.display_name
+        # If no guild nickname found, show the bot_config name for this instance
+        if not display_name:
+            bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
+            display_name = (bot_config or {}).get("name") or str(_shared_discord_client.user)
+        return {"status": "online", "bot_name": display_name}
     return {"status": "offline", "bot_name": None}
 
 
