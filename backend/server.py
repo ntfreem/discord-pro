@@ -576,29 +576,40 @@ async def start_shared_discord_bot(token: str):
             is_staff = False
             if staff_role_name and not is_dm and message.guild:
                 try:
-                    # Use Discord HTTP API directly to avoid any member cache
                     import aiohttp
                     app_creds = await get_discord_credentials()
                     bot_token = app_creds.get("bot_token", "")
                     if bot_token:
                         async with aiohttp.ClientSession() as http_session:
+                            # Fetch member's current roles from Discord API
                             async with http_session.get(
                                 f"https://discord.com/api/v10/guilds/{message.guild.id}/members/{message.author.id}",
                                 headers={"Authorization": f"Bot {bot_token}"}
-                            ) as resp:
-                                if resp.status == 200:
-                                    member_data = await resp.json()
-                                    # Get role IDs from member, then resolve names from guild roles
+                            ) as member_resp:
+                                if member_resp.status == 200:
+                                    member_data = await member_resp.json()
                                     member_role_ids = set(member_data.get("roles", []))
-                                    for role in message.guild.roles:
-                                        if str(role.id) in member_role_ids and role.name.lower() == staff_role_name:
-                                            is_staff = True
-                                            break
+                                    # Fetch guild roles from API (not cache)
+                                    async with http_session.get(
+                                        f"https://discord.com/api/v10/guilds/{message.guild.id}/roles",
+                                        headers={"Authorization": f"Bot {bot_token}"}
+                                    ) as roles_resp:
+                                        if roles_resp.status == 200:
+                                            guild_roles = await roles_resp.json()
+                                            for role in guild_roles:
+                                                if role["id"] in member_role_ids and role["name"].lower() == staff_role_name:
+                                                    is_staff = True
+                                                    break
+                                else:
+                                    logger.warning(f"Member fetch failed ({member_resp.status}) for {message.author.id}")
                 except Exception as e:
                     logger.warning(f"Staff role check failed: {e}")
             if is_staff and not is_dm:
                 _handoff_channels[channel_id] = datetime.now(timezone.utc)
+                logger.info(f"Human takeover: '{message.author.name}' has role '{staff_role_name}' in channel {channel_id}")
                 return
+            if not is_staff and staff_role_name and not is_dm:
+                logger.debug(f"User '{message.author.name}' does NOT have role '{staff_role_name}' — bot will respond")
             if channel_id in _handoff_channels:
                 elapsed = (datetime.now(timezone.utc) - _handoff_channels[channel_id]).total_seconds() / 60.0
                 if elapsed < cooldown_minutes:
