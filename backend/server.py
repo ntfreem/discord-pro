@@ -568,6 +568,7 @@ async def start_shared_discord_bot(token: str):
             if not live_cfg.get("is_active", True):
                 return
             channel_id = str(message.channel.id)
+            logger.info(f"[MSG] from={message.author.name} instance={instance_id[:12]} staff_role_cfg='{staff_role_name}' mode={listen_mode}")
             if message.content.strip().lower() == "!bot resume":
                 if channel_id in _handoff_channels:
                     del _handoff_channels[channel_id]
@@ -578,28 +579,40 @@ async def start_shared_discord_bot(token: str):
                 try:
                     import aiohttp
                     async with aiohttp.ClientSession() as http_session:
-                        # Use the token the bot connected with (passed to start_shared_discord_bot)
+                        member_url = f"https://discord.com/api/v10/guilds/{message.guild.id}/members/{message.author.id}"
                         async with http_session.get(
-                            f"https://discord.com/api/v10/guilds/{message.guild.id}/members/{message.author.id}",
+                            member_url,
                             headers={"Authorization": f"Bot {token}"}
                         ) as member_resp:
+                            logger.info(f"[ROLE CHECK] user={message.author.name} guild={message.guild.id} member_api_status={member_resp.status}")
                             if member_resp.status == 200:
                                 member_data = await member_resp.json()
                                 member_role_ids = set(member_data.get("roles", []))
+                                logger.info(f"[ROLE CHECK] user={message.author.name} role_ids={member_role_ids}")
                                 async with http_session.get(
                                     f"https://discord.com/api/v10/guilds/{message.guild.id}/roles",
                                     headers={"Authorization": f"Bot {token}"}
                                 ) as roles_resp:
                                     if roles_resp.status == 200:
                                         guild_roles = await roles_resp.json()
+                                        role_names = {r["id"]: r["name"] for r in guild_roles}
+                                        logger.info(f"[ROLE CHECK] guild_roles={role_names} looking_for='{staff_role_name}'")
+                                        user_role_names = [role_names.get(rid, "?") for rid in member_role_ids]
+                                        logger.info(f"[ROLE CHECK] user_role_names={user_role_names}")
                                         for role in guild_roles:
                                             if role["id"] in member_role_ids and role["name"].lower() == staff_role_name:
                                                 is_staff = True
+                                                logger.info(f"[ROLE CHECK] MATCH FOUND: role={role['name']}")
                                                 break
+                                        if not is_staff:
+                                            logger.info(f"[ROLE CHECK] NO MATCH for '{staff_role_name}' in user roles {user_role_names}")
+                                    else:
+                                        logger.warning(f"[ROLE CHECK] Guild roles fetch failed: {roles_resp.status}")
                             else:
-                                logger.warning(f"Member fetch failed ({member_resp.status}) for user {message.author.id}")
+                                body = await member_resp.text()
+                                logger.warning(f"[ROLE CHECK] Member fetch failed ({member_resp.status}): {body}")
                 except Exception as e:
-                    logger.warning(f"Staff role check failed: {e}")
+                    logger.warning(f"[ROLE CHECK] Exception: {e}")
             if is_staff and not is_dm:
                 _handoff_channels[channel_id] = datetime.now(timezone.utc)
                 logger.info(f"Human takeover: '{message.author.name}' has role '{staff_role_name}' in channel {channel_id}")
@@ -1735,6 +1748,77 @@ async def get_discord_status(instance_id: str = Depends(get_instance_access)):
         # Bot is online but not in this instance's guild
         return {"status": "online", "bot_name": str(_shared_discord_client.user)}
     return {"status": "offline", "bot_name": None}
+
+
+@api_router.get("/discord/debug-roles")
+async def debug_discord_roles(instance_id: str = Depends(get_instance_access)):
+    """Debug endpoint: check role detection for this instance's guild."""
+    import aiohttp
+    config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
+    if not config:
+        return {"error": "No discord config for this instance"}
+    guild_id = config.get("guild_id")
+    staff_role_name = (config.get("staff_role_name") or "").strip().lower()
+    app_creds = await get_discord_credentials()
+    # Try both token sources
+    env_token = DISCORD_BOT_TOKEN
+    db_token = app_creds.get("bot_token", "")
+    # Use whichever is available
+    bot_token = db_token or env_token
+    result = {
+        "guild_id": guild_id,
+        "staff_role_name_config": config.get("staff_role_name"),
+        "staff_role_name_lowered": staff_role_name,
+        "token_source": "db" if db_token else ("env" if env_token else "none"),
+        "token_length": len(bot_token),
+        "shared_client_ready": _shared_discord_client is not None and _shared_discord_client.is_ready() if _shared_discord_client else False,
+    }
+    if not bot_token:
+        result["error"] = "No bot token available"
+        return result
+    if not guild_id:
+        result["error"] = "No guild_id configured"
+        return result
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Fetch guild roles
+            async with session.get(
+                f"https://discord.com/api/v10/guilds/{guild_id}/roles",
+                headers={"Authorization": f"Bot {bot_token}"}
+            ) as resp:
+                result["roles_api_status"] = resp.status
+                if resp.status == 200:
+                    roles = await resp.json()
+                    result["guild_roles"] = [{"id": r["id"], "name": r["name"]} for r in roles if r["name"] != "@everyone"]
+                    matching = [r for r in roles if r["name"].lower() == staff_role_name]
+                    result["matching_roles"] = matching
+                else:
+                    body = await resp.text()
+                    result["roles_error"] = body
+            # Fetch guild members (first 10)
+            async with session.get(
+                f"https://discord.com/api/v10/guilds/{guild_id}/members?limit=10",
+                headers={"Authorization": f"Bot {bot_token}"}
+            ) as resp:
+                result["members_api_status"] = resp.status
+                if resp.status == 200:
+                    members = await resp.json()
+                    result["members"] = []
+                    for m in members:
+                        user = m.get("user", {})
+                        result["members"].append({
+                            "username": user.get("username"),
+                            "id": user.get("id"),
+                            "role_ids": m.get("roles", []),
+                            "is_bot": user.get("bot", False),
+                        })
+                else:
+                    body = await resp.text()
+                    result["members_error"] = body
+    except Exception as e:
+        result["exception"] = str(e)
+    return result
+
 
 
 # ==================== APP SETUP ====================
