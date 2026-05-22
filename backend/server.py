@@ -576,11 +576,26 @@ async def start_shared_discord_bot(token: str):
             is_staff = False
             if staff_role_name and not is_dm and message.guild:
                 try:
-                    member = await message.guild.fetch_member(message.author.id)
-                    is_staff = any(r.name.lower() == staff_role_name for r in member.roles if r.name != "@everyone")
-                except Exception:
-                    if hasattr(message.author, "roles"):
-                        is_staff = any(r.name.lower() == staff_role_name for r in message.author.roles if r.name != "@everyone")
+                    # Use Discord HTTP API directly to avoid any member cache
+                    import aiohttp
+                    app_creds = await get_discord_credentials()
+                    bot_token = app_creds.get("bot_token", "")
+                    if bot_token:
+                        async with aiohttp.ClientSession() as http_session:
+                            async with http_session.get(
+                                f"https://discord.com/api/v10/guilds/{message.guild.id}/members/{message.author.id}",
+                                headers={"Authorization": f"Bot {bot_token}"}
+                            ) as resp:
+                                if resp.status == 200:
+                                    member_data = await resp.json()
+                                    # Get role IDs from member, then resolve names from guild roles
+                                    member_role_ids = set(member_data.get("roles", []))
+                                    for role in message.guild.roles:
+                                        if str(role.id) in member_role_ids and role.name.lower() == staff_role_name:
+                                            is_staff = True
+                                            break
+                except Exception as e:
+                    logger.warning(f"Staff role check failed: {e}")
             if is_staff and not is_dm:
                 _handoff_channels[channel_id] = datetime.now(timezone.utc)
                 return
@@ -1604,38 +1619,38 @@ async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
 
 @api_router.get("/discord/channels")
 async def get_discord_channels(instance_id: str = Depends(get_instance_access)):
-    """Fetch text channels from all guilds the bot is in, using the stored token."""
+    """Fetch text channels from this instance's connected guild only."""
     import aiohttp
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
     app_creds = await get_discord_credentials()
     token = (config or {}).get("bot_token") or app_creds["bot_token"]
     if not token:
         raise HTTPException(status_code=400, detail="Bot token not configured. Save your token first.")
+    guild_id = (config or {}).get("guild_id")
+    if not guild_id:
+        raise HTTPException(status_code=400, detail="No Discord server connected to this instance. Invite the bot first.")
     headers = {"Authorization": f"Bot {token}"}
     all_channels = []
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://discord.com/api/v10/users/@me/guilds", headers=headers) as resp:
+            # Fetch guild name
+            guild_name = (config or {}).get("guild_name", "Server")
+            async with session.get(
+                f"https://discord.com/api/v10/guilds/{guild_id}/channels", headers=headers
+            ) as resp:
                 if resp.status == 401:
                     raise HTTPException(status_code=400, detail="Invalid bot token")
                 if resp.status != 200:
-                    raise HTTPException(status_code=400, detail="Failed to fetch guilds from Discord")
-                guilds = await resp.json()
-            for guild in guilds[:10]:
-                async with session.get(
-                    f"https://discord.com/api/v10/guilds/{guild['id']}/channels", headers=headers
-                ) as resp:
-                    if resp.status != 200:
-                        continue
-                    channels = await resp.json()
-                    for c in channels:
-                        if c.get("type") == 0:  # GUILD_TEXT only
-                            all_channels.append({
-                                "id": str(c["id"]),
-                                "name": c["name"],
-                                "guild_id": str(guild["id"]),
-                                "guild_name": guild["name"],
-                            })
+                    raise HTTPException(status_code=400, detail="Failed to fetch channels from Discord")
+                channels = await resp.json()
+                for c in channels:
+                    if c.get("type") == 0:  # GUILD_TEXT only
+                        all_channels.append({
+                            "id": str(c["id"]),
+                            "name": c["name"],
+                            "guild_id": guild_id,
+                            "guild_name": guild_name,
+                        })
     except HTTPException:
         raise
     except Exception as e:
