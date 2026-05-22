@@ -264,13 +264,12 @@ async def get_instance_access(
 async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
     try:
         # Load ALL active sources for this instance, sorted by priority
-        # This lets the LLM do semantic matching rather than relying on keyword search
         all_sources = await db.knowledge_sources.find(
             {"is_active": True, "instance_id": instance_id}, {"_id": 0}
         ).sort([("priority", -1), ("created_at", -1)]).to_list(100)
 
         if not all_sources:
-            return ""
+            return "__NO_KB__"  # Signal: no knowledge base configured at all
 
         chunks = []
         total_chars = 0
@@ -324,7 +323,17 @@ def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_exam
 
     parts = [f"You are {name}. {persona}"]
 
-    if knowledge_context:
+    if knowledge_context == "__NO_KB__":
+        parts.append(
+            "IMPORTANT — NO KNOWLEDGE BASE CONFIGURED:\n"
+            "This bot instance does not have any knowledge base entries configured yet.\n"
+            "You MUST NOT answer questions using your general knowledge.\n"
+            "For ANY question, respond with something like:\n"
+            "\"I don't have any knowledge base configured yet. Please check back later "
+            "or contact the administrator to set up my knowledge base.\"\n"
+            "Be polite and brief. Do not attempt to answer the question."
+        )
+    elif knowledge_context:
         parts.append(
             "KNOWLEDGE BASE — AUTHORITATIVE SOURCE:\n"
             "The following information is verified and accurate. When a user's question is answered by "
@@ -384,7 +393,7 @@ async def call_claude(session_id: str, user_message: str, system_prompt: str,
 
     async def _attempt(model: str) -> str:
         nonlocal retry_count
-        key = f"{session_id}_{model}"
+        key = f"{session_id}_{instance_id}_{model}"
         if key not in llm_sessions:
             llm_sessions[key] = LlmChat(
                 api_key=api_key,
@@ -608,10 +617,14 @@ async def start_shared_discord_bot(token: str):
             try:
                 bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
                 knowledge = await search_knowledge(user_text, instance_id)
-                tone = await get_tone_examples_text(instance_id, bot_config)
-                system_prompt = build_system_prompt(bot_config, knowledge, tone)
-                async with message.channel.typing():
-                    response = await call_claude(session_id, user_text, system_prompt, instance_id=instance_id, platform="discord")
+                if knowledge == "__NO_KB__":
+                    bot_name = bot_config.get("name", "I")
+                    response = f"I don't have any knowledge base configured yet. Please check back later or contact the administrator to set up my knowledge base."
+                else:
+                    tone = await get_tone_examples_text(instance_id, bot_config)
+                    system_prompt = build_system_prompt(bot_config, knowledge, tone)
+                    async with message.channel.typing():
+                        response = await call_claude(session_id, user_text, system_prompt, instance_id=instance_id, platform="discord")
                 await save_conversation(session_id=session_id, user_message=user_text, bot_response=response, platform="discord", instance_id=instance_id, metadata={"username": str(message.author.name), "user_id": str(message.author.id)})
                 if reply_style == "with_mention" and not is_dm:
                     response = f"{message.author.mention} {response}"
@@ -1031,20 +1044,15 @@ async def unassign_user(instance_id: str, user_id: str, current_user: dict = Dep
 async def send_chat_message(body: ChatMessage):
     session_id = body.session_id or str(uuid.uuid4())
     instance_id = body.instance_id or "default"
-    # Try to find actual instance by id or fall back to first instance
-    bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
-    if not bot_config:
-        first_instance = await db.bot_instances.find_one({}, {"id": 1})
-        if first_instance:
-            instance_id = first_instance["id"]
-            bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
-        else:
-            bot_config = {}
+    bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
     knowledge = await search_knowledge(body.message, instance_id)
-    tone = await get_tone_examples_text(instance_id, bot_config)
-    system_prompt = build_system_prompt(bot_config, knowledge, tone)
-    response = await call_claude(session_id, body.message, system_prompt,
-                                instance_id=instance_id, platform="web")
+    if knowledge == "__NO_KB__":
+        response = "I don't have any knowledge base configured yet. Please check back later or contact the administrator to set up my knowledge base."
+    else:
+        tone = await get_tone_examples_text(instance_id, bot_config)
+        system_prompt = build_system_prompt(bot_config, knowledge, tone)
+        response = await call_claude(session_id, body.message, system_prompt,
+                                    instance_id=instance_id, platform="web")
     await save_conversation(session_id, body.message, response, platform="web", instance_id=instance_id)
     return {"response": response, "session_id": session_id}
 
