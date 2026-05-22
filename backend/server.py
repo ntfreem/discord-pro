@@ -577,31 +577,27 @@ async def start_shared_discord_bot(token: str):
             if staff_role_name and not is_dm and message.guild:
                 try:
                     import aiohttp
-                    app_creds = await get_discord_credentials()
-                    bot_token = app_creds.get("bot_token", "")
-                    if bot_token:
-                        async with aiohttp.ClientSession() as http_session:
-                            # Fetch member's current roles from Discord API
-                            async with http_session.get(
-                                f"https://discord.com/api/v10/guilds/{message.guild.id}/members/{message.author.id}",
-                                headers={"Authorization": f"Bot {bot_token}"}
-                            ) as member_resp:
-                                if member_resp.status == 200:
-                                    member_data = await member_resp.json()
-                                    member_role_ids = set(member_data.get("roles", []))
-                                    # Fetch guild roles from API (not cache)
-                                    async with http_session.get(
-                                        f"https://discord.com/api/v10/guilds/{message.guild.id}/roles",
-                                        headers={"Authorization": f"Bot {bot_token}"}
-                                    ) as roles_resp:
-                                        if roles_resp.status == 200:
-                                            guild_roles = await roles_resp.json()
-                                            for role in guild_roles:
-                                                if role["id"] in member_role_ids and role["name"].lower() == staff_role_name:
-                                                    is_staff = True
-                                                    break
-                                else:
-                                    logger.warning(f"Member fetch failed ({member_resp.status}) for {message.author.id}")
+                    async with aiohttp.ClientSession() as http_session:
+                        # Use the token the bot connected with (passed to start_shared_discord_bot)
+                        async with http_session.get(
+                            f"https://discord.com/api/v10/guilds/{message.guild.id}/members/{message.author.id}",
+                            headers={"Authorization": f"Bot {token}"}
+                        ) as member_resp:
+                            if member_resp.status == 200:
+                                member_data = await member_resp.json()
+                                member_role_ids = set(member_data.get("roles", []))
+                                async with http_session.get(
+                                    f"https://discord.com/api/v10/guilds/{message.guild.id}/roles",
+                                    headers={"Authorization": f"Bot {token}"}
+                                ) as roles_resp:
+                                    if roles_resp.status == 200:
+                                        guild_roles = await roles_resp.json()
+                                        for role in guild_roles:
+                                            if role["id"] in member_role_ids and role["name"].lower() == staff_role_name:
+                                                is_staff = True
+                                                break
+                            else:
+                                logger.warning(f"Member fetch failed ({member_resp.status}) for user {message.author.id}")
                 except Exception as e:
                     logger.warning(f"Staff role check failed: {e}")
             if is_staff and not is_dm:
