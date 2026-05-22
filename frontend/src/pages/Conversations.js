@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { CheckCircle, Trash2, X, ChevronRight, Lightbulb } from "lucide-react";
 import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
@@ -32,6 +33,8 @@ function MessageBubble({ msg }) {
 }
 
 export default function Conversations() {
+  const { selectedInstance } = useAuth();
+  const instanceId = selectedInstance?.id;
   const [conversations, setConversations] = useState([]);
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -47,9 +50,9 @@ export default function Conversations() {
       setConversations(r.data.conversations || []);
       setTotal(r.data.total || 0);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [filter]);
+  }, [filter, instanceId]);
 
-  useEffect(() => { loadConversations(); }, [loadConversations]);
+  useEffect(() => { loadConversations(); }, [loadConversations, instanceId]);
 
   const approve = async (sessionId, approved) => {
     try {

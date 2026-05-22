@@ -166,6 +166,7 @@ function EditModal({ source, onClose, onSaved }) {
 
 export default function KnowledgeBase() {
   const { selectedInstance } = useAuth();
+  const instanceId = selectedInstance?.id;
   const [activeTab, setActiveTab] = useState("faq");
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -180,9 +181,9 @@ export default function KnowledgeBase() {
 
   const loadSources = useCallback(() => {
     api.get(`/knowledge/sources`).then(r => setSources(r.data)).catch(() => {});
-  }, [selectedInstance]);
+  }, [instanceId]);
 
-  useEffect(() => { loadSources(); }, [loadSources]);
+  useEffect(() => { loadSources(); }, [loadSources, instanceId]);
 
   const addFaq = async () => {
     if (!faq.title.trim() || !faq.content.trim()) { toast.error("Title and content are required"); return; }

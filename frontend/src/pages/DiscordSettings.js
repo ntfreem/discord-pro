@@ -178,6 +178,7 @@ function AppCredentialsPanel() {
 
 export default function DiscordSettings() {
   const { user, selectedInstance } = useAuth();
+  const instanceId = selectedInstance?.id;
   const [searchParams, setSearchParams] = useSearchParams();
   const [token, setToken] = useState("");
   const [isActive, setIsActive] = useState(false);
@@ -222,17 +223,17 @@ export default function DiscordSettings() {
       setHandoffCooldown(r.data?.handoff_cooldown_minutes || 15);
       setHandoffFollowup(r.data?.handoff_followup_message || "Is there anything else I can help with?");
     }).catch(() => {});
-  }, [selectedInstance]);
+  }, [instanceId]);
 
   const loadStatus = useCallback(() => {
     api.get(`/discord/status`).then(r => setStatus(r.data)).catch(() => {});
-  }, [selectedInstance]);
+  }, [instanceId]);
 
   useEffect(() => {
     loadConfig(); loadStatus();
     pollRef.current = setInterval(loadStatus, 5000);
     return () => clearInterval(pollRef.current);
-  }, [loadConfig, loadStatus]);
+  }, [loadConfig, loadStatus, instanceId]);
 
   const fetchChannels = async () => {
     setFetchingChannels(true);
