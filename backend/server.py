@@ -1094,9 +1094,32 @@ async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_inst
         auth = None
         if entry.auth_username and entry.auth_password:
             auth = httpx.BasicAuth(entry.auth_username, entry.auth_password)
-        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True, auth=auth) as http:
-            resp = await http.get(entry.url, headers={"User-Agent": "Mozilla/5.0 (BridgeBot/1.0)"})
-            resp.raise_for_status()
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        resp = None
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, auth=auth) as http:
+                    resp = await http.get(entry.url, headers=headers)
+                    if resp.status_code == 429:
+                        wait = int(resp.headers.get("Retry-After", 5 * (attempt + 1)))
+                        logger.warning(f"Rate limited on {entry.url}, waiting {wait}s (attempt {attempt+1}/3)")
+                        import asyncio
+                        await asyncio.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+                    break
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429 and attempt < 2:
+                    import asyncio
+                    await asyncio.sleep(5 * (attempt + 1))
+                    continue
+                raise
+        if resp is None or resp.status_code == 429:
+            raise HTTPException(status_code=429, detail="Website is rate limiting requests. Try again in a few minutes.")
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(resp.text, "html.parser")
         for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
