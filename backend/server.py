@@ -55,8 +55,9 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 llm_sessions: Dict[str, LlmChat] = {}
-discord_task = None
-discord_client_instance = None
+
+# Per-instance Discord bot tracking
+discord_bots: Dict[str, dict] = {}  # {instance_id: {"task": Task, "client": discord.Client}}
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -474,8 +475,6 @@ async def save_conversation(session_id: str, user_message: str, bot_response: st
 # ==================== DISCORD BOT ====================
 
 async def start_discord_bot(token: str, instance_id: str = "default", config: dict = None):
-    global discord_client_instance
-
     # Per-channel handoff state: {channel_id: last_staff_message_timestamp}
     handoff_channels = {}
 
@@ -484,33 +483,40 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
         intents = discord.Intents.default()
         intents.message_content = True
         intents.members = True  # Needed to read member roles
-        discord_client_instance = discord.Client(intents=intents)
+        client = discord.Client(intents=intents)
 
-        @discord_client_instance.event
+        # Store reference
+        discord_bots[instance_id] = {"task": None, "client": client}
+
+        @client.event
         async def on_ready():
-            logger.info(f"Discord bot online: {discord_client_instance.user}")
-            # Sync bot name from bot_config to Discord username
+            logger.info(f"Discord bot online: {client.user} (instance={instance_id})")
+            # Sync bot name from bot_config to Discord nickname
             try:
                 bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
                 desired_name = (bot_config or {}).get("name", "").strip()
-                current_name = discord_client_instance.user.name if discord_client_instance.user else ""
+                current_name = client.user.name if client.user else ""
                 if desired_name and desired_name != current_name:
                     import aiohttp
+                    disc_cfg = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
+                    guild_id = (disc_cfg or {}).get("guild_id")
                     async with aiohttp.ClientSession() as session:
-                        async with session.patch(
-                            "https://discord.com/api/v10/users/@me",
-                            headers={"Authorization": f"Bot {token}"},
-                            json={"username": desired_name}
-                        ) as resp:
-                            if resp.status == 200:
-                                logger.info(f"Discord bot name synced to: {desired_name}")
-                            else:
-                                body = await resp.text()
-                                logger.warning(f"Discord name sync failed ({resp.status}): {body}")
+                        # Set nickname in specific guild only
+                        if guild_id:
+                            async with session.patch(
+                                f"https://discord.com/api/v10/guilds/{guild_id}/members/@me",
+                                headers={"Authorization": f"Bot {token}"},
+                                json={"nick": desired_name}
+                            ) as resp:
+                                if resp.status == 200:
+                                    logger.info(f"Discord nickname synced to '{desired_name}' in guild {guild_id} (instance={instance_id})")
+                                else:
+                                    body = await resp.text()
+                                    logger.warning(f"Discord nickname sync failed ({resp.status}): {body}")
             except Exception as e:
                 logger.warning(f"Discord name sync error: {e}")
 
-        @discord_client_instance.event
+        @client.event
         async def on_message(message):
             # Never respond to ourselves
             if message.author.bot:
@@ -572,8 +578,8 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
                         logger.warning(f"Failed to send followup: {e}")
                     # Now continue to process this message normally
 
-            is_mentioned = (discord_client_instance.user in message.mentions
-                            if discord_client_instance.user else False)
+            is_mentioned = (client.user in message.mentions
+                            if client.user else False)
 
             # Determine whether to respond based on listen_mode
             if is_dm:
@@ -592,9 +598,9 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
 
             # Clean the message text — strip bot mention if present
             user_text = message.content
-            if discord_client_instance.user:
-                user_text = user_text.replace(f"<@{discord_client_instance.user.id}>", "").strip()
-                user_text = user_text.replace(f"<@!{discord_client_instance.user.id}>", "").strip()
+            if client.user:
+                user_text = user_text.replace(f"<@{client.user.id}>", "").strip()
+                user_text = user_text.replace(f"<@!{client.user.id}>", "").strip()
             if not user_text:
                 return
 
@@ -626,17 +632,20 @@ async def start_discord_bot(token: str, instance_id: str = "default", config: di
                 logger.error(f"Discord message error: {e}")
                 await message.channel.send("Sorry, I encountered an error. Please try again.")
 
-        await discord_client_instance.start(token)
+        await client.start(token)
+    except asyncio.CancelledError:
+        logger.info(f"Discord bot task cancelled (instance={instance_id})")
     except Exception as e:
-        logger.error(f"Discord bot startup error: {e}")
-        discord_client_instance = None
+        logger.error(f"Discord bot startup error (instance={instance_id}): {e}")
+    finally:
+        if instance_id in discord_bots:
+            discord_bots[instance_id]["client"] = None
 
 
 # ==================== STARTUP / SHUTDOWN ====================
 
 @app.on_event("startup")
 async def startup_event():
-    global discord_task
     try:
         await db.knowledge_sources.create_index([("title", "text"), ("content", "text")])
         await db.knowledge_sources.create_index([("instance_id", 1)])
@@ -681,24 +690,43 @@ async def startup_event():
         for col in [db.bot_config, db.knowledge_sources, db.conversations, db.discord_config]:
             await col.update_many({"instance_id": {"$exists": False}}, {"$set": {"instance_id": migrate_id}})
 
-    discord_config = await db.discord_config.find_one({"is_active": True}, {"_id": 0})
+    # Start ALL active Discord bots
+    active_configs = await db.discord_config.find({"is_active": True}, {"_id": 0}).to_list(50)
     app_creds = await get_discord_credentials()
-    bot_token = (discord_config or {}).get("bot_token") or app_creds["bot_token"]
-    if discord_config and bot_token:
+    for discord_config in active_configs:
         iid = discord_config.get("instance_id", "default")
-        discord_task = asyncio.create_task(start_discord_bot(bot_token, iid, discord_config))
+        bot_token = discord_config.get("bot_token") or app_creds["bot_token"]
+        if bot_token:
+            task = asyncio.create_task(start_discord_bot(bot_token, iid, discord_config))
+            if iid in discord_bots:
+                discord_bots[iid]["task"] = task
+            else:
+                discord_bots[iid] = {"task": task, "client": None}
+            logger.info(f"Starting Discord bot for instance {iid}")
+    if not active_configs:
+        # No active configs but we have a global token — start default
+        bot_token = app_creds.get("bot_token")
+        if bot_token:
+            first_config = await db.discord_config.find_one({}, {"_id": 0})
+            if first_config:
+                iid = first_config.get("instance_id", "default")
+                task = asyncio.create_task(start_discord_bot(bot_token, iid, first_config))
+                discord_bots[iid] = {"task": task, "client": None}
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    global discord_task, discord_client_instance
-    if discord_client_instance:
-        try:
-            await discord_client_instance.close()
-        except Exception:
-            pass
-    if discord_task:
-        discord_task.cancel()
+    for iid, bot_info in discord_bots.items():
+        client = bot_info.get("client")
+        task = bot_info.get("task")
+        if client:
+            try:
+                await client.close()
+            except Exception:
+                pass
+        if task:
+            task.cancel()
+    discord_bots.clear()
     mongo_client.close()
 
 
@@ -1520,19 +1548,21 @@ async def discord_oauth_callback(
             app_creds = await get_discord_credentials()
             bot_token = (config or {}).get("bot_token") or app_creds["bot_token"]
             if bot_token:
-                global discord_task, discord_client_instance
-                if discord_client_instance:
-                    try:
-                        await discord_client_instance.close()
-                    except Exception:
-                        pass
-                    discord_client_instance = None
-                if discord_task:
-                    discord_task.cancel()
-                    discord_task = None
-                discord_task = asyncio.create_task(
+                # Stop existing bot for this instance if running
+                if instance_id in discord_bots:
+                    old_client = discord_bots[instance_id].get("client")
+                    old_task = discord_bots[instance_id].get("task")
+                    if old_client:
+                        try:
+                            await old_client.close()
+                        except Exception:
+                            pass
+                    if old_task:
+                        old_task.cancel()
+                task = asyncio.create_task(
                     start_discord_bot(bot_token, instance_id, config or {})
                 )
+                discord_bots[instance_id] = {"task": task, "client": None}
 
             return RedirectResponse(
                 url=f"{frontend_base}/admin/discord?oauth=success&guild={guild.get('name', '')}"
@@ -1559,7 +1589,7 @@ async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
     headers = {"Authorization": f"Bot {token}"}
     results = []
     async with aiohttp.ClientSession() as session:
-        # 1) Set nickname in the connected guild (what users see in server)
+        # Set nickname in the connected guild for this instance only
         guild_id = (config or {}).get("guild_id")
         if guild_id:
             async with session.patch(
@@ -1579,33 +1609,7 @@ async def sync_discord_name(instance_id: str = Depends(get_instance_access)):
                     else:
                         results.append(f"Guild nickname failed: {err}")
         else:
-            # No guild_id stored — try all guilds the bot is in
-            async with session.get("https://discord.com/api/v10/users/@me/guilds", headers=headers) as resp:
-                if resp.status == 200:
-                    guilds = await resp.json()
-                    for guild in guilds[:10]:
-                        async with session.patch(
-                            f"https://discord.com/api/v10/guilds/{guild['id']}/members/@me",
-                            headers=headers,
-                            json={"nick": name}
-                        ) as nick_resp:
-                            if nick_resp.status == 200:
-                                results.append(f"Nickname set in '{guild['name']}'")
-                            else:
-                                body = await nick_resp.json()
-                                results.append(f"Failed in '{guild['name']}': {body.get('message', 'error')}")
-
-        # 2) Also update global username (less visible but keeps it in sync)
-        async with session.patch(
-            "https://discord.com/api/v10/users/@me",
-            headers=headers,
-            json={"username": name}
-        ) as resp:
-            if resp.status == 200:
-                results.append("Global username updated")
-            else:
-                body = await resp.json()
-                logger.warning(f"Global username update failed: {body}")
+            results.append("No guild connected for this instance. Invite the bot to a server first.")
 
     if not results:
         raise HTTPException(status_code=400, detail="No guilds found to update nickname")
@@ -1685,30 +1689,34 @@ async def update_discord_config(body: DiscordConfigUpdate, instance_id: str = De
 
 @api_router.post("/discord/restart")
 async def restart_discord_bot(instance_id: str = Depends(get_instance_access)):
-    global discord_task, discord_client_instance
-    if discord_client_instance:
-        try:
-            await discord_client_instance.close()
-        except Exception:
-            pass
-        discord_client_instance = None
-    if discord_task:
-        discord_task.cancel()
-        discord_task = None
+    # Stop existing bot for this instance only
+    if instance_id in discord_bots:
+        old_client = discord_bots[instance_id].get("client")
+        old_task = discord_bots[instance_id].get("task")
+        if old_client:
+            try:
+                await old_client.close()
+            except Exception:
+                pass
+        if old_task:
+            old_task.cancel()
     config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0})
     app_creds = await get_discord_credentials()
     token = (config or {}).get("bot_token") or app_creds["bot_token"]
     if not token:
         raise HTTPException(status_code=400, detail="Discord bot token not configured")
-    discord_task = asyncio.create_task(start_discord_bot(token, instance_id, config or {}))
+    task = asyncio.create_task(start_discord_bot(token, instance_id, config or {}))
+    discord_bots[instance_id] = {"task": task, "client": None}
     return {"success": True, "message": "Discord bot starting..."}
 
 
 @api_router.get("/discord/status")
 async def get_discord_status(instance_id: str = Depends(get_instance_access)):
-    global discord_client_instance
-    if discord_client_instance and discord_client_instance.is_ready():
-        return {"status": "online", "bot_name": str(discord_client_instance.user)}
+    bot_info = discord_bots.get(instance_id)
+    if bot_info:
+        client = bot_info.get("client")
+        if client and client.is_ready():
+            return {"status": "online", "bot_name": str(client.user)}
     return {"status": "offline", "bot_name": None}
 
 
