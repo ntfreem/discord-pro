@@ -188,6 +188,7 @@ export default function DiscordSettings() {
   const [staffRoleName, setStaffRoleName] = useState("");
   const [handoffCooldown, setHandoffCooldown] = useState(15);
   const [handoffFollowup, setHandoffFollowup] = useState("Is there anything else I can help with?");
+  const [passiveMode, setPassiveMode] = useState(false);
   const [existing, setExisting] = useState(null);
   const [status, setStatus] = useState({ status: "offline", bot_name: null });
   const [saving, setSaving] = useState(false);
@@ -222,6 +223,7 @@ export default function DiscordSettings() {
       setStaffRoleName(r.data?.staff_role_name || "");
       setHandoffCooldown(r.data?.handoff_cooldown_minutes || 15);
       setHandoffFollowup(r.data?.handoff_followup_message || "Is there anything else I can help with?");
+      setPassiveMode(r.data?.passive_mode || false);
     }).catch(() => {});
   }, [instanceId]);
 
@@ -249,7 +251,7 @@ export default function DiscordSettings() {
   const toggleChannel = (id) => setMonitoredChannelIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
 
   const save = async () => {
-    const update = { is_active: isActive, listen_mode: listenMode, reply_style: replyStyle, monitored_channel_ids: monitoredChannelIds, staff_role_name: staffRoleName, handoff_cooldown_minutes: handoffCooldown, handoff_followup_message: handoffFollowup };
+    const update = { is_active: isActive, listen_mode: listenMode, reply_style: replyStyle, monitored_channel_ids: monitoredChannelIds, staff_role_name: staffRoleName, handoff_cooldown_minutes: handoffCooldown, handoff_followup_message: handoffFollowup, passive_mode: passiveMode };
     if (token.trim()) update.bot_token = token.trim();
     setSaving(true);
     try { await api.put(`/discord/config`, update); toast.success("Discord settings saved"); setToken(""); loadConfig(); } catch { toast.error("Failed to save"); }
@@ -517,6 +519,63 @@ export default function DiscordSettings() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Passive Mode */}
+          <div style={{ ...T.card, marginBottom: "20px", borderColor: passiveMode ? "rgba(96,165,250,0.3)" : colors.border.default }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <Radio size={15} color={passiveMode ? colors.brand.light : colors.text.muted} />
+                  <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Passive Mode</p>
+                  {passiveMode && (
+                    <span style={{ fontFamily: fonts.mono, fontSize: "9px", color: colors.brand.light, backgroundColor: "rgba(96,165,250,0.1)", padding: "2px 8px", borderRadius: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Active
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, margin: 0, lineHeight: "1.6" }}>
+                  Only reply when the bot detects a real question it can answer confidently from your knowledge base.
+                  Silently ignores small talk, greetings, opinions, and off-topic chatter.
+                  Direct @mentions and DMs always get a reply, regardless of this setting.
+                </p>
+              </div>
+              <button
+                onClick={() => setPassiveMode(!passiveMode)}
+                data-testid="passive-mode-toggle"
+                role="switch"
+                aria-checked={passiveMode}
+                style={{
+                  flexShrink: 0,
+                  width: "42px", height: "24px",
+                  backgroundColor: passiveMode ? colors.brand.light : colors.bg.panel,
+                  border: `1px solid ${passiveMode ? colors.brand.light : colors.border.default}`,
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  position: "relative",
+                  transition: "all 0.2s",
+                  padding: 0,
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "2px",
+                    left: passiveMode ? "20px" : "2px",
+                    width: "18px", height: "18px",
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: "50%",
+                    transition: "left 0.2s",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                  }}
+                />
+              </button>
+            </div>
+            {passiveMode && (
+              <p style={{ ...T.hint, marginTop: "12px", marginBottom: 0, padding: "8px 12px", backgroundColor: "rgba(96,165,250,0.04)", border: `1px solid rgba(96,165,250,0.15)`, borderRadius: "8px" }}>
+                <strong style={{ color: colors.text.primary }}>Tip:</strong> Best paired with <em>All Channels</em> listen mode in busy servers — the bot will quietly monitor every channel and only chime in when it has a useful answer.
+              </p>
+            )}
           </div>
 
           {/* Human Takeover */}

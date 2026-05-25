@@ -198,6 +198,7 @@ class DiscordConfigUpdate(BaseModel):
     staff_role_name: Optional[str] = None      # role name for human takeover detection
     handoff_cooldown_minutes: Optional[int] = None  # minutes before bot re-engages after staff reply
     handoff_followup_message: Optional[str] = None  # message bot sends when re-engaging
+    passive_mode: Optional[bool] = None        # if True, only reply when bot can answer from KB (skip small-talk)
 
 
 # ==================== JWT AUTH HELPERS ====================
@@ -315,7 +316,7 @@ async def get_tone_examples_text(instance_id: str, bot_config: dict = None) -> s
     return "\n\n---\n\n".join(parts[:5])
 
 
-def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_examples: str = "") -> str:
+def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_examples: str = "", passive_mode: bool = False, allow_skip: bool = False) -> str:
     name = bot_config.get("name", "Assistant")
     persona = bot_config.get("persona", "You are a helpful, friendly assistant.")
     custom_instructions = bot_config.get("custom_instructions", "")
@@ -373,6 +374,20 @@ def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_exam
 
     if custom_instructions:
         parts.append(f"ADDITIONAL INSTRUCTIONS:\n{custom_instructions}")
+
+    if passive_mode and allow_skip:
+        parts.append(
+            "PASSIVE MODE — STAY SILENT WHEN UNCERTAIN:\n"
+            "You are monitoring a busy channel. You must NOT respond to small talk, statements, "
+            "greetings, opinions, jokes, or off-topic chatter.\n"
+            "ONLY respond when ALL of the following are true:\n"
+            "  1. The message is clearly a question or a request for help, AND\n"
+            "  2. The KNOWLEDGE BASE above contains enough information for you to give a useful, "
+            "     accurate answer.\n"
+            "If either condition is not met, output exactly this single token and nothing else: [SKIP]\n"
+            "Do not explain. Do not greet. Do not apologize. Just output [SKIP] on its own.\n"
+            "When you do answer, answer normally — do not mention this passive mode."
+        )
 
     return "\n\n".join(parts)
 
@@ -682,9 +697,16 @@ async def start_shared_discord_bot(token: str):
                     response = f"I don't have any knowledge base configured yet. Please check back later or contact the administrator to set up my knowledge base."
                 else:
                     tone = await get_tone_examples_text(instance_id, bot_config)
-                    system_prompt = build_system_prompt(bot_config, knowledge, tone)
+                    passive_mode = bool(live_cfg.get("passive_mode", False))
+                    # In passive mode, allow the LLM to skip unless the user @mentioned the bot or DM'd it
+                    allow_skip = passive_mode and not is_mentioned and not is_dm
+                    system_prompt = build_system_prompt(bot_config, knowledge, tone, passive_mode=passive_mode, allow_skip=allow_skip)
                     async with message.channel.typing():
                         response = await call_claude(session_id, user_text, system_prompt, instance_id=instance_id, platform="discord")
+                    # Passive mode: detect [SKIP] sentinel and stay silent
+                    if allow_skip and response and response.strip().upper().startswith("[SKIP]"):
+                        logger.info(f"[PASSIVE] instance={instance_id[:12]} channel={channel_id} — skipped (no confident answer)")
+                        return
                 await save_conversation(session_id=session_id, user_message=user_text, bot_response=response, platform="discord", instance_id=instance_id, metadata={"username": str(message.author.name), "user_id": str(message.author.id)})
                 if reply_style == "with_mention" and not is_dm:
                     response = f"{message.author.mention} {response}"

@@ -56,8 +56,21 @@ Multi-tenant SaaS chatbot platform where admins create AI knowledge-base instanc
 - Current Configuration display (masked credentials + last updated timestamp)
 - Update Credentials form (moved from Discord Settings page)
 - Danger Zone: Clear all credentials with confirmation dialog showing currently-connected instances + optional checkbox to also wipe instance ↔ guild mappings
-- "How the mapping works" reference card
+- "How the mapping works" reference card + link to architecture docs
 - Backend endpoints: `GET /api/discord/app-config/connections`, `DELETE /api/discord/app-config?clear_connections=bool`
+
+### Architecture Docs Section (DONE — 2026-05-25)
+- New "Architecture & Flow" section in `/docs` with monospace ASCII diagrams
+- Includes: Message Flow end-to-end, Discord App ↔ Instance ↔ Server mapping, Data Stores, Three Key Architectural Decisions
+- URL hash navigation (`/docs#architecture` opens straight to section)
+- Linked from Discord App Setup page
+
+### Passive Mode (DONE — 2026-05-25)
+- New per-instance Discord setting: bot continuously monitors but only replies when it detects a real question it can confidently answer from the KB
+- Implementation: single LLM call with `[SKIP]` sentinel — Claude returns `[SKIP]` for small-talk/non-questions, backend stays silent
+- @mentions and DMs always get a reply (bypasses passive check) per UX recommendation
+- UI toggle on `/admin/discord` page between Reply Style and Human Takeover
+- Field: `discord_config.passive_mode` (boolean, default false)
 
 ## Backlog
 
