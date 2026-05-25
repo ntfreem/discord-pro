@@ -1477,6 +1477,7 @@ async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
 async def get_discord_app_config(current_user: dict = Depends(require_admin)):
     """Get Discord app credentials (admin only). Secrets are masked."""
     creds = await get_discord_credentials()
+    raw = await db.discord_app_config.find_one({"_id": "discord_app"}) or {}
     return {
         "client_id": creds["client_id"],
         "client_secret": ("***" + creds["client_secret"][-4:]) if len(creds.get("client_secret", "")) > 4 else ("***" if creds.get("client_secret") else ""),
@@ -1486,6 +1487,7 @@ async def get_discord_app_config(current_user: dict = Depends(require_admin)):
         "has_client_secret": bool(creds["client_secret"]),
         "has_redirect_uri": bool(creds["redirect_uri"]),
         "has_bot_token": bool(creds["bot_token"]),
+        "updated_at": raw.get("updated_at"),
     }
 
 
@@ -1506,6 +1508,53 @@ async def update_discord_app_config(body: DiscordAppConfigUpdate, current_user: 
         {"_id": "discord_app"}, {"$set": update}, upsert=True
     )
     return {"success": True, "message": "Discord credentials updated"}
+
+
+@api_router.get("/discord/app-config/connections")
+async def list_discord_connections(current_user: dict = Depends(require_admin)):
+    """List every instance currently mapped to a Discord guild. Used by Discord App Setup to
+    preview the impact of clearing app credentials."""
+    rows = await db.discord_config.find({"guild_id": {"$exists": True, "$ne": ""}}).to_list(length=None)
+    out = []
+    for r in rows:
+        inst = await db.bot_instances.find_one({"id": r.get("instance_id")})
+        out.append({
+            "instance_id": r.get("instance_id"),
+            "instance_name": (inst or {}).get("name") or "(deleted instance)",
+            "guild_id": r.get("guild_id"),
+            "guild_name": r.get("guild_name") or "",
+        })
+    return {"connections": out, "count": len(out)}
+
+
+@api_router.delete("/discord/app-config")
+async def clear_discord_app_config(
+    clear_connections: bool = False,
+    current_user: dict = Depends(require_admin),
+):
+    """Clear the Discord App credentials (admin only).
+    If clear_connections=true, also wipe every instance ↔ guild mapping in discord_config."""
+    await db.discord_app_config.delete_one({"_id": "discord_app"})
+    connections_cleared = 0
+    if clear_connections:
+        result = await db.discord_config.update_many(
+            {"guild_id": {"$exists": True, "$ne": ""}},
+            {"$unset": {"guild_id": "", "guild_name": ""}},
+        )
+        connections_cleared = result.modified_count
+    # Stop the running shared bot so the new token (when configured) takes effect cleanly.
+    global _shared_discord_task
+    try:
+        if _shared_discord_task and not _shared_discord_task.done():
+            _shared_discord_task.cancel()
+    except Exception:
+        pass
+    _shared_discord_task = None
+    return {
+        "success": True,
+        "message": "Discord app credentials cleared",
+        "connections_cleared": connections_cleared,
+    }
 
 
 @api_router.get("/discord/oauth-url")

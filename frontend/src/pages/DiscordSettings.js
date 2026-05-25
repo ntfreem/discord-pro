@@ -298,8 +298,29 @@ export default function DiscordSettings() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
         {/* Left: Admin creds + Invite + Guide */}
         <div>
-          {/* App Credentials (admin only) */}
-          {isAdmin && <AppCredentialsPanel />}
+          {/* App Setup link (admin only) */}
+          {isAdmin && (
+            <a
+              href="/admin/discord-app-setup"
+              data-testid="open-app-setup-link"
+              style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "12px 16px", marginBottom: "20px",
+                backgroundColor: "rgba(96,165,250,0.06)",
+                border: `1px solid rgba(96,165,250,0.2)`,
+                borderRadius: "10px",
+                textDecoration: "none",
+                color: colors.text.primary,
+                fontFamily: fonts.body, fontSize: "12px",
+              }}
+            >
+              <Settings size={14} color={colors.brand.light} />
+              <span style={{ flex: 1 }}>
+                <b>Discord App Setup</b> · Manage global app credentials and view setup guide
+              </span>
+              <span style={{ color: colors.brand.light, fontSize: "11px", fontWeight: "600" }}>Open →</span>
+            </a>
+          )}
 
           {/* Invite Bot Card */}
           <div style={{ ...T.card, marginBottom: "20px" }}>
@@ -349,7 +370,7 @@ export default function DiscordSettings() {
             ) : (
               <div style={{ padding: "14px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}` }}>
                 <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, margin: 0 }}>
-                  Discord OAuth is not configured. {isAdmin ? "Open App Credentials above to set up." : "Contact the administrator to set up the Discord Application credentials."}
+                  Discord OAuth is not configured. {isAdmin ? <>Open <a href="/admin/discord-app-setup" style={{ color: colors.brand.light }}>Discord App Setup</a> to configure credentials.</> : "Contact the administrator to set up the Discord Application credentials."}
                 </p>
               </div>
             )}

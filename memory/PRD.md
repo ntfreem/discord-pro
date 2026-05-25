@@ -50,6 +50,15 @@ Multi-tenant SaaS chatbot platform where admins create AI knowledge-base instanc
 ### UI Redesign (DONE)
 - Soft, rounded, blue theme across all components
 
+### Discord App Setup Page (DONE — 2026-05-25)
+- New admin-only page at `/admin/discord-app-setup` with sidebar nav item
+- Step-by-step Discord Developer Portal walkthrough (7 steps)
+- Current Configuration display (masked credentials + last updated timestamp)
+- Update Credentials form (moved from Discord Settings page)
+- Danger Zone: Clear all credentials with confirmation dialog showing currently-connected instances + optional checkbox to also wipe instance ↔ guild mappings
+- "How the mapping works" reference card
+- Backend endpoints: `GET /api/discord/app-config/connections`, `DELETE /api/discord/app-config?clear_connections=bool`
+
 ## Backlog
 
 ### P1 — Multi-Server per Instance (PARKED — revisit later)

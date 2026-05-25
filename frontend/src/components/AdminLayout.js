@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard, BookOpen, MessageSquare, Settings,
-  BarChart2, Zap, Code2, ExternalLink, Bot, LogOut, ChevronDown, Shield, Users, HelpCircle
+  BarChart2, Zap, Code2, ExternalLink, Bot, LogOut, ChevronDown, Shield, Users, HelpCircle, SlidersHorizontal
 } from "lucide-react";
 import { useState } from "react";
 import { colors, fonts, radius } from "@/theme";
@@ -19,6 +19,7 @@ const baseNavItems = [
 
 const adminNavItem = { path: "/admin/instances", label: "Instances", icon: Shield };
 const usersNavItem = { path: "/admin/users", label: "Users", icon: Users };
+const discordAppSetupItem = { path: "/admin/discord-app-setup", label: "Discord App Setup", icon: SlidersHorizontal };
 
 function NoInstanceBanner({ isSuperAdmin }) {
   return (
@@ -41,7 +42,7 @@ export default function AdminLayout() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const navItems = user?.role === "superadmin"
-    ? [...baseNavItems, adminNavItem, usersNavItem]
+    ? [...baseNavItems, adminNavItem, usersNavItem, discordAppSetupItem]
     : baseNavItems;
 
   const handleLogout = () => { logout(); navigate("/login"); };
