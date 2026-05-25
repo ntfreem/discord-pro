@@ -1769,6 +1769,43 @@ async def get_discord_status(instance_id: str = Depends(get_instance_access)):
     return {"status": "offline", "bot_name": None}
 
 
+@api_router.post("/discord/rename-global")
+async def rename_global_bot(current_user: dict = Depends(require_admin)):
+    """Rename the Discord bot's global username (admin only). Limit: 2 per hour."""
+    import aiohttp
+    from fastapi import Body
+    body = await db.discord_app_config.find_one({"_id": "discord_app"}) or {}
+    # Read name from request
+    from starlette.requests import Request
+    return {"error": "Use the direct endpoint with name parameter"}
+
+
+@api_router.post("/discord/rename-global/{new_name}")
+async def rename_global_bot_name(new_name: str, current_user: dict = Depends(require_admin)):
+    """Rename the Discord bot's global username (admin only). Limit: 2 per hour."""
+    import aiohttp
+    if len(new_name) < 2 or len(new_name) > 32:
+        raise HTTPException(status_code=400, detail="Name must be 2-32 characters")
+    app_creds = await get_discord_credentials()
+    bot_token = app_creds.get("bot_token")
+    if not bot_token:
+        raise HTTPException(status_code=400, detail="No bot token configured")
+    async with aiohttp.ClientSession() as session:
+        async with session.patch(
+            "https://discord.com/api/v10/users/@me",
+            headers={"Authorization": f"Bot {bot_token}"},
+            json={"username": new_name}
+        ) as resp:
+            body = await resp.json()
+            if resp.status == 200:
+                return {"success": True, "new_username": body.get("username"), "discriminator": body.get("discriminator")}
+            elif resp.status == 429:
+                retry_after = body.get("retry_after", "unknown")
+                raise HTTPException(status_code=429, detail=f"Rate limited. Try again in {retry_after} seconds. Discord allows 2 name changes per hour.")
+            else:
+                raise HTTPException(status_code=400, detail=body.get("message", "Discord API error"))
+
+
 @api_router.get("/discord/debug-roles")
 async def debug_discord_roles(instance_id: str = Depends(get_instance_access)):
     """Debug endpoint: check role detection for this instance's guild."""
