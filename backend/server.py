@@ -503,19 +503,24 @@ async def _resolve_instance_for_guild(guild_id: str) -> Optional[str]:
 
 
 async def _sync_guild_nickname(token: str, guild_id: str, name: str):
-    """Set bot nickname in a specific guild."""
-    import aiohttp
-    async with aiohttp.ClientSession() as session:
-        async with session.patch(
-            f"https://discord.com/api/v10/guilds/{guild_id}/members/@me",
-            headers={"Authorization": f"Bot {token}"},
-            json={"nick": name}
-        ) as resp:
-            if resp.status == 200:
-                logger.info(f"Nickname synced to '{name}' in guild {guild_id}")
-            else:
-                body = await resp.text()
-                logger.warning(f"Nickname sync failed in guild {guild_id} ({resp.status}): {body}")
+    """Set bot nickname in a specific guild. Safe — never raises."""
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.patch(
+                f"https://discord.com/api/v10/guilds/{guild_id}/members/@me",
+                headers={"Authorization": f"Bot {token}"},
+                json={"nick": name}
+            ) as resp:
+                if resp.status == 200:
+                    logger.info(f"Nickname synced to '{name}' in guild {guild_id}")
+                elif resp.status == 429:
+                    logger.warning(f"Rate limited syncing nickname to guild {guild_id}")
+                else:
+                    body = await resp.text()
+                    logger.warning(f"Nickname sync failed in guild {guild_id} ({resp.status}): {body}")
+    except Exception as e:
+        logger.warning(f"Nickname sync exception for guild {guild_id}: {e}")
 
 
 async def start_shared_discord_bot(token: str):
@@ -532,16 +537,26 @@ async def start_shared_discord_bot(token: str):
         @_shared_discord_client.event
         async def on_ready():
             logger.info(f"Shared Discord bot online: {_shared_discord_client.user}")
+            # Build guild→instance map first (critical for message routing)
             active_configs = await db.discord_config.find({"is_active": True}, {"_id": 0}).to_list(50)
             for cfg in active_configs:
                 iid = cfg.get("instance_id")
                 gid = cfg.get("guild_id")
                 if iid and gid:
                     guild_instance_map[gid] = iid
-                    bot_config = await db.bot_config.find_one({"instance_id": iid}, {"_id": 0})
-                    name = (bot_config or {}).get("name", "").strip()
-                    if name:
-                        await _sync_guild_nickname(token, gid, name)
+            logger.info(f"Guild map built: {len(guild_instance_map)} guilds mapped")
+            # Sync nicknames separately — failures must not break message handling
+            for cfg in active_configs:
+                iid = cfg.get("instance_id")
+                gid = cfg.get("guild_id")
+                if iid and gid:
+                    try:
+                        bot_config = await db.bot_config.find_one({"instance_id": iid}, {"_id": 0})
+                        name = (bot_config or {}).get("name", "").strip()
+                        if name:
+                            await _sync_guild_nickname(token, gid, name)
+                    except Exception as e:
+                        logger.warning(f"Nickname sync failed for instance {iid[:12]}: {e}")
 
         @_shared_discord_client.event
         async def on_message(message):
