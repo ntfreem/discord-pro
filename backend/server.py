@@ -641,7 +641,13 @@ async def start_shared_discord_bot(token: str):
             if channel_id in _handoff_channels:
                 elapsed = (datetime.now(timezone.utc) - _handoff_channels[channel_id]).total_seconds() / 60.0
                 if elapsed < cooldown_minutes:
-                    return
+                    if is_staff:
+                        # Staff still active — refresh timer, stay silent
+                        _handoff_channels[channel_id] = datetime.now(timezone.utc)
+                        return
+                    # Non-staff message during handoff — clear and let bot respond to this message
+                    del _handoff_channels[channel_id]
+                    logger.info(f"Handoff cleared in channel {channel_id} — non-staff message received")
                 else:
                     del _handoff_channels[channel_id]
                     try:
