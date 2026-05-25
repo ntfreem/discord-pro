@@ -469,6 +469,25 @@ export default function DiscordAppSetup() {
               <li>Each <b>bot instance</b> is mapped to <b>1 Discord server</b> via its <code>guild_id</code>.</li>
               <li>Incoming messages are routed by <code>guild_id</code> → instance → its knowledge base and persona.</li>
             </ul>
+            <a
+              href="/docs#architecture"
+              target="_blank"
+              rel="noreferrer"
+              data-testid="open-architecture-docs"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "6px",
+                marginTop: "14px",
+                padding: "8px 12px",
+                backgroundColor: "rgba(96,165,250,0.06)",
+                border: `1px solid rgba(96,165,250,0.2)`,
+                borderRadius: "8px",
+                textDecoration: "none",
+                color: colors.brand.light,
+                fontFamily: fonts.body, fontSize: "12px", fontWeight: "600",
+              }}
+            >
+              <ExternalLink size={12} /> View full Architecture & Flow diagrams
+            </a>
           </div>
         </div>
       </div>

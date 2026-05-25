@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bot, ChevronRight, ChevronDown, BookOpen, Users, MessageSquare, Database, Zap, Settings, Globe, Shield, BarChart3, Code, HelpCircle, ArrowLeft, UserCheck } from "lucide-react";
+import { Bot, ChevronRight, ChevronDown, BookOpen, Users, MessageSquare, Database, Zap, Settings, Globe, Shield, BarChart3, Code, HelpCircle, ArrowLeft, UserCheck, GitBranch } from "lucide-react";
 import { colors, fonts, radius } from "../theme";
 
 const sections = [
@@ -356,6 +356,134 @@ After registration, a verification code is sent to their email. Users can log in
 **Tone Examples** — Add example conversations showing how the bot should respond. These are used as reference for the AI to match your desired communication style.`
       }
     ]
+  },
+  {
+    id: "architecture",
+    icon: GitBranch,
+    title: "Architecture & Flow",
+    content: [
+      {
+        title: "Message Flow (end-to-end)",
+        body: `How a user message travels through BridgeBot — from Discord/web all the way to the AI reply.
+
+**Key stages:** routing → gate checks → context build → prompt assembly → LLM call → response delivery.`,
+        diagram: `┌─────────────────────────────────────────────────────────────────────────┐
+│  USERS                                                                  │
+│                                                                         │
+│   Discord User           Web Chat User           Embedded Widget        │
+│   (in a server)          (chat page)             (on customer site)     │
+└────────┬──────────────────────┬─────────────────────────┬───────────────┘
+         │ message              │ HTTP POST               │ HTTP POST
+         ▼                      │                         │
+┌──────────────────────┐        │                         │
+│  Discord Gateway     │        │                         │
+│  (WebSocket)         │        │                         │
+└────────┬─────────────┘        │                         │
+         │ on_message event     │                         │
+         ▼                      ▼                         ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       BRIDGEBOT BACKEND  (FastAPI)                      │
+│                                                                         │
+│  1. ROUTING — figure out which instance owns this message               │
+│       Discord:  guild_id  →  discord_config  →  instance_id             │
+│       Web:      instance_id passed in request body                      │
+│       Widget:   instance_id from embed URL parameter                    │
+│                                                                         │
+│  2. GATE CHECKS  (Discord only)                                         │
+│       • Is bot Active for this instance?                                │
+│       • Does listen_mode allow it? (mention / all / specific)           │
+│       • Is the channel in specific_channels list?                       │
+│       • Human Takeover: did staff just reply? (15-min cooldown)         │
+│                                                                         │
+│  3. CONTEXT BUILD  (parallel reads from MongoDB Atlas)                  │
+│       bot_config        →  persona, tone, instructions                  │
+│       knowledge_sources →  ALL active (priority-sorted: High→Med→Norm)  │
+│       conversations     →  recent session history (web/widget)          │
+│       If 0 active sources → skip LLM, reply "No knowledge configured"   │
+│                                                                         │
+│  4. PROMPT ASSEMBLY                                                     │
+│       System = persona + Knowledge Gate Protocol + whole KB + history   │
+│       User   = the incoming message text                                │
+│                                                                         │
+│  5. LLM CALL                                                            │
+│       Emergent LLM Key  →  Claude Sonnet                                │
+│       Log tokens to llm_usage                                           │
+│                                                                         │
+│  6. RESPONSE DELIVERY                                                   │
+│       Discord:  channel.send() with reply_style (natural / @mention)    │
+│       Web:      JSON + save to conversations                            │
+│       Widget:   JSON + save to conversations                            │
+│       Log analytics row in conversations                                │
+└─────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+                       User receives reply`
+      },
+      {
+        title: "Discord App ↔ Instance ↔ Server Mapping",
+        body: `BridgeBot uses a single Discord application that powers every instance. A bot instance maps to one Discord server via its guild_id. Messages are routed by guild_id → instance, and the instance's knowledge base and persona are used to generate replies.`,
+        diagram: `┌─────────────────────────────────────────────────────────────────┐
+│                    DISCORD DEVELOPER PORTAL                     │
+│                                                                 │
+│   ONE Discord Application ("BridgeBot")                         │
+│     • Client ID                                                 │
+│     • Client Secret                                             │
+│     • Redirect URI                                              │
+│     • Bot Token  ──────────────────┐                            │
+└────────────────────────────────────┼────────────────────────────┘
+                                     │ (single shared token)
+                                     ▼
+            ┌─────────────────────────────────────────┐
+            │   BridgeBot Backend (FastAPI)           │
+            │                                         │
+            │   discord.Client (1 connection)         │
+            │                                         │
+            │   guild_id → instance_id  routing map   │
+            │                                         │
+            │   ┌─────────────────────────────────┐   │
+            │   │ 158845...  →  Test Demo 1       │   │
+            │   │ 987654...  →  USDCx on Cardano  │   │
+            │   │ 246810...  →  James Support     │   │
+            │   └─────────────────────────────────┘   │
+            └─────────────────────────────────────────┘
+                  │              │              │
+        ┌─────────┘              │              └─────────┐
+        ▼                        ▼                        ▼
+┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│ Discord Server A │   │ Discord Server B │   │ Discord Server C │
+│   "Test Demo 1"  │   │  "USDCx Server"  │   │   "James Inc"    │
+│  guild 158845... │   │  guild 987654... │   │  guild 246810... │
+└──────────────────┘   └──────────────────┘   └──────────────────┘
+         │ uses                  │ uses                  │ uses
+         ▼                       ▼                       ▼
+┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│ Test Demo 1 KB   │   │ USDCx KB         │   │ James KB         │
+│ • FAQs           │   │ • 29 sources     │   │ • FAQs           │
+│ • Persona        │   │ • Persona        │   │ • Persona        │
+└──────────────────┘   └──────────────────┘   └──────────────────┘`
+      },
+      {
+        title: "Data Stores",
+        body: `Everything lives in a single MongoDB Atlas database. Each collection has a specific role:
+
+**discord_app_config** — global Discord App credentials (single document)
+**bot_instances** — every workspace/instance in the platform
+**bot_config** — per-instance persona, tone, and custom instructions
+**knowledge_sources** — FAQs, scraped URLs, and uploaded documents (scoped by instance_id)
+**discord_config** — per-instance Discord guild mapping, listen mode, reply style, staff role
+**conversations** — chat history (web + Discord), session-scoped
+**llm_usage** — token tracking for analytics
+**users** — accounts + assigned_instances + roles`
+      },
+      {
+        title: "Three Key Architectural Decisions",
+        body: `**1. One shared Discord client** — a single WebSocket connection serves every instance. Routing happens in-memory via guild_id → instance_id (rebuilt on discord_config write). Scales to many instances with low overhead.
+
+**2. Semantic RAG, not keyword search** — instead of pre-filtering sources by keywords, the backend sends the entire knowledge base to Claude and lets the LLM pick relevance. Trade-off: higher token cost, much better answer quality. Future: swap to a vector DB when a KB exceeds ~50k tokens.
+
+**3. Knowledge Gate** — the system prompt explicitly tells Claude to answer ONLY from the provided sources. If the KB has the answer, answer it. If not, say "I don't have that information." This prevents hallucinations and keeps replies grounded in YOUR docs.`
+      }
+    ]
   }
 ];
 
@@ -379,7 +507,12 @@ function DocSection({ section, isOpen, onToggle }) {
 }
 
 export default function Docs() {
-  const [openSection, setOpenSection] = useState("getting-started");
+  const initial = typeof window !== "undefined" && window.location.hash
+    ? window.location.hash.replace("#", "")
+    : "getting-started";
+  const [openSection, setOpenSection] = useState(
+    sections.some(s => s.id === initial) ? initial : "getting-started"
+  );
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: colors.bg.base, fontFamily: fonts.body }}>
@@ -442,6 +575,26 @@ export default function Docs() {
                   return part;
                 })}
               </div>
+              {item.diagram && (
+                <pre
+                  data-testid="doc-diagram"
+                  style={{
+                    marginTop: "18px",
+                    padding: "18px",
+                    backgroundColor: colors.bg.panel,
+                    border: `1px solid ${colors.border.default}`,
+                    borderRadius: "10px",
+                    overflowX: "auto",
+                    fontFamily: fonts.mono,
+                    fontSize: "11px",
+                    lineHeight: "1.4",
+                    color: colors.text.primary,
+                    whiteSpace: "pre",
+                  }}
+                >
+                  {item.diagram}
+                </pre>
+              )}
             </div>
           ))}
         </div>
