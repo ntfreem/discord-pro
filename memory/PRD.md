@@ -52,6 +52,13 @@ Multi-tenant SaaS chatbot platform where admins create AI knowledge-base instanc
 
 ## Backlog
 
+### P1 — Multi-Server per Instance (PARKED — revisit later)
+- Allow one bot instance to be connected to multiple Discord servers, all sharing that instance's KB
+- Schema: new `discord_guilds` collection `{instance_id, guild_id, guild_name, connected_at}` (move guild mapping out of `discord_config`)
+- Bot routing: lookup `guild_id → instance_id` via new collection
+- UI: "Connected Servers" list per instance with "Add Another Server" (OAuth invite) and "Disconnect" actions
+- Decision pending: single shared Discord settings across servers vs per-server overrides
+
 ### P2 — Refactor server.py
 - Split ~1550-line server.py into modular route files
 
