@@ -1,0 +1,1257 @@
+{
+  "users": [
+    {
+      "_id": "69cba0897e045bd102a71d50",
+      "id": "3b36820f-427d-4f81-8923-c16cbc3542de",
+      "email": "admin@bridgebot.tech",
+      "hashed_password": "$2b$12$geAv340txU5aewKJjcwrMOcv/oEVlujtUHsKgPxNHvuGoux44wiyC",
+      "is_verified": true,
+      "verification_code": null,
+      "role": "superadmin",
+      "created_at": "2026-03-31T10:23:05.825358+00:00",
+      "reset_code": "453079",
+      "reset_code_expires": "2026-03-31T15:42:23.420302+00:00",
+      "username": "administrator"
+    },
+    {
+      "_id": "69cba21dcf0f4b875584e943",
+      "id": "6a107a4d-0a28-4410-aca0-1586da47faa7",
+      "email": "testuser@example.com",
+      "hashed_password": "$2b$12$POLq5VF2ca4jvMA0n1ElreoAzdlUg/OqGCOUuC.EwlKnukAW3wilG",
+      "is_verified": true,
+      "verification_code": null,
+      "verification_code_expiry": null,
+      "role": "user",
+      "created_at": "2026-03-31T10:29:49.323959+00:00",
+      "reset_code": "455577",
+      "reset_code_expires": "2026-04-14T14:54:25.447783+00:00"
+    },
+    {
+      "_id": "69cba29c494e2ae865328c7c",
+      "id": "fe1bf13a-4702-46af-bd43-adebd6dca267",
+      "email": "testregister_5434@example.com",
+      "hashed_password": "$2b$12$il3mcIlzHgpbZ2pTBA8ode./edCTIu9tD7CP2YZk2JzpuY7ShEGNu",
+      "is_verified": false,
+      "verification_code": "757007",
+      "verification_code_expiry": "2026-03-31T10:46:56.532303+00:00",
+      "role": "user",
+      "created_at": "2026-03-31T10:31:56.753861+00:00"
+    },
+    {
+      "_id": "69cbac730a682b48511be786",
+      "id": "40e2405e-e24b-403b-b048-5d2e6b0f8cf6",
+      "email": "testemail999@mailinator.com",
+      "hashed_password": "$2b$12$ZeeSXYDdqZ9n/eCKlSZjqefBA2U9Nq9/S5gI/xxnZdzprP.NvJhcq",
+      "is_verified": false,
+      "verification_code": "740638",
+      "verification_code_expiry": "2026-03-31T11:28:55.001992+00:00",
+      "role": "user",
+      "created_at": "2026-03-31T11:13:55.224924+00:00"
+    },
+    {
+      "_id": "69de58d7153ae209ee5bc782",
+      "id": "bfc12cba-4c32-4be2-b85a-5c321413ed0f",
+      "email": "mxicoders8@gmail.com",
+      "username": "mxicoders8",
+      "hashed_password": "$2b$12$4jqYBg38bd4g6EPRrky7LuhGuT0aQafPExiUKuI2ysuTSguLe0K0G",
+      "is_verified": false,
+      "verification_code": "170969",
+      "verification_code_expiry": "2026-04-14T15:25:14.987709+00:00",
+      "role": "user",
+      "created_at": "2026-04-14T15:10:15.210528+00:00"
+    }
+  ],
+  "bot_config": [
+    {
+      "_id": "69dd1cf144e096418ee33428",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "created_at": "2026-03-31T13:32:37.578693+00:00",
+      "custom_instructions": "",
+      "manual_tone_examples": [],
+      "name": "James - Support Agent",
+      "persona": "You are a helpful, friendly, and knowledgeable assistant. Provide clear, accurate answers based on available information. Be concise but thorough.",
+      "tone_instructions": "",
+      "updated_at": "2026-04-13T11:51:21.589594+00:00"
+    },
+    {
+      "_id": "69dd1cf144e096418ee33429",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "created_at": "2026-04-13T11:53:50.464761+00:00",
+      "custom_instructions": "",
+      "manual_tone_examples": [],
+      "name": "James - Support Agent",
+      "persona": "You are a helpful, friendly, and knowledgeable assistant. Provide clear, accurate answers based on available information. Be concise but thorough.",
+      "tone_instructions": "",
+      "updated_at": "2026-04-13T11:54:43.832189+00:00"
+    },
+    {
+      "_id": "6a0fe729a7d818e42a4d1120",
+      "instance_id": "5e7d88e2-7949-4079-8e5d-716ec724c775",
+      "name": "test_instance",
+      "persona": "You are a helpful, friendly, and knowledgeable assistant. Provide clear, accurate answers based on available information. Be concise but thorough.",
+      "custom_instructions": "",
+      "tone_instructions": "",
+      "manual_tone_examples": [],
+      "created_at": "2026-05-22T05:18:33.429925+00:00"
+    }
+  ],
+  "bot_instances": [
+    {
+      "_id": "69dd1ccc7c8f9f62edbd14d8",
+      "id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "name": "Default Instance",
+      "description": "Auto-created from existing single-tenant data",
+      "created_by": "admin@bridgebot.tech",
+      "assigned_user_ids": [
+        "c34a35c0-2443-42d0-81a2-f8d37ebf5e54",
+        "24beeb25-16a0-4878-964b-1affa89c7565"
+      ],
+      "created_at": "2026-03-31T13:32:37.578693+00:00",
+      "assigned_users": [
+        {
+          "id": "c34a35c0-2443-42d0-81a2-f8d37ebf5e54",
+          "email": "neville.freeman@iohk.io",
+          "is_verified": true
+        },
+        {
+          "id": "24beeb25-16a0-4878-964b-1affa89c7565",
+          "email": "nevfreeman@gmail.com",
+          "is_verified": true
+        }
+      ]
+    },
+    {
+      "_id": "69dd1ccc7c8f9f62edbd14d9",
+      "id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "name": "USDCx on Cardano",
+      "description": "",
+      "created_by": "admin@bridgebot.tech",
+      "assigned_user_ids": [],
+      "created_at": "2026-04-13T11:53:50.464761+00:00",
+      "assigned_users": []
+    },
+    {
+      "_id": "6a0fe729a7d818e42a4d111f",
+      "id": "5e7d88e2-7949-4079-8e5d-716ec724c775",
+      "name": "test_instance",
+      "description": "",
+      "created_by": "admin@bridgebot.tech",
+      "assigned_user_ids": [],
+      "created_at": "2026-05-22T05:18:33.429925+00:00"
+    }
+  ],
+  "discord_app_config": [
+    {
+      "_id": "discord_app",
+      "redirect_uri": "https://www.bridgebot.tech/api/discord/callback",
+      "updated_at": "2026-04-13T15:26:08.599411+00:00"
+    }
+  ],
+  "llm_usage": [
+    {
+      "_id": "69ccd8394389ca5555bb392a",
+      "id": "758dacf5-2d87-4142-af7b-bf45743539b7",
+      "instance_id": "96966c6c-2c2e-47e5-91f9-0518dfe25e34",
+      "session_id": "test-gate-1775032375",
+      "platform": "web",
+      "timestamp": "2026-04-01T08:32:57.545986+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69ccd83b4389ca5555bb392c",
+      "id": "2b46b141-d4bc-479c-a65c-8cb73b54ba51",
+      "instance_id": "96966c6c-2c2e-47e5-91f9-0518dfe25e34",
+      "session_id": "test-gate-1775032375",
+      "platform": "web",
+      "timestamp": "2026-04-01T08:32:59.682799+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69ccd8444389ca5555bb392d",
+      "id": "623fb8db-8a44-4498-a6f8-65f8d1c154b8",
+      "instance_id": "96966c6c-2c2e-47e5-91f9-0518dfe25e34",
+      "session_id": "test-gate-no-1775032387",
+      "platform": "web",
+      "timestamp": "2026-04-01T08:33:08.918167+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69ccd8474389ca5555bb392f",
+      "id": "324baae4-3eb5-46ab-87ad-c600106c8487",
+      "instance_id": "96966c6c-2c2e-47e5-91f9-0518dfe25e34",
+      "session_id": "test-gate-no-1775032387",
+      "platform": "web",
+      "timestamp": "2026-04-01T08:33:11.022132+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69da9eec8aaf96b3acd4ccec",
+      "id": "84acb30e-9f93-45bd-81ca-0442738c3ed5",
+      "instance_id": "db4bc405-143a-42b4-9df4-60cf20047c0a",
+      "session_id": "discord_841327256986976276",
+      "platform": "discord",
+      "timestamp": "2026-04-11T19:20:12.447027+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dcb0d83b05fd23b273132e",
+      "id": "a55493ef-c797-49b0-a45d-b36760036ccb",
+      "instance_id": "db4bc405-143a-42b4-9df4-60cf20047c0a",
+      "session_id": "discord_841327256986976276",
+      "platform": "discord",
+      "timestamp": "2026-04-13T09:01:12.043545+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dcbcdccb204325b56ac49e",
+      "id": "b939d3d7-fef5-48b4-993b-a034412e64ab",
+      "instance_id": "db4bc405-143a-42b4-9df4-60cf20047c0a",
+      "session_id": "discord_841327256986976276",
+      "platform": "discord",
+      "timestamp": "2026-04-13T09:52:28.415328+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dd1d2d3b79d3f02b0f6586",
+      "id": "6a02cbfc-255a-45d9-87f5-272f61ccfa8e",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "atlas-test-3",
+      "platform": "web",
+      "timestamp": "2026-04-13T16:43:25.576816+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dd20709e19c319f23abfb4",
+      "id": "b1cb2d5a-d53c-4dc3-94d6-35f4326a0b9d",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "semantic-test-1",
+      "platform": "web",
+      "timestamp": "2026-04-13T16:57:20.435456+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dd20739e19c319f23abfb6",
+      "id": "394b8328-05e3-423b-ba13-790925722522",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "semantic-test-2",
+      "platform": "web",
+      "timestamp": "2026-04-13T16:57:23.170398+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dd21059e19c319f23abfb8",
+      "id": "02b97b3b-abff-4d04-b165-5fb886c8bbee",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "faq-test-1",
+      "platform": "web",
+      "timestamp": "2026-04-13T16:59:49.178884+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dd210a9e19c319f23abfba",
+      "id": "0f157b2e-d839-4343-b34b-82fbe26e3781",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "faq-test-2",
+      "platform": "web",
+      "timestamp": "2026-04-13T16:59:54.021327+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dd210d9e19c319f23abfbc",
+      "id": "c5b56076-942e-47f0-bbd4-9ef9cbd90ca3",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "faq-test-3",
+      "platform": "web",
+      "timestamp": "2026-04-13T16:59:57.228231+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dd21139e19c319f23abfbe",
+      "id": "8f080410-0042-4365-9b3d-08eb38d96d18",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "faq-test-4",
+      "platform": "web",
+      "timestamp": "2026-04-13T17:00:03.144410+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69dd21169e19c319f23abfc0",
+      "id": "a7f41d45-c243-4fd9-853b-cf9f394d7b73",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "faq-test-5",
+      "platform": "web",
+      "timestamp": "2026-04-13T17:00:06.162231+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69de3daf4ce7db6dd158fe05",
+      "id": "dabd9182-24df-47be-8c9e-426feeb97943",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "ledger-test-1",
+      "platform": "web",
+      "timestamp": "2026-04-14T13:14:23.113557+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69de3dd84ce7db6dd158fe07",
+      "id": "d16045c2-6d0a-4207-af73-48ea7d3b162b",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "ledger-test-2",
+      "platform": "web",
+      "timestamp": "2026-04-14T13:15:04.600394+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "69de3ddd4ce7db6dd158fe09",
+      "id": "ae0bebbe-49a6-42cd-882c-273b2a919792",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "ledger-test-3",
+      "platform": "web",
+      "timestamp": "2026-04-14T13:15:09.902280+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "6a0ffd7351adfe12e79fa964",
+      "id": "845739e2-d6c3-4934-b12b-b0645ad783ed",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "session_id": "no-kb-test",
+      "platform": "web",
+      "timestamp": "2026-05-22T06:53:39.832780+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "6a0ffd7651adfe12e79fa966",
+      "id": "52d811aa-0673-4241-b8af-f2c0568c434d",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "kb-test",
+      "platform": "web",
+      "timestamp": "2026-05-22T06:53:42.630838+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "6a0ffd9e774606d5474c7228",
+      "id": "d3044714-365e-4b6e-8e34-0955e4eb984c",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "session_id": "fresh-frank-test",
+      "platform": "web",
+      "timestamp": "2026-05-22T06:54:22.203975+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "6a0ffda1774606d5474c722a",
+      "id": "61a55ed9-0a27-49ce-87cc-8da87f4d2641",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "fresh-usdcx-test",
+      "platform": "web",
+      "timestamp": "2026-05-22T06:54:25.146446+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "6a0ffde7e5c265e88f3f7c27",
+      "id": "9f34f599-cfb2-4b7f-ba09-fac63014249b",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "session_id": "final-frank-test",
+      "platform": "web",
+      "timestamp": "2026-05-22T06:55:35.502334+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "6a0ffdebe5c265e88f3f7c29",
+      "id": "db40ae84-5537-4aa8-add8-f44959095fa5",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "final-usdcx-test",
+      "platform": "web",
+      "timestamp": "2026-05-22T06:55:39.322769+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "6a0ffdfe99d595a6930df388",
+      "id": "b7cf6313-db1d-4fdc-9738-75584b9cc615",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "session_id": "restart-frank-test",
+      "platform": "web",
+      "timestamp": "2026-05-22T06:55:58.812958+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    },
+    {
+      "_id": "6a0ffe319227f12eb301c3f0",
+      "id": "59a316ef-6d40-4f12-94d1-b9e467e55f41",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "session_id": "fixed-usdcx-test",
+      "platform": "web",
+      "timestamp": "2026-05-22T06:56:49.405584+00:00",
+      "model_attempted": "claude-opus-4-5-20251101",
+      "model_used": "claude-opus-4-5-20251101",
+      "success": true,
+      "retry_count": 0,
+      "used_fallback": false,
+      "error_type": null
+    }
+  ],
+  "knowledge_sources": [
+    {
+      "_id": "69de3dc5406546051d483fa2",
+      "id": "6d224750-7994-4880-b02f-55889b6bc871",
+      "type": "faq",
+      "title": "I want to integrate USDX's cross-chain functionality from Cardona to the mainnet into my application. Are there any relevant APIs or other contract-based methods available?",
+      "content": "API's and documentation are currently work in progress. Keep an eye on the \u2060developers-integration channel for updates, or post any questions there.",
+      "tags": [],
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "is_active": true,
+      "created_at": "2026-04-06T10:50:45.563555+00:00"
+    },
+    {
+      "_id": "69de3dc5406546051d483fa3",
+      "id": "171cc1d0-51f7-4f22-b721-f6939fd62131",
+      "type": "url",
+      "title": "USDCx Bridge",
+      "content": "USDCx Bridge\nFrequently Asked Questions\nFind the answers to common questions about USDCx\nand the world of Web3.\nThese FAQs are intended to provide plain-language answers to common questions about USDCx. They are not a legal agreement and do not modify or replace the USDCx Portal Terms of Use. For the official terms governing your use of the Portal, please refer to the\nTerms of Use\n.\nGeneral\nGeneral\nMinting\nMinting\nBurning\nBurning\nSecurity\nSecurity\nTechnical\nTechnical\nWhat is USDCx on Cardano?\nWhat is the difference between USDC and USDCx on Cardano?\nIs USDCx on Cardano the same as bridged USDC?\nWhere can I use USDCx on Cardano?\nWhat is Circle xReserve?\nWhat role does USDCx on Cardano play in the broader Cardano ecosystem?\nDoes USDCx on Cardano guarantee liquidity?\nDoes USDCx on Cardano provide privacy or anonymity features?\nWho controls the USDC backing held in xReserve?",
+      "url": "https://usdcx.iog.io/faq",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "is_active": true,
+      "created_at": "2026-03-31T14:30:49.988429+00:00"
+    },
+    {
+      "_id": "69de3dc6406546051d483fa4",
+      "id": "6ba26fb0-5ed0-497f-a97c-f9e371d29160",
+      "type": "faq",
+      "title": "I sent funds to an incorrect address can you reverse it?",
+      "content": "Blockchains are decentralized networks, and transactions are strictly irreversible. As outlined in our USDCx Portal Terms of Use under the \"User Error\" and \"No Recovery\" sections, sending digital assets to an incorrect address or to the wrong blockchain results in a permanent, irretrievable loss of funds. IOG does not have custody of your funds, and, unfortunately, we do not have the technical ability to reverse transactions or recover funds sent to the wrong networks or addresses.\n\nUnfortunately, we cannot provide manual recovery assistance in this situation because the blockchain's immutability and the bridge's autonomous design prevent us from intervening. In the future, please ensure that the selected withdrawal network on your exchange exactly matches the required network on the bridging portal before confirming the transaction.",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T17:21:37.339229+00:00"
+    },
+    {
+      "_id": "69de3dc6406546051d483fa5",
+      "id": "0fe16f96-3a8f-4a86-8638-a5e7cad29c2d",
+      "type": "faq",
+      "title": "Do you support Ledger or Trezor wallet?",
+      "content": "At the moment, we only support trezor hard ware wallet, and we do not support the Ledger wallet",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T17:13:33.637079+00:00",
+      "updated_at": "2026-04-14T12:49:13.670269+00:00"
+    },
+    {
+      "_id": "69de3dc6406546051d483fa6",
+      "id": "1545fd87-8a0f-4758-ba0e-28bae472491a",
+      "type": "faq",
+      "title": "Two hours ago, I sent USDX from Cardano to ETH. Status: Submitting. How long should I wait? What does it depend on? ",
+      "content": "It needs 400 confirmations, so the process may take sometime please be patient.",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T16:16:36.121899+00:00"
+    },
+    {
+      "_id": "69de3dc6406546051d483fa7",
+      "id": "ad4fb3e9-348b-45d4-badd-24797ae459b2",
+      "type": "faq",
+      "title": "If a user wants to buy usdcX with ada to help create liquidity, what is the most cost-efficient way for him/her to do so?",
+      "content": "To supply liquidity, USDC needs to be brought in from somewhere. You\u2019d need to swap ADA to USDC on CEX first, convert that to USDCx, and supply",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T16:14:21.049776+00:00"
+    },
+    {
+      "_id": "69de3dc6406546051d483fa8",
+      "id": "03678595-7023-476b-ad2a-a285458b85f8",
+      "type": "faq",
+      "title": "I'm trying to send USDCx on Coinbase using the bridge via the ETH network and it's been 4 hours in the signing phase... I've closed and re-opened my browser hoping that it would prompt me to sign again or something but nothing.... Is this normal? Please advise...",
+      "content": "Please open a support ticket, so we can take it from there.",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T16:06:09.799755+00:00"
+    },
+    {
+      "_id": "69de3dc6406546051d483fa9",
+      "id": "2d0971ef-8ea6-49d6-946b-f9b8d55829c9",
+      "type": "faq",
+      "title": "I use Stripe for my my payments for SecurityBot, and they reached out to me recently, enabling a beta version of stablecoin payments on my Stripe account. It would be amazing to see USDCx supported there. Most of my user base is cardano native. Let me know if there is anything I can do to help with on that front (if it's something you guys are interested in, of course",
+      "content": "Thanks for suggesting this new use case. I will add it to our product backlog for investigation!",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T16:02:31.749319+00:00"
+    },
+    {
+      "_id": "69de3dc6406546051d483faa",
+      "id": "51394059-97a1-4782-94f8-90eee6cf9a2b",
+      "type": "faq",
+      "title": "On the webapp, Is the \"Deposit Address (Base)\" associated with my wallet? can it or will it ever change ?",
+      "content": "Yes, the base deposit address is a unique, non-custodial address associated only with your Cardano wallet. When you deposit to this BASE address, it will send USDCx to your Cardano wallet",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T16:00:43.528447+00:00"
+    },
+    {
+      "_id": "69de3dc6406546051d483fab",
+      "id": "05e7c87f-d323-4489-8604-3be4348c25ec",
+      "type": "url",
+      "title": "USDCx on Cardano Now Available via Circle xReserve | Circle",
+      "content": "USDCx on Cardano Now Available via Circle xReserve | Circle\nHome\nAlready have an account?\nSign in\nSign in\nJoin Us\nCircle Internet Financial\nFeb 27, 2026\nFeb 27, 2026\nwhat you\u2019ll learn\nUSDCx on Cardano is now available via Circle xReserve, enabling secure interoperability with USDC across supported blockchains.\nWe\u2019re excited to share that\nCardano\nis now connected to\nCircle xReserve\n. Through this integration, USDCx on Cardano is now available, providing a USDC-backed stablecoin to Cardano developers and users that enables access to crosschain USDC liquidity.\nAbout Cardano\nCardano is a layer-1 (L1) Proof-of-Stake (PoS) blockchain built on peer-reviewed academic research. Launched in 2017, it uses dual-layer blockchain architecture and offers predictable transaction fees via its eUTXO model. Prioritizing security and sustainability, Cardano supports scalable smart contracts for DeFi apps and promotes global adoption for enterprises, governments, and users, especially in emerging markets.\nWhat is USDCx?\nUSDCx on Cardano is a dollar-denominated stablecoin issued by a decentralized protocol on Cardano, fully backed by USDC held in Circle xReserve. This interoperability infrastructure holds funds in a non-custodial smart contract and provides deposit and minting attestations for USDCx on Cardano, enabling secure and verifiable asset issuance and crosschain transfers.\nxReserve works in tandem with\nCircle Gateway\nand\nCircle CCTP\nto make USDCx interoperable with USDC across\nsupported blockchains\n, without reliance on third-party bridges.\nUSDCx on Cardano\nToken Name: USDCx\nToken Symbol: USDCx\nMainnet address:\nasset1e7eewpjw8ua3f2gpfx7y34ww9vjl63hayn80kl\nTestnet address:\nasset1ejelsh8crza8dyghxzsjhkjqutzr7q3dnregng\nPowering new use cases\nWith Cardano\u2019s connection to xReserve, developers and institutions can explore, expand, and optimize powerful new onchain USDCx use cases.\nDeFi lending and borrowing with stable liquidity\nUSDCx brings dollar-backed stability to Cardano\u2019s lending markets. Protocols can offer secure collateral and build multi-asset pools, while reducing the risk typically associated with more volatile crypto assets.\nMore efficient trading and swaps\nAs a dollar-denominated asset, USDCx supports deeper liquidity and more efficient\ntrading pairs\nacross Cardano-based DEXs. Users can trade, swap, and provide liquidity with greater confidence, helping fuel a more stable and capital-efficient DeFi ecosystem.\nGlobal payments, built for compliance\nUSDCx enables fast, cross-border payments and settlement on Cardano. Fintechs and institutions can leverage Circle\u2019s global network, enterprise-grade security, and compliance-first infrastructure along with fiat on/offramps to build payment and treasury solutions.\nReal-world asset (RWA) settlement\nUSDCx provides dollar-based settlement for tokenized real-world assets (RWAs) such as real estate, credit products, and other financial instruments. This strengthens the foundation for Cardano\u2019s growing RWA ecosystem and supports institutional-grade use cases.\nTop apps and participants using USDCx on Cardano\nAt launch, USDCx is supported by Cardano apps like\nLiqwid\n,\nMinswap\n, and\nSundaeSwap\n. These DeFi apps enable features such as swapping, trading, lending, borrowing, liquidity provision, and staking on the Cardano blockchain.\nGet started today\nWith the USDCx on Cardano integration, you can directly deposit USDC on any supported centralized exchange (CEX) into your Cardano wallet without needing to interact with Ethereum or another blockchain. Any CEX that supports USDC on Base can seamlessly transfer USDCx without requiring intermediary steps or third-party integrations.\nTo learn more about how USDCx on\nCardano\nworks, check out our xReserve\ndocumentation\n. To get started, check out\nCardano\u2019s bridging solution\nto transfer USDC from supported blockchains to USDCx on Cardano.\nBACK TO TOP\nAuthor\nTeam Circle\nCircle is transforming the way money moves by making it more accessible, inclusive, and efficient \u2014 increasing economic opportunity and prosperity around the globe.\nShare\nsubscribe to THE CIRCLE newsletter\nsubscribe to THE Developer newsletter\nRelated posts\nBuilding the Interop Stack for the Internet Financial System\nApril 10, 2026\nWhen Open Systems Are Tested: Accountability, Rule of Law, and the Work Ahead\nApril 10, 2026\nBuild a Multichain Treasury System on Arc: The Fintech Starter\nApril 10, 2026\nBlog\nUSDCx on Cardano Now Available via Circle xReserve\nusdcx-on-cardano-now-available-via-circle-xreserve\nFebruary 27, 2026\nUSDCx on Cardano is now available via Circle xReserve, enabling secure interoperability with USDC across supported blockchains.\nUSDC\nNo items found.",
+      "url": "https://www.circle.com/blog/usdcx-on-cardano-now-available-via-circle-xreserve",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T15:59:34.119729+00:00"
+    },
+    {
+      "_id": "69de3dc7406546051d483fac",
+      "id": "b7d159f7-8969-45b7-8586-945e36cd3831",
+      "type": "faq",
+      "title": "Where I can find policy id for USDCx on Cardano?",
+      "content": "Hello, you can find the official policy ID for USDCx on Cardano here: \nhttps://cexplorer.io/asset/asset1e7eewpjw8ua3f2gpfx7y34ww9vjl63hayn80kl",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T15:58:41.791907+00:00"
+    },
+    {
+      "_id": "69de3dc7406546051d483fad",
+      "id": "489b12ed-c41b-492d-9f5d-63cc1b8d2087",
+      "type": "url",
+      "title": "Offical FAQ",
+      "content": "USDCx Bridge\nFrequently Asked Questions\nFind the answers to common questions about USDCx\nand the world of Web3.\nThese FAQs are intended to provide plain-language answers to common questions about USDCx. They are not a legal agreement and do not modify or replace the USDCx Portal Terms of Use. For the official terms governing your use of the Portal, please refer to the\nTerms of Use\n.\nGeneral\nGeneral\nMinting\nMinting\nBurning\nBurning\nSecurity\nSecurity\nTechnical\nTechnical\nWhat is USDCx on Cardano?\nWhat is the difference between USDC and USDCx on Cardano?\nIs USDCx on Cardano the same as bridged USDC?\nWhere can I use USDCx on Cardano?\nWhat is Circle xReserve?\nWhat role does USDCx on Cardano play in the broader Cardano ecosystem?\nDoes USDCx on Cardano guarantee liquidity?\nDoes USDCx on Cardano provide privacy or anonymity features?\nWho controls the USDC backing held in xReserve?",
+      "url": "https://usdcx.iog.io/faq",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-04-13T15:53:59.638434+00:00"
+    },
+    {
+      "_id": "69de3dc7406546051d483fae",
+      "id": "a651412c-95c9-4da3-a3ea-44e6edad53ee",
+      "type": "faq",
+      "title": "Hi, just want to reach about integration with our Dex (CSWAP). Initially, I want to start looking into some technical documentation or source codes if available. Please let me know how to proceed.",
+      "content": "Hi, we don't have documentation yet. I'll let you know once we have those",
+      "tags": [],
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "priority": 0,
+      "is_active": true,
+      "created_at": "2026-04-13T16:21:27.792817+00:00"
+    },
+    {
+      "_id": "6a0fe9290aab30761ca7eb7a",
+      "id": "d368a5a7-9be1-44b9-bf0d-a7562c34839c",
+      "type": "url",
+      "title": "Midnight Documentation | Midnight Docs",
+      "content": "Midnight Documentation | Midnight Docs\nSkip to main content\nVersion: v1\nExplore with\u2026 \u25be\nFor the complete documentation index, see\nllms.txt\nMidnight developer documentation\n\u258d\nMidnight helps you keep sensitive data private with zero-knowledge proofs and selective disclosure, without losing on-chain utility.\nStart building\nExamples\nCompact language\nWelcome to Midnight Network\n\u200b\nMidnight is a privacy-first blockchain that blends public verifiability with confidential data handling. You can use Midnight's\nselective disclosure\nand\nZK proofs\nto build apps that:\nVerify correctness without revealing sensitive data\nShare only the information users choose to disclose\nProve compliance while keeping private records confidential\nMidnight\u2019s\nconsensus mechanism\nensures agreement on state while preserving privacy and performance.\n\u2726\nNew to blockchain\nLearn core ideas related to selective disclosure, ZK proofs, commitments, and how Midnight is different.\nStart learning\n\u2192\n\u2726\nDeveloper\nInstall tools, scaffold an app, write a contract, and send a private transaction.\nStart building\n\u2192\n\u2726\nNode operators\nRun nodes, monitor health, and follow node best practices.\nOperate nodes\n\u2192\n\u2726\nResearch and compliance\nExplore the runtime, proving system, transaction semantics, and audit paths.\nView architecture\n\u2192\nParticipate\n\u200b\nGitHub\nExplore repositories, track issues, and contribute to development.\nContribute\n\u2192\nDiscord\nChat with the team, get support, and join community calls.\nJoin\n\u2192\nYouTube\nWatch walkthroughs, deep dives, and recorded talks from the team.\nWatch\n\u2192\nHackathons\nBuild on Midnight, learn from others, and showcase your projects.\nBuild\n\u2192\nNightpaper\nRead about the architecture, proof system, and design principles.\nRead\n\u2192\nForum\nDiscuss development, governance, and announcements with the community.\nDiscuss\n\u2192\nDev Diaries\nFollow development updates, DevRel communication, and community stories.\nRead\n\u2192\nMidnight Blog\nRead ecosystem news and major announcements.\nRead\n\u2192",
+      "url": "https://docs.midnight.network/?_gl=1*18s3rrc*_gcl_au*MTc0OTU1MzA4LjE3NzcwMTIxNzI.*_ga*MjI5Mzk0MjkuMTc2NjA1NzgyNw..*_ga_SS9KZ3GN21*czE3Nzk0MjY2MTQkbzE0JGcxJHQxNzc5NDI3NjAxJGo2MCRsMCRoMTIyNzU1MjEz*_ga_7EV2FKYPQQ*czE3Nzk0MjY2MTUkbzE0JGcxJHQxNzc5NDI3NjAxJGo2MCRsMCRoMjMxMTQzOTA3",
+      "instance_id": "5e7d88e2-7949-4079-8e5d-716ec724c775",
+      "priority": 2,
+      "is_active": true,
+      "created_at": "2026-05-22T05:27:05.268609+00:00"
+    }
+  ],
+  "conversations": [
+    {
+      "_id": "69ccd8394389ca5555bb392b",
+      "session_id": "test-gate-1775032375",
+      "platform": "web",
+      "instance_id": "96966c6c-2c2e-47e5-91f9-0518dfe25e34",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the capital of France?",
+          "timestamp": "2026-04-01T08:32:57.550794+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "I couldn't find anything about that in my knowledge base. Would you like me to answer using my general knowledge?",
+          "timestamp": "2026-04-01T08:32:57.550794+00:00"
+        },
+        {
+          "role": "user",
+          "content": "Yes please",
+          "timestamp": "2026-04-01T08:32:59.684393+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "The capital of France is **Paris**. \n\nIt's located in the north-central part of the country along the Seine River and is the largest city in France, serving as the nation's political, economic, and cultural center. Paris is home to iconic landmarks like the Eiffel Tower, the Louvre Museum, and Notre-Dame Cathedral.\n\nIs there anything else you'd like to know?",
+          "timestamp": "2026-04-01T08:32:59.684393+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-01T08:32:57.550794+00:00",
+      "updated_at": "2026-04-01T08:32:59.684393+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69ccd8444389ca5555bb392e",
+      "session_id": "test-gate-no-1775032387",
+      "platform": "web",
+      "instance_id": "96966c6c-2c2e-47e5-91f9-0518dfe25e34",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Who won the 2022 World Cup?",
+          "timestamp": "2026-04-01T08:33:08.919682+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "I couldn't find anything about that in my knowledge base. Would you like me to answer using my general knowledge?",
+          "timestamp": "2026-04-01T08:33:08.919682+00:00"
+        },
+        {
+          "role": "user",
+          "content": "No thanks",
+          "timestamp": "2026-04-01T08:33:11.023740+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "No problem! Let me know if there's anything else I can help you with.",
+          "timestamp": "2026-04-01T08:33:11.023740+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-01T08:33:08.919682+00:00",
+      "updated_at": "2026-04-01T08:33:11.023740+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69da9eec8aaf96b3acd4cced",
+      "session_id": "discord_841327256986976276",
+      "platform": "discord",
+      "instance_id": "db4bc405-143a-42b4-9df4-60cf20047c0a",
+      "messages": [
+        {
+          "role": "user",
+          "content": "hello",
+          "timestamp": "2026-04-11T19:20:12.475591+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Hello! \ud83d\udc4b Welcome to support. I'm James, and I'm here to help you.\n\nWhat can I assist you with today?",
+          "timestamp": "2026-04-11T19:20:12.475591+00:00"
+        },
+        {
+          "role": "user",
+          "content": "hwllo",
+          "timestamp": "2026-04-13T09:01:12.049825+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Hello! \ud83d\udc4b Welcome to USDCx support. I'm James, and I'm here to help you.\n\nHow can I assist you today? Whether you have questions about USDCx on Cardano, minting, burning, security, or anything else related to the bridge, feel free to ask!",
+          "timestamp": "2026-04-13T09:01:12.049825+00:00"
+        },
+        {
+          "role": "user",
+          "content": "hello",
+          "timestamp": "2026-04-13T09:52:28.425851+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Hello! \ud83d\udc4b Welcome to USDCx support. I'm James, and I'm here to help you with any questions about USDCx on Cardano.\n\nHow can I assist you today? Whether it's about minting, burning, security, or general questions about USDCx, I'm happy to help!",
+          "timestamp": "2026-04-13T09:52:28.425851+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-11T19:20:12.475591+00:00",
+      "updated_at": "2026-04-13T09:52:28.425851+00:00",
+      "metadata": {
+        "username": "ntfreem",
+        "user_id": "841327256986976276"
+      }
+    },
+    {
+      "_id": "69dd1d2d3b79d3f02b0f6587",
+      "session_id": "atlas-test-3",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "I sent USDX from Cardano to ETH and status says Submitting. How long should I wait?",
+          "timestamp": "2026-04-13T16:43:25.703993+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "The process requires 400 confirmations, so it may take some time. Please be patient while the transaction completes.\n\nIf you have any other questions while you wait, I'm happy to help!",
+          "timestamp": "2026-04-13T16:43:25.703993+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-13T16:43:25.703993+00:00",
+      "updated_at": "2026-04-13T16:43:25.703993+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69dd20709e19c319f23abfb5",
+      "session_id": "semantic-test-1",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "how long does a transfer take?",
+          "timestamp": "2026-04-13T16:57:20.555405+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the knowledge base, transfer times depend on the blockchain confirmations required.\n\nFor transfers from **Cardano to ETH**, the process requires **400 confirmations**, which can take some time. You'll need to be patient during this process.\n\nThe status will show as \"Submitting\" while confirmations are being processed.\n\nIf your transfer has been stuck for an unusually long time (like 4+ hours in a signing phase), I'd recommend opening a support ticket so we can investigate further.\n\nIs there a specific transfer you're waiting on that I can help with?",
+          "timestamp": "2026-04-13T16:57:20.555405+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-13T16:57:20.555405+00:00",
+      "updated_at": "2026-04-13T16:57:20.555405+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69dd20739e19c319f23abfb7",
+      "session_id": "semantic-test-2",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "where can i find the policy id?",
+          "timestamp": "2026-04-13T16:57:23.289429+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "You can find the official policy ID for USDCx on Cardano here:\n\nhttps://cexplorer.io/asset/asset1e7eewpjw8ua3f2gpfx7y34ww9vjl63hayn80kl",
+          "timestamp": "2026-04-13T16:57:23.289429+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-13T16:57:23.289429+00:00",
+      "updated_at": "2026-04-13T16:57:23.289429+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69dd21059e19c319f23abfb9",
+      "session_id": "faq-test-1",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "how do I purchase usdcx using ada?",
+          "timestamp": "2026-04-13T16:59:49.298758+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Hi there! \ud83d\udc4b\n\nTo purchase USDCx using ADA, the most cost-efficient approach is:\n\n1. **Swap ADA to USDC on a centralized exchange (CEX)** - such as Coinbase, Kraken, or Binance\n2. **Convert that USDC to USDCx** using the USDCx Bridge\n3. **Receive USDCx in your Cardano wallet**\n\nThis method ensures you get the best rates since you're converting through established USDC liquidity rather than going through multiple on-chain swaps.\n\nIs there anything else I can help you with regarding the bridging process?",
+          "timestamp": "2026-04-13T16:59:49.298758+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-13T16:59:49.298758+00:00",
+      "updated_at": "2026-04-13T16:59:49.298758+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69dd210a9e19c319f23abfbb",
+      "session_id": "faq-test-2",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "does your platform support stripe?",
+          "timestamp": "2026-04-13T16:59:54.139266+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the knowledge base, I can see that Stripe integration with USDCx has been **suggested as a feature request** and added to the product backlog for investigation, but it is **not currently supported**.\n\nSpecifically, a user mentioned that Stripe enabled a beta version of stablecoin payments on their account and asked about USDCx support there. The response was that it would be added to the product backlog for investigation.\n\nIf Stripe integration is important for your use case, I'd recommend opening a support ticket to express your interest \u2014 user feedback helps prioritize features on the roadmap.\n\nIs there anything else I can help you with?",
+          "timestamp": "2026-04-13T16:59:54.139266+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-13T16:59:54.139266+00:00",
+      "updated_at": "2026-04-13T16:59:54.139266+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69dd210d9e19c319f23abfbd",
+      "session_id": "faq-test-3",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "can i use coinbase to bridge tokens?",
+          "timestamp": "2026-04-13T16:59:57.343761+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, you can use Coinbase to bridge tokens via the ETH network.\n\nHowever, please note that if you encounter issues during the signing phase (such as getting stuck for an extended period), you should open a support ticket so we can assist you further.\n\nIs there anything specific about the bridging process you'd like help with?",
+          "timestamp": "2026-04-13T16:59:57.343761+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-13T16:59:57.343761+00:00",
+      "updated_at": "2026-04-13T16:59:57.343761+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69dd21139e19c319f23abfbf",
+      "session_id": "faq-test-4",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "i want to integrate with my decentralized exchange",
+          "timestamp": "2026-04-13T17:00:03.260792+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Hi there! Thanks for reaching out about integrating USDCx with your decentralized exchange.\n\nI'd be happy to help you get started. However, I should let you know that **we don't have public technical documentation available yet**.\n\nHere's what I can do for you:\n\n1. **I'll note your interest** and make sure you're notified once documentation or source code becomes available\n\n2. **In the meantime**, you can find the official USDCx policy ID on Cardano here: https://cexplorer.io/asset/asset1e7eewpjw8ua3f2gpfx7y34ww9vjl63hayn80kl\n\nCould you share:\n- The name of your DEX?\n- Your contact email or preferred way to reach you?\n\nThat way, I can follow up with you as soon as we have the technical resources ready for integration partners.\n\nIs there anything else I can help you with in the meantime?",
+          "timestamp": "2026-04-13T17:00:03.260792+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-13T17:00:03.260792+00:00",
+      "updated_at": "2026-04-13T17:00:03.260792+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69dd21169e19c319f23abfc1",
+      "session_id": "faq-test-5",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "what is the base deposit address on the webapp?",
+          "timestamp": "2026-04-13T17:00:06.278513+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "The **Base deposit address** on the webapp is a unique, non-custodial address that is associated only with your Cardano wallet.\n\nWhen you deposit USDC to this Base address, it will automatically send USDCx to your connected Cardano wallet.\n\nThis address is tied specifically to your wallet and will not change.",
+          "timestamp": "2026-04-13T17:00:06.278513+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-13T17:00:06.278513+00:00",
+      "updated_at": "2026-04-13T17:00:06.278513+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69de3daf4ce7db6dd158fe06",
+      "session_id": "ledger-test-1",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Do you support Ledger or Trezor wallets?",
+          "timestamp": "2026-04-14T13:14:23.242639+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Based on the knowledge base I have available, I don't have specific information about Ledger or Trezor hardware wallet support for USDCx.\n\nFor accurate details on supported wallets, I'd recommend:\n1. Opening a support ticket through the official channels\n2. Checking the USDCx Portal directly for wallet compatibility information\n\nIs there anything else about USDCx I can help you with?",
+          "timestamp": "2026-04-14T13:14:23.242639+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-14T13:14:23.242639+00:00",
+      "updated_at": "2026-04-14T13:14:23.242639+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69de3dd84ce7db6dd158fe08",
+      "session_id": "ledger-test-2",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Do you support Ledger or Trezor wallets?",
+          "timestamp": "2026-04-14T13:15:04.714113+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, we support **Trezor** hardware wallets.\n\nHowever, we do **not** currently support Ledger wallets.",
+          "timestamp": "2026-04-14T13:15:04.714113+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-14T13:15:04.714113+00:00",
+      "updated_at": "2026-04-14T13:15:04.714113+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "69de3dde4ce7db6dd158fe0a",
+      "session_id": "ledger-test-3",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "I sent funds to the wrong address, can you help?",
+          "timestamp": "2026-04-14T13:15:10.017542+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "I understand how stressful this situation must be. Unfortunately, I have to be direct with you: **blockchain transactions are irreversible**, and we cannot recover funds sent to an incorrect address.\n\nHere's why:\n\n- Blockchains are decentralized networks, and transactions are strictly irreversible by design\n- IOG does not have custody of your funds\n- We do not have the technical ability to reverse transactions or recover funds sent to wrong addresses or networks\n\nThis is outlined in our USDCx Portal Terms of Use under the \"User Error\" and \"No Recovery\" sections.\n\n---\n\n**For future transactions**, please always double-check that:\n- The recipient address is correct\n- The withdrawal network on your exchange **exactly matches** the required network on the bridging portal before confirming\n\nI'm truly sorry I can't provide better news. Is there anything else I can help you with?",
+          "timestamp": "2026-04-14T13:15:10.017542+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-04-14T13:15:10.017542+00:00",
+      "updated_at": "2026-04-14T13:15:10.017542+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffd7451adfe12e79fa965",
+      "session_id": "no-kb-test",
+      "platform": "web",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is USDCx?",
+          "timestamp": "2026-05-22T06:53:39.958483+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "USDCx is a bridged version of USDC on Cardano. It's part of a cross-chain system that allows USDC to be used on the Cardano blockchain.\n\nKey points about USDCx:\n\n- **It's distinct from native USDC** - USDCx is bridged USDC, not native USDC issued directly by Circle on Cardano\n- **Backed by Circle xReserve** - The USDC backing is held in xReserve, which provides the collateral for USDCx tokens\n- **Cross-chain functionality** - There's bridge infrastructure connecting Cardona (testnet) to mainnet, with APIs and developer documentation currently in progress\n\nFor specific questions about minting, burning, security, or technical details, I can help with those as well based on the available documentation.",
+          "timestamp": "2026-05-22T06:53:39.958483+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:53:39.958483+00:00",
+      "updated_at": "2026-05-22T06:53:39.958483+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffd7651adfe12e79fa967",
+      "session_id": "kb-test",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is USDCx?",
+          "timestamp": "2026-05-22T06:53:42.740323+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "USDCx on Cardano is a dollar-denominated stablecoin issued by a decentralized protocol on Cardano, fully backed by USDC held in Circle xReserve. This interoperability infrastructure enables secure crosschain access to USDC liquidity, allowing Cardano developers and users to interact with USDC across supported blockchains.",
+          "timestamp": "2026-05-22T06:53:42.740323+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:53:42.740323+00:00",
+      "updated_at": "2026-05-22T06:53:42.740323+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffd9e774606d5474c7229",
+      "session_id": "fresh-frank-test",
+      "platform": "web",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is USDCx?",
+          "timestamp": "2026-05-22T06:54:22.319444+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "USDCx is a version of USDC available on Cardano. It's part of a cross-chain bridging system that allows USDC to be used on the Cardano blockchain.\n\nKey points about USDCx:\n- It's backed by USDC held in Circle xReserve\n- It can be minted and burned through the USDCx Bridge\n- It enables USDC functionality within the Cardano ecosystem\n\nIf you have specific questions about minting, burning, security, or technical details, I'd be happy to help with those as well.",
+          "timestamp": "2026-05-22T06:54:22.319444+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:54:22.319444+00:00",
+      "updated_at": "2026-05-22T06:54:22.319444+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffda1774606d5474c722b",
+      "session_id": "fresh-usdcx-test",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is USDCx?",
+          "timestamp": "2026-05-22T06:54:25.257797+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "USDCx on Cardano is a dollar-denominated stablecoin issued by a decentralized protocol on Cardano, fully backed by USDC held in Circle xReserve. This interoperability infrastructure enables secure crosschain USDC liquidity between Cardano and other supported blockchains.\n\nIn essence, USDCx provides Cardano developers and users with access to a USDC-backed stablecoin that can interoperate with USDC across multiple blockchains through Circle's xReserve infrastructure.",
+          "timestamp": "2026-05-22T06:54:25.257797+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:54:25.257797+00:00",
+      "updated_at": "2026-05-22T06:54:25.257797+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffde7e5c265e88f3f7c28",
+      "session_id": "final-frank-test",
+      "platform": "web",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is USDCx?",
+          "timestamp": "2026-05-22T06:55:35.612544+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "USDCx is a version of USDC available on Cardano. It's part of a cross-chain bridge system that allows users to mint and burn USDCx tokens.\n\nKey points about USDCx:\n\n- **USDCx on Cardano** is backed by USDC held in Circle's xReserve\n- It functions as a bridged form of USDC on the Cardano network\n- The USDCx Bridge allows minting (creating USDCx) and burning (redeeming USDCx)\n- It's designed to bring USDC liquidity and functionality to the Cardano ecosystem\n\nIf you have specific questions about minting, burning, security, or technical aspects of USDCx, I'm happy to help with those as well.",
+          "timestamp": "2026-05-22T06:55:35.612544+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:55:35.612544+00:00",
+      "updated_at": "2026-05-22T06:55:35.612544+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffdebe5c265e88f3f7c2a",
+      "session_id": "final-usdcx-test",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is USDCx?",
+          "timestamp": "2026-05-22T06:55:39.432279+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "USDCx on Cardano is a dollar-denominated stablecoin issued by a decentralized protocol on Cardano, fully backed by USDC held in Circle xReserve. This enables secure interoperability with USDC across supported blockchains.\n\nKey points:\n- **Backing**: Fully backed 1:1 by USDC held in Circle xReserve\n- **Network**: Available on the Cardano blockchain\n- **Purpose**: Provides Cardano developers and users access to crosschain USDC liquidity\n- **Policy ID**: You can verify the official token at https://cexplorer.io/asset/asset1e7eewpjw8ua3f2gpfx7y34ww9vjl63hayn80kl\n\nIs there anything else you'd like to know about USDCx?",
+          "timestamp": "2026-05-22T06:55:39.432279+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:55:39.432279+00:00",
+      "updated_at": "2026-05-22T06:55:39.432279+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffdff99d595a6930df389",
+      "session_id": "restart-frank-test",
+      "platform": "web",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello whats up",
+          "timestamp": "2026-05-22T06:55:58.925111+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Hey there! \ud83d\udc4b Not much, just here and ready to help!\n\nI'm James from the support team. What can I assist you with today? Whether it's questions about USDCx, the bridge, or anything else \u2014 fire away!",
+          "timestamp": "2026-05-22T06:55:58.925111+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:55:58.925111+00:00",
+      "updated_at": "2026-05-22T06:55:58.925111+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffe2d9227f12eb301c3ef",
+      "session_id": "fixed-frank-test",
+      "platform": "web",
+      "instance_id": "4e719a76-9738-453b-8739-fe2e0ee19c1c",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is USDCx?",
+          "timestamp": "2026-05-22T06:56:45.651949+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "I don't have any knowledge base configured yet. Please check back later or contact the administrator to set up my knowledge base.",
+          "timestamp": "2026-05-22T06:56:45.651949+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:56:45.651949+00:00",
+      "updated_at": "2026-05-22T06:56:45.651949+00:00",
+      "metadata": {}
+    },
+    {
+      "_id": "6a0ffe319227f12eb301c3f1",
+      "session_id": "fixed-usdcx-test",
+      "platform": "web",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is USDCx?",
+          "timestamp": "2026-05-22T06:56:49.516206+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "USDCx on Cardano is a dollar-denominated stablecoin issued by a decentralized protocol on Cardano, fully backed by USDC held in Circle xReserve. This interoperability infrastructure enables secure access to crosschain USDC liquidity.\n\nKey points:\n- **Backed 1:1 by USDC** held in Circle xReserve\n- **Available on Cardano** through the Circle xReserve integration (announced February 27, 2026)\n- **Enables interoperability** with USDC across supported blockchains\n- **Policy ID** can be found at: https://cexplorer.io/asset/asset1e7eewpjw8ua3f2gpfx7y34ww9vjl63hayn80kl\n\nIs there anything specific about USDCx you'd like to know more about?",
+          "timestamp": "2026-05-22T06:56:49.516206+00:00"
+        }
+      ],
+      "is_approved_for_training": false,
+      "created_at": "2026-05-22T06:56:49.516206+00:00",
+      "updated_at": "2026-05-22T06:56:49.516206+00:00",
+      "metadata": {}
+    }
+  ],
+  "discord_config": [
+    {
+      "_id": "69dd1cce44e096418ee33425",
+      "instance_id": "ad3449b5-8a03-420a-9fbc-18b2d212e2a7",
+      "is_active": false,
+      "updated_at": "2026-04-01T08:26:27.375813+00:00"
+    },
+    {
+      "_id": "69dd1cce44e096418ee33426",
+      "instance_id": "50a1706b-a49a-4fbd-9419-b194bdebb07b",
+      "guild_id": "1486298664732332052",
+      "guild_name": "chat_bot server",
+      "is_active": true,
+      "listen_mode": "all_channels",
+      "monitored_channel_ids": [],
+      "oauth_connected": true,
+      "reply_style": "natural",
+      "updated_at": "2026-05-25T19:17:13.679654+00:00",
+      "passive_mode": false
+    }
+  ]
+}
