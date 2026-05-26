@@ -417,14 +417,18 @@ async def call_claude(session_id: str, user_message: str, system_prompt: str,
             ).with_model("anthropic", model)
         else:
             # Refresh the system prompt on cached sessions so toggles like Passive Mode
-            # take effect immediately for returning users (the constructor only sets the
-            # system message once, so without this update the old prompt sticks around).
-            session = llm_sessions[key]
-            if getattr(session, "messages", None):
-                if session.messages and session.messages[0].get("role") == "system":
-                    session.messages[0] = {"role": "system", "content": system_prompt}
-                else:
-                    session.messages.insert(0, {"role": "system", "content": system_prompt})
+            # take effect immediately for returning users. Wrapped in try/except so any
+            # library-internal change doesn't break the reply path.
+            try:
+                session = llm_sessions[key]
+                messages = getattr(session, "messages", None)
+                if messages and isinstance(messages, list) and messages and isinstance(messages[0], dict):
+                    if messages[0].get("role") == "system":
+                        messages[0] = {"role": "system", "content": system_prompt}
+                    else:
+                        messages.insert(0, {"role": "system", "content": system_prompt})
+            except Exception as _e:
+                logger.warning(f"[session-refresh] non-fatal: {_e}")
         return await llm_sessions[key].send_message(UserMessage(text=user_message))
 
     # Try primary model with retries
@@ -757,8 +761,14 @@ async def start_shared_discord_bot(token: str):
                 else:
                     await message.channel.send(response)
             except Exception as e:
-                logger.error(f"Discord message error (instance={instance_id}): {e}")
-                await message.channel.send("Sorry, I encountered an error. Please try again.")
+                logger.error(f"Discord message error (instance={instance_id}): {type(e).__name__}: {e}", exc_info=True)
+                err_kind = type(e).__name__
+                short = str(e)[:120]
+                await message.channel.send(
+                    f"Sorry, I hit an error while generating a reply.\n"
+                    f"Diagnostic: `{err_kind}: {short}`\n"
+                    f"If this persists, an admin should check **Analytics → LLM Usage** on the BridgeBot dashboard."
+                )
 
         await _shared_discord_client.start(token)
     except asyncio.CancelledError:
