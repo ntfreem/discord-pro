@@ -5,11 +5,11 @@ Multi-tenant SaaS chatbot platform where admins create AI knowledge-base instanc
 
 ## Core Architecture
 - **Frontend**: React (CRA), Tailwind, Shadcn/UI components
-- **Backend**: FastAPI (Python), single `server.py` (~1550 lines)
-- **Database**: MongoDB (Motor async driver)
+- **Backend**: FastAPI (Python), single `server.py` (~2000 lines)
+- **Database**: MongoDB Atlas — **`bridgebot_preview`** for the preview environment, **`bridgebot_prod`** for production (isolated databases in the same cluster as of 2026-05-26)
 - **Auth**: Hybrid JWT (Bearer + HttpOnly Cookie), supports email or username login
 - **LLM**: Claude via Emergent Universal Key
-- **Email**: Resend API (MOCKED — no real domain verified)
+- **Email**: Resend API (LIVE — `bridgebot.tech` domain verified; free-tier daily quota limits apply)
 - **Discord**: discord.py + Discord OAuth2 Application flow
 
 ## Design System
