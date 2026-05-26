@@ -35,6 +35,52 @@ function NoInstanceBanner({ isSuperAdmin }) {
   );
 }
 
+function detectEnvironment() {
+  if (typeof window === "undefined") return null;
+  const host = window.location.hostname;
+  if (host === "bridgebot.tech" || host === "www.bridgebot.tech") {
+    return { label: "PRODUCTION", color: "#F43F5E", bg: "rgba(244,63,94,0.12)", border: "rgba(244,63,94,0.4)" };
+  }
+  if (host.includes("preview.emergentagent.com") || host.includes("localhost") || host.includes("127.0.0.1")) {
+    return { label: "PREVIEW · SANDBOX", color: "#FBBF24", bg: "rgba(251,191,36,0.12)", border: "rgba(251,191,36,0.4)" };
+  }
+  return null;
+}
+
+function EnvironmentBanner() {
+  const env = detectEnvironment();
+  if (!env) return null;
+  return (
+    <div
+      data-testid="env-banner"
+      style={{
+        position: "fixed", top: 0, left: 0, right: 0,
+        height: "26px",
+        backgroundColor: env.bg,
+        borderBottom: `1px solid ${env.border}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: "8px",
+        zIndex: 1000,
+        fontFamily: fonts.mono, fontSize: "10px", fontWeight: "700",
+        color: env.color,
+        letterSpacing: "0.15em",
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      <span style={{
+        width: "6px", height: "6px", borderRadius: "50%",
+        backgroundColor: env.color,
+        boxShadow: `0 0 8px ${env.color}`,
+      }} />
+      ENV: {env.label}
+      <span style={{ opacity: 0.5, fontWeight: "400" }}>·</span>
+      <span style={{ opacity: 0.7, fontWeight: "400", textTransform: "lowercase", letterSpacing: "0.05em" }}>
+        {typeof window !== "undefined" ? window.location.hostname : ""}
+      </span>
+    </div>
+  );
+}
+
 export default function AdminLayout() {
   const { user, instances, selectedInstance, selectInstance, logout } = useAuth();
   const navigate = useNavigate();
@@ -48,12 +94,13 @@ export default function AdminLayout() {
   const handleInstanceSwitch = (inst) => { selectInstance(inst); setDropdownOpen(false); };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: colors.bg.base }}>
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: colors.bg.base, paddingTop: "26px" }}>
+      <EnvironmentBanner />
       <aside style={{
         width: "250px", backgroundColor: colors.bg.surface,
         borderRight: `1px solid ${colors.border.default}`,
         display: "flex", flexDirection: "column",
-        position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 10,
+        position: "fixed", top: "26px", left: 0, height: "calc(100vh - 26px)", zIndex: 10,
       }}>
         {/* Logo */}
         <div style={{ padding: "20px 20px 16px", borderBottom: `1px solid ${colors.border.default}` }}>
