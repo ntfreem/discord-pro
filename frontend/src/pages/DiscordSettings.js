@@ -189,6 +189,8 @@ export default function DiscordSettings() {
   const [handoffCooldown, setHandoffCooldown] = useState(15);
   const [handoffFollowup, setHandoffFollowup] = useState("Is there anything else I can help with?");
   const [passiveMode, setPassiveMode] = useState(false);
+  const [handoffChannels, setHandoffChannels] = useState([]);
+  const [resumingHandoff, setResumingHandoff] = useState(false);
   const [existing, setExisting] = useState(null);
   const [status, setStatus] = useState({ status: "offline", bot_name: null });
   const [saving, setSaving] = useState(false);
@@ -229,6 +231,7 @@ export default function DiscordSettings() {
 
   const loadStatus = useCallback(() => {
     api.get(`/discord/status`).then(r => setStatus(r.data)).catch(() => {});
+    api.get(`/discord/handoff-status`).then(r => setHandoffChannels(r.data?.channels || [])).catch(() => {});
   }, [instanceId]);
 
   useEffect(() => {
@@ -249,6 +252,19 @@ export default function DiscordSettings() {
   };
 
   const toggleChannel = (id) => setMonitoredChannelIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+
+  const resumeHandoff = async () => {
+    setResumingHandoff(true);
+    try {
+      const r = await api.post(`/discord/handoff-resume`);
+      toast.success(r.data?.cleared > 0 ? `Bot resumed in ${r.data.cleared} channel(s)` : "No active handoffs");
+      setHandoffChannels([]);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to resume");
+    } finally {
+      setResumingHandoff(false);
+    }
+  };
 
   const save = async () => {
     const update = { is_active: isActive, listen_mode: listenMode, reply_style: replyStyle, monitored_channel_ids: monitoredChannelIds, staff_role_name: staffRoleName, handoff_cooldown_minutes: handoffCooldown, handoff_followup_message: handoffFollowup, passive_mode: passiveMode };
@@ -617,6 +633,54 @@ export default function DiscordSettings() {
               <input style={T.input} value={handoffFollowup} onChange={e => setHandoffFollowup(e.target.value)}
                 placeholder="Is there anything else I can help with?" data-testid="handoff-followup-input" onFocus={onFocus} onBlur={onBlur} />
               <p style={T.hint}>Message the bot sends when it re-engages after cooldown.</p>
+            </div>
+
+            <div style={{
+              marginTop: "18px", padding: "14px 16px",
+              backgroundColor: handoffChannels.length > 0 ? "rgba(251,191,36,0.05)" : colors.bg.base,
+              border: `1px solid ${handoffChannels.length > 0 ? "rgba(251,191,36,0.25)" : colors.border.subtle}`,
+              borderRadius: "10px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: handoffChannels.length > 0 ? "10px" : 0 }}>
+                <div>
+                  <p style={{ fontFamily: fonts.heading, fontSize: "13px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>
+                    Currently in handoff
+                    <span style={{ marginLeft: "8px", fontFamily: fonts.mono, fontSize: "11px", color: handoffChannels.length > 0 ? colors.brand.warning : colors.text.muted }}>
+                      {handoffChannels.length} channel{handoffChannels.length === 1 ? "" : "s"}
+                    </span>
+                  </p>
+                  <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.secondary, margin: "3px 0 0", lineHeight: "1.5" }}>
+                    Bot is silent here until cooldown ends, a non-staff user posts, or you click Resume.
+                  </p>
+                </div>
+                <button
+                  onClick={resumeHandoff}
+                  disabled={resumingHandoff || handoffChannels.length === 0}
+                  data-testid="resume-handoff-btn"
+                  style={{
+                    padding: "8px 14px",
+                    backgroundColor: handoffChannels.length > 0 ? colors.brand.success : colors.bg.panel,
+                    color: handoffChannels.length > 0 ? "#FFFFFF" : colors.text.muted,
+                    border: "none",
+                    borderRadius: "8px",
+                    fontFamily: fonts.body, fontSize: "12px", fontWeight: "600",
+                    cursor: (resumingHandoff || handoffChannels.length === 0) ? "not-allowed" : "pointer",
+                    opacity: resumingHandoff ? 0.6 : 1,
+                    display: "flex", alignItems: "center", gap: "6px",
+                  }}
+                >
+                  <RefreshCw size={12} /> {resumingHandoff ? "Resuming…" : "Resume Bot Now"}
+                </button>
+              </div>
+              {handoffChannels.length > 0 && (
+                <ul style={{ margin: "8px 0 0", paddingLeft: "16px", fontFamily: fonts.mono, fontSize: "11px", color: colors.text.secondary, lineHeight: "1.7" }}>
+                  {handoffChannels.map((c) => (
+                    <li key={c.channel_id} data-testid="handoff-channel-row">
+                      #{c.channel_name || c.channel_id} — silent for ~{c.elapsed_min} min, {c.remaining_min} min remaining
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 

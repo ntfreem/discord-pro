@@ -616,6 +616,25 @@ async def start_shared_discord_bot(token: str):
                     del _handoff_channels[channel_id]
                     await message.channel.send("I'm back! How can I help?")
                 return
+            if message.content.strip().lower() == "!bot status":
+                in_handoff = channel_id in _handoff_channels
+                if in_handoff:
+                    elapsed = (datetime.now(timezone.utc) - _handoff_channels[channel_id]).total_seconds() / 60.0
+                    remaining = max(0, cooldown_minutes - elapsed)
+                    msg = (
+                        f"**Bot Status — silent (handoff active)**\n"
+                        f"Cooldown remaining: ~{remaining:.1f} min\n"
+                        f"Listen mode: `{listen_mode}` · Passive mode: `{bool(live_cfg.get('passive_mode', False))}`\n"
+                        f"Type `!bot resume` to clear handoff immediately."
+                    )
+                else:
+                    msg = (
+                        f"**Bot Status — active**\n"
+                        f"Listen mode: `{listen_mode}` · Passive mode: `{bool(live_cfg.get('passive_mode', False))}`\n"
+                        f"Staff role: `{staff_role_name or 'not configured'}`"
+                    )
+                await message.channel.send(msg)
+                return
             is_staff = False
             if staff_role_name and not is_dm and message.guild:
                 try:
@@ -1862,6 +1881,61 @@ async def restart_discord_bot_endpoint(instance_id: str = Depends(get_instance_a
         guild_instance_map[guild_id] = instance_id
     _shared_discord_task = asyncio.create_task(start_shared_discord_bot(token))
     return {"success": True, "message": "Discord bot restarting..."}
+
+
+@api_router.get("/discord/handoff-status")
+async def get_handoff_status(instance_id: str = Depends(get_instance_access)):
+    """List channels currently in human-takeover silence for this instance."""
+    config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
+    guild_id = config.get("guild_id")
+    cooldown_minutes = config.get("handoff_cooldown_minutes", 15) or 15
+    if not guild_id or not _shared_discord_client:
+        return {"channels": [], "guild_id": guild_id}
+    out = []
+    try:
+        guild = _shared_discord_client.get_guild(int(guild_id))
+        channel_ids_in_guild = {str(c.id) for c in (guild.text_channels if guild else [])}
+    except Exception:
+        channel_ids_in_guild = set()
+    now = datetime.now(timezone.utc)
+    for ch_id, ts in list(_handoff_channels.items()):
+        if ch_id not in channel_ids_in_guild:
+            continue
+        elapsed = (now - ts).total_seconds() / 60.0
+        remaining = max(0, cooldown_minutes - elapsed)
+        ch_name = None
+        try:
+            ch = guild.get_channel(int(ch_id)) if guild else None
+            ch_name = ch.name if ch else None
+        except Exception:
+            pass
+        out.append({
+            "channel_id": ch_id,
+            "channel_name": ch_name,
+            "elapsed_min": round(elapsed, 1),
+            "remaining_min": round(remaining, 1),
+        })
+    return {"channels": out, "guild_id": guild_id, "cooldown_minutes": cooldown_minutes}
+
+
+@api_router.post("/discord/handoff-resume")
+async def resume_handoff(instance_id: str = Depends(get_instance_access)):
+    """Clear all human-takeover silences for this instance's guild — bot resumes immediately."""
+    config = await db.discord_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
+    guild_id = config.get("guild_id")
+    if not guild_id or not _shared_discord_client:
+        return {"success": True, "cleared": 0}
+    try:
+        guild = _shared_discord_client.get_guild(int(guild_id))
+        channel_ids_in_guild = {str(c.id) for c in (guild.text_channels if guild else [])}
+    except Exception:
+        channel_ids_in_guild = set()
+    cleared = 0
+    for ch_id in list(_handoff_channels.keys()):
+        if ch_id in channel_ids_in_guild:
+            del _handoff_channels[ch_id]
+            cleared += 1
+    return {"success": True, "cleared": cleared}
 
 
 @api_router.get("/discord/status")
