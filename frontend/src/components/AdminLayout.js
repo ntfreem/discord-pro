@@ -7,19 +7,18 @@ import {
 import { useState } from "react";
 import { colors, fonts, radius } from "@/theme";
 
-const baseNavItems = [
-  { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+const ALL_NAV_ITEMS = [
+  { path: "/admin/discord-app-setup", label: "Discord App Setup", icon: SlidersHorizontal, adminOnly: true },
+  { path: "/admin/instances", label: "Bot Instances", icon: Shield, adminOnly: true },
+  { path: "/admin/users", label: "Assign Users", icon: Users, adminOnly: true },
+  { path: "/admin/settings", label: "Bot Settings", icon: Settings },
+  { path: "/admin/discord", label: "Discord Channel", icon: Zap },
   { path: "/admin/knowledge", label: "Knowledge Base", icon: BookOpen },
   { path: "/admin/conversations", label: "Conversations", icon: MessageSquare },
-  { path: "/admin/settings", label: "Bot Settings", icon: Settings },
+  { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { path: "/admin/analytics", label: "Analytics", icon: BarChart2 },
-  { path: "/admin/discord", label: "Discord", icon: Zap },
   { path: "/admin/embed", label: "Embed Code", icon: Code2 },
 ];
-
-const adminNavItem = { path: "/admin/instances", label: "Instances", icon: Shield };
-const usersNavItem = { path: "/admin/users", label: "Users", icon: Users };
-const discordAppSetupItem = { path: "/admin/discord-app-setup", label: "Discord App Setup", icon: SlidersHorizontal };
 
 function NoInstanceBanner({ isSuperAdmin }) {
   return (
@@ -41,9 +40,9 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const navItems = user?.role === "superadmin"
-    ? [...baseNavItems, adminNavItem, usersNavItem, discordAppSetupItem]
-    : baseNavItems;
+  const navItems = ALL_NAV_ITEMS.filter(
+    (item) => !item.adminOnly || user?.role === "superadmin"
+  );
 
   const handleLogout = () => { logout(); navigate("/login"); };
   const handleInstanceSwitch = (inst) => { selectInstance(inst); setDropdownOpen(false); };
