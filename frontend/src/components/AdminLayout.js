@@ -148,24 +148,54 @@ export default function AdminLayout() {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "10px 12px", overflowY: "auto" }}>
-          {navItems.map(({ path, label, icon: Icon, exact }) => (
-            <NavLink
-              key={path} to={path} end={exact}
-              data-testid={`nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
-              style={({ isActive }) => ({
-                display: "flex", alignItems: "center", gap: "10px",
-                padding: "9px 14px", marginBottom: "2px", borderRadius: radius.md,
-                textDecoration: "none",
-                fontFamily: fonts.body, fontSize: "13px", fontWeight: isActive ? "600" : "400",
-                color: isActive ? colors.brand.light : colors.text.secondary,
-                backgroundColor: isActive ? "rgba(59, 130, 246, 0.1)" : "transparent",
-                transition: "all 0.2s ease",
-              })}
-            >
-              <Icon size={16} />
-              {label}
-            </NavLink>
-          ))}
+          {user?.role === "superadmin" && (
+            <p style={{
+              fontFamily: fonts.mono, fontSize: "9px", color: colors.text.muted,
+              textTransform: "uppercase", letterSpacing: "0.15em",
+              margin: "4px 14px 8px", display: "flex", alignItems: "center", gap: "6px",
+            }}>
+              <Shield size={9} /> Admin
+            </p>
+          )}
+          {navItems.map(({ path, label, icon: Icon, exact, adminOnly }, idx) => {
+            const prev = navItems[idx - 1];
+            const showDivider = prev && prev.adminOnly && !adminOnly;
+            return (
+              <div key={path}>
+                {showDivider && (
+                  <>
+                    <div style={{
+                      height: "1px", backgroundColor: colors.border.subtle,
+                      margin: "10px 8px",
+                    }} />
+                    <p style={{
+                      fontFamily: fonts.mono, fontSize: "9px", color: colors.text.muted,
+                      textTransform: "uppercase", letterSpacing: "0.15em",
+                      margin: "0 14px 8px",
+                    }}>
+                      Workspace
+                    </p>
+                  </>
+                )}
+                <NavLink
+                  to={path} end={exact}
+                  data-testid={`nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
+                  style={({ isActive }) => ({
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "9px 14px", marginBottom: "2px", borderRadius: radius.md,
+                    textDecoration: "none",
+                    fontFamily: fonts.body, fontSize: "13px", fontWeight: isActive ? "600" : "400",
+                    color: isActive ? colors.brand.light : colors.text.secondary,
+                    backgroundColor: isActive ? "rgba(59, 130, 246, 0.1)" : "transparent",
+                    transition: "all 0.2s ease",
+                  })}
+                >
+                  <Icon size={16} />
+                  {label}
+                </NavLink>
+              </div>
+            );
+          })}
         </nav>
 
         {/* Bottom */}
