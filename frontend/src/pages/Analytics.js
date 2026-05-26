@@ -5,7 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar
 } from "recharts";
-import { MessageSquare, BookOpen, CheckCircle, Zap, Activity, AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
+import { MessageSquare, BookOpen, CheckCircle, Zap, Activity, AlertTriangle, RefreshCw, ExternalLink, EyeOff } from "lucide-react";
 import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
 
 const tooltipStyle = {
@@ -48,6 +48,7 @@ export default function Analytics() {
   const [overview, setOverview] = useState(null);
   const [daily, setDaily] = useState([]);
   const [llmUsage, setLlmUsage] = useState(null);
+  const [passiveSkips, setPassiveSkips] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,10 +57,12 @@ export default function Analytics() {
       api.get(`/analytics/overview`),
       api.get(`/analytics/daily`),
       api.get(`/analytics/llm-usage`),
-    ]).then(([ov, dl, llm]) => {
+      api.get(`/analytics/passive-skips`).catch(() => ({ data: null })),
+    ]).then(([ov, dl, llm, ps]) => {
       setOverview(ov.data);
       setDaily(dl.data);
       setLlmUsage(llm.data);
+      setPassiveSkips(ps.data);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [instanceId]);
 
@@ -173,6 +176,57 @@ export default function Analytics() {
         <StatCard title="Retry Attempts" value={llmUsage?.retry_attempts ?? 0} icon={RefreshCw} color={colors.brand.warning} />
         <StatCard title="Fallbacks (Sonnet)" value={llmUsage?.fallback_used ?? 0} icon={AlertTriangle} color={colors.text.secondary} />
       </div>
+
+      {/* Passive Mode Skips */}
+      {(passiveSkips?.total ?? 0) > 0 && (
+        <div style={{ ...T.card, marginBottom: "24px" }} data-testid="passive-skips-card">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "8px", backgroundColor: "rgba(96,165,250,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <EyeOff size={16} color={colors.brand.light} />
+              </div>
+              <div>
+                <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Passive Mode Skips</p>
+                <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.secondary, margin: "2px 0 0" }}>Messages the bot intentionally stayed silent on</p>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "16px" }}>
+            <div style={{ padding: "14px 16px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}` }}>
+              <p style={{ ...T.overline, marginBottom: "6px", fontSize: "10px" }}>Today</p>
+              <p style={{ fontFamily: fonts.heading, fontSize: "26px", fontWeight: "700", color: colors.text.primary, margin: 0 }}>{passiveSkips?.today ?? 0}</p>
+            </div>
+            <div style={{ padding: "14px 16px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}` }}>
+              <p style={{ ...T.overline, marginBottom: "6px", fontSize: "10px" }}>Last 7 days</p>
+              <p style={{ fontFamily: fonts.heading, fontSize: "26px", fontWeight: "700", color: colors.text.primary, margin: 0 }}>{passiveSkips?.last_7_days ?? 0}</p>
+            </div>
+            <div style={{ padding: "14px 16px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}` }}>
+              <p style={{ ...T.overline, marginBottom: "6px", fontSize: "10px" }}>All time</p>
+              <p style={{ fontFamily: fonts.heading, fontSize: "26px", fontWeight: "700", color: colors.text.primary, margin: 0 }}>{passiveSkips?.total ?? 0}</p>
+            </div>
+          </div>
+          {passiveSkips?.recent?.length > 0 && (
+            <>
+              <p style={{ ...T.overline, marginBottom: "10px", fontSize: "10px" }}>Recent skipped messages</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "200px", overflowY: "auto" }}>
+                {passiveSkips.recent.map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "8px" }}>
+                    <div style={{ flex: 1, overflow: "hidden" }}>
+                      <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.primary, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <span style={{ color: colors.text.muted, marginRight: "8px" }}>@{s.username || "unknown"}</span>
+                        {s.message_preview}
+                      </p>
+                    </div>
+                    <span style={{ fontFamily: fonts.mono, fontSize: "10px", color: colors.text.muted, marginLeft: "10px" }}>
+                      {s.timestamp ? new Date(s.timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px", marginBottom: "32px" }}>
         <div style={T.card}>

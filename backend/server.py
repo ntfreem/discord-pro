@@ -415,6 +415,16 @@ async def call_claude(session_id: str, user_message: str, system_prompt: str,
                 session_id=key,
                 system_message=system_prompt
             ).with_model("anthropic", model)
+        else:
+            # Refresh the system prompt on cached sessions so toggles like Passive Mode
+            # take effect immediately for returning users (the constructor only sets the
+            # system message once, so without this update the old prompt sticks around).
+            session = llm_sessions[key]
+            if getattr(session, "messages", None):
+                if session.messages and session.messages[0].get("role") == "system":
+                    session.messages[0] = {"role": "system", "content": system_prompt}
+                else:
+                    session.messages.insert(0, {"role": "system", "content": system_prompt})
         return await llm_sessions[key].send_message(UserMessage(text=user_message))
 
     # Try primary model with retries
@@ -706,6 +716,18 @@ async def start_shared_discord_bot(token: str):
                     # Passive mode: detect [SKIP] sentinel and stay silent
                     if allow_skip and response and response.strip().upper().startswith("[SKIP]"):
                         logger.info(f"[PASSIVE] instance={instance_id[:12]} channel={channel_id} — skipped (no confident answer)")
+                        try:
+                            await db.passive_skips.insert_one({
+                                "instance_id": instance_id,
+                                "channel_id": channel_id,
+                                "guild_id": guild_id,
+                                "user_id": str(message.author.id),
+                                "username": str(message.author.name),
+                                "message_preview": user_text[:200],
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                            })
+                        except Exception as _e:
+                            logger.warning(f"Failed to log passive skip: {_e}")
                         return
                 await save_conversation(session_id=session_id, user_message=user_text, bot_response=response, platform="discord", instance_id=instance_id, metadata={"username": str(message.author.name), "user_id": str(message.author.id)})
                 if reply_style == "with_mention" and not is_dm:
@@ -1490,6 +1512,20 @@ async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
         "error_breakdown": error_breakdown,
         "daily": daily,
     }
+
+
+@api_router.get("/analytics/passive-skips")
+async def analytics_passive_skips(instance_id: str = Depends(get_instance_access)):
+    """Stats for Passive Mode — how many Discord messages the bot intentionally stayed silent on."""
+    q = {"instance_id": instance_id}
+    now = datetime.now(timezone.utc)
+    total = await db.passive_skips.count_documents(q)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today = await db.passive_skips.count_documents({**q, "timestamp": {"$gte": today_start.isoformat()}})
+    week_start = today_start - timedelta(days=6)
+    week = await db.passive_skips.count_documents({**q, "timestamp": {"$gte": week_start.isoformat()}})
+    recent = await db.passive_skips.find(q, {"_id": 0}).sort("timestamp", -1).limit(10).to_list(length=10)
+    return {"total": total, "today": today, "last_7_days": week, "recent": recent}
 
 
 # ==================== DISCORD (PROTECTED) ====================

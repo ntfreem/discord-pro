@@ -72,6 +72,12 @@ Multi-tenant SaaS chatbot platform where admins create AI knowledge-base instanc
 - UI toggle on `/admin/discord` page between Reply Style and Human Takeover
 - Field: `discord_config.passive_mode` (boolean, default false)
 
+### Passive Mode Session Bug Fix + Skip Analytics (DONE — 2026-05-26)
+- **Bug fix**: `LlmChat` sessions cached per Discord user kept the OLD system prompt forever. When Passive Mode was toggled ON, returning users still chatted normally because their cached session never picked up the `[SKIP]` instruction. Fix: `call_claude` now refreshes `session.messages[0]` (the system role) on every call, so prompt changes take effect immediately.
+- **Analytics**: new `passive_skips` MongoDB collection logs every skip (instance_id, channel_id, username, message preview, timestamp)
+- New endpoint `GET /api/analytics/passive-skips` returns today / last 7 days / all-time counts + last 10 skipped messages
+- Analytics page now shows a "Passive Mode Skips" card (only appears when count > 0) with the 3 totals and a recent-activity list
+
 ## Backlog
 
 ### P1 — Multi-Server per Instance (PARKED — revisit later)
