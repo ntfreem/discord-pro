@@ -78,6 +78,12 @@ Multi-tenant SaaS chatbot platform where admins create AI knowledge-base instanc
 - New endpoint `GET /api/analytics/passive-skips` returns today / last 7 days / all-time counts + last 10 skipped messages
 - Analytics page now shows a "Passive Mode Skips" card (only appears when count > 0) with the 3 totals and a recent-activity list
 
+### "Train on this" Feature (DONE — 2026-05-26)
+- Each row in the "Recent skipped messages" list has a small "+ Train" button
+- Clicking opens a modal pre-filled with the skipped question, an Answer textarea, and Priority selector (Normal/Medium/High)
+- Clicking "Add to Knowledge Base" calls `POST /api/knowledge/sources/faq` and instantly adds it to the active instance's KB
+- Closes the loop: missed-question → FAQ entry without leaving the analytics page
+
 ## Backlog
 
 ### P1 — Multi-Server per Instance (PARKED — revisit later)

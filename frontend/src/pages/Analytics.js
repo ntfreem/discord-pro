@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "sonner";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar
 } from "recharts";
-import { MessageSquare, BookOpen, CheckCircle, Zap, Activity, AlertTriangle, RefreshCw, ExternalLink, EyeOff } from "lucide-react";
-import { colors, fonts, T, rowEnter, rowLeave } from "../theme";
+import { MessageSquare, BookOpen, CheckCircle, Zap, Activity, AlertTriangle, RefreshCw, ExternalLink, EyeOff, Plus, X } from "lucide-react";
+import { colors, fonts, T, rowEnter, rowLeave, onFocus, onBlur } from "../theme";
 
 const tooltipStyle = {
   contentStyle: { backgroundColor: colors.bg.panel, border: `1px solid ${colors.border.default}`, borderRadius: "10px", color: colors.text.primary, fontFamily: fonts.body },
@@ -50,6 +51,44 @@ export default function Analytics() {
   const [llmUsage, setLlmUsage] = useState(null);
   const [passiveSkips, setPassiveSkips] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [trainOpen, setTrainOpen] = useState(false);
+  const [trainTitle, setTrainTitle] = useState("");
+  const [trainContent, setTrainContent] = useState("");
+  const [trainPriority, setTrainPriority] = useState(0);
+  const [trainSaving, setTrainSaving] = useState(false);
+
+  const reloadSkips = () => {
+    api.get(`/analytics/passive-skips`).then(r => setPassiveSkips(r.data)).catch(() => {});
+  };
+
+  const openTrain = (msg) => {
+    setTrainTitle(msg || "");
+    setTrainContent("");
+    setTrainPriority(0);
+    setTrainOpen(true);
+  };
+
+  const submitTrain = async () => {
+    if (!trainTitle.trim() || !trainContent.trim()) {
+      toast.error("Question and answer are both required");
+      return;
+    }
+    setTrainSaving(true);
+    try {
+      await api.post(`/knowledge/sources/faq`, {
+        title: trainTitle.trim(),
+        content: trainContent.trim(),
+        priority: trainPriority,
+      });
+      toast.success("FAQ added to knowledge base");
+      setTrainOpen(false);
+      reloadSkips();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to add FAQ");
+    } finally {
+      setTrainSaving(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -208,18 +247,37 @@ export default function Analytics() {
           {passiveSkips?.recent?.length > 0 && (
             <>
               <p style={{ ...T.overline, marginBottom: "10px", fontSize: "10px" }}>Recent skipped messages</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "200px", overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "260px", overflowY: "auto" }}>
                 {passiveSkips.recent.map((s, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "8px" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", backgroundColor: colors.bg.base, border: `1px solid ${colors.border.subtle}`, borderRadius: "8px", gap: "10px" }}>
                     <div style={{ flex: 1, overflow: "hidden" }}>
                       <p style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.primary, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         <span style={{ color: colors.text.muted, marginRight: "8px" }}>@{s.username || "unknown"}</span>
                         {s.message_preview}
                       </p>
                     </div>
-                    <span style={{ fontFamily: fonts.mono, fontSize: "10px", color: colors.text.muted, marginLeft: "10px" }}>
+                    <span style={{ fontFamily: fonts.mono, fontSize: "10px", color: colors.text.muted, flexShrink: 0 }}>
                       {s.timestamp ? new Date(s.timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
                     </span>
+                    <button
+                      onClick={() => openTrain(s.message_preview)}
+                      data-testid={`train-skip-btn-${i}`}
+                      title="Add this as an FAQ to the knowledge base"
+                      style={{
+                        flexShrink: 0,
+                        display: "flex", alignItems: "center", gap: "4px",
+                        padding: "5px 10px",
+                        backgroundColor: "rgba(96,165,250,0.08)",
+                        border: `1px solid rgba(96,165,250,0.25)`,
+                        borderRadius: "6px",
+                        color: colors.brand.light,
+                        fontFamily: fonts.body, fontSize: "11px", fontWeight: "600",
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      <Plus size={11} /> Train
+                    </button>
                   </div>
                 ))}
               </div>
@@ -273,6 +331,161 @@ export default function Analytics() {
           </div>
         </div>
       </div>
+
+      {/* Train-on-this modal */}
+      {trainOpen && (
+        <div
+          onClick={() => !trainSaving && setTrainOpen(false)}
+          style={{
+            position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 100, padding: "20px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            data-testid="train-modal"
+            style={{
+              backgroundColor: colors.bg.surface,
+              border: `1px solid ${colors.border.default}`,
+              borderRadius: "14px",
+              padding: "24px",
+              maxWidth: "560px", width: "100%",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ width: "32px", height: "32px", borderRadius: "8px", backgroundColor: "rgba(96,165,250,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <BookOpen size={16} color={colors.brand.light} />
+                </div>
+                <div>
+                  <p style={{ fontFamily: fonts.heading, fontSize: "16px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Train on this question</p>
+                  <p style={{ fontFamily: fonts.body, fontSize: "11px", color: colors.text.secondary, margin: "2px 0 0" }}>Add as an FAQ so the bot can answer next time</p>
+                </div>
+              </div>
+              <button
+                onClick={() => !trainSaving && setTrainOpen(false)}
+                data-testid="train-close-btn"
+                style={{ background: "none", border: "none", color: colors.text.muted, cursor: "pointer", padding: "4px" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, display: "block", marginBottom: "6px" }}>Question</label>
+              <input
+                type="text"
+                value={trainTitle}
+                onChange={(e) => setTrainTitle(e.target.value)}
+                placeholder="What the user asked..."
+                data-testid="train-title-input"
+                onFocus={onFocus}
+                onBlur={onBlur}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  backgroundColor: colors.bg.base,
+                  border: `1px solid ${colors.border.default}`,
+                  borderRadius: "8px",
+                  color: colors.text.primary,
+                  fontFamily: fonts.body, fontSize: "13px",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, display: "block", marginBottom: "6px" }}>Answer</label>
+              <textarea
+                value={trainContent}
+                onChange={(e) => setTrainContent(e.target.value)}
+                placeholder="The answer the bot should give..."
+                data-testid="train-content-input"
+                onFocus={onFocus}
+                onBlur={onBlur}
+                rows={5}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  backgroundColor: colors.bg.base,
+                  border: `1px solid ${colors.border.default}`,
+                  borderRadius: "8px",
+                  color: colors.text.primary,
+                  fontFamily: fonts.body, fontSize: "13px",
+                  outline: "none",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, display: "block", marginBottom: "6px" }}>Priority</label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {[
+                  { v: 0, l: "Normal" },
+                  { v: 1, l: "Medium" },
+                  { v: 2, l: "High" },
+                ].map(({ v, l }) => (
+                  <button
+                    key={v}
+                    onClick={() => setTrainPriority(v)}
+                    data-testid={`train-priority-${v}`}
+                    style={{
+                      flex: 1, padding: "8px 12px",
+                      backgroundColor: trainPriority === v ? "rgba(96,165,250,0.08)" : colors.bg.base,
+                      border: `1px solid ${trainPriority === v ? colors.brand.light : colors.border.default}`,
+                      borderRadius: "8px",
+                      color: trainPriority === v ? colors.text.primary : colors.text.secondary,
+                      fontFamily: fonts.body, fontSize: "12px", fontWeight: trainPriority === v ? "600" : "400",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setTrainOpen(false)}
+                disabled={trainSaving}
+                data-testid="train-cancel-btn"
+                style={{
+                  padding: "10px 18px",
+                  backgroundColor: "transparent",
+                  color: colors.text.secondary,
+                  border: `1px solid ${colors.border.default}`,
+                  borderRadius: "10px",
+                  fontFamily: fonts.body, fontSize: "12px", fontWeight: "600",
+                  cursor: trainSaving ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitTrain}
+                disabled={trainSaving}
+                data-testid="train-submit-btn"
+                style={{
+                  padding: "10px 18px",
+                  backgroundColor: colors.brand.light,
+                  color: "#0B1120",
+                  border: "none",
+                  borderRadius: "10px",
+                  fontFamily: fonts.body, fontSize: "12px", fontWeight: "600",
+                  cursor: trainSaving ? "not-allowed" : "pointer",
+                  opacity: trainSaving ? 0.6 : 1,
+                  display: "flex", alignItems: "center", gap: "6px",
+                }}
+              >
+                <Plus size={13} /> {trainSaving ? "Adding…" : "Add to Knowledge Base"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
