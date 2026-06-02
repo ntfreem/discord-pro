@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 import os
 import logging
@@ -17,7 +17,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import httpx
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import anthropic
 import resend
 
 ROOT_DIR = Path(__file__).parent
@@ -37,6 +37,9 @@ DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "")
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 DISCORD_BOT_PERMISSIONS = 68608 | 67108864  # View Channels + Send Messages + Read Message History + Change Nickname
 
+PARADEDB_ENABLED = os.environ.get("PARADEDB_ENABLED", "").lower() in ("1", "true", "yes")
+PARADEDB_URL = os.environ.get("PARADEDB_URL", "")
+
 
 async def get_discord_credentials():
     """Read Discord app credentials from DB first, fall back to .env"""
@@ -51,10 +54,13 @@ async def get_discord_credentials():
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client[DB_NAME]
 
+_paradedb_pool = None        # asyncpg.Pool — populated by init_paradedb() at startup
+_paradedb_bm25_ready = False  # True only after BM25 index is confirmed present
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-llm_sessions: Dict[str, LlmChat] = {}
+llm_sessions: Dict[str, Any] = {}
 
 # Per-instance Discord bot tracking
 # Guild-to-instance mapping for shared token routing
@@ -161,12 +167,20 @@ class BotInstanceCreate(BaseModel):
 class AssignUser(BaseModel):
     user_email: str
 
+ALLOWED_MODELS = {
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-5-20251101",
+    "claude-opus-4-5-20251101",
+}
+
 class BotConfigUpdate(BaseModel):
     name: Optional[str] = None
     persona: Optional[str] = None
     custom_instructions: Optional[str] = None
     tone_instructions: Optional[str] = None
     manual_tone_examples: Optional[List[dict]] = None
+    model: Optional[str] = None
+    api_key: Optional[str] = None
 
 class FAQEntry(BaseModel):
     title: str
@@ -262,14 +276,234 @@ async def get_instance_access(
 
 # ==================== KNOWLEDGE / TONE HELPERS ====================
 
-async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
+# ==================== PARADEDB / pg_search (optional mirror index) ====================
+
+_PARADEDB_DDL = """
+CREATE EXTENSION IF NOT EXISTS pg_search;
+
+CREATE TABLE IF NOT EXISTS knowledge_sources_index (
+    id          TEXT PRIMARY KEY,
+    instance_id TEXT NOT NULL,
+    type        TEXT NOT NULL DEFAULT 'faq',
+    title       TEXT NOT NULL DEFAULT '',
+    content     TEXT NOT NULL DEFAULT '',
+    tags        TEXT[] DEFAULT '{}',
+    priority    INTEGER NOT NULL DEFAULT 0,
+    is_active   BOOLEAN NOT NULL DEFAULT true,
+    url         TEXT,
+    filename    TEXT,
+    created_at  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_ki_instance_active
+    ON knowledge_sources_index (instance_id, is_active);
+"""
+
+_PARADEDB_BM25_DDL = """
+CREATE INDEX IF NOT EXISTS knowledge_bm25_idx
+    ON knowledge_sources_index
+    USING bm25 (id, title, content)
+    WITH (key_field = 'id',
+          text_fields = '{"title": {}, "content": {}}');
+"""
+
+# Checks whether a bm25 index exists on knowledge_sources_index.
+# Used by init_paradedb() and /admin/paradedb/status.
+_PARADEDB_BM25_CHECK = """
+SELECT COUNT(*) AS n
+FROM   pg_class     c
+JOIN   pg_am        a ON c.relam      = a.oid
+JOIN   pg_index     i ON i.indexrelid = c.oid
+JOIN   pg_class     t ON i.indrelid   = t.oid
+WHERE  a.amname  = 'bm25'
+  AND  t.relname = 'knowledge_sources_index'
+"""
+
+
+async def init_paradedb() -> None:
+    global _paradedb_pool, _paradedb_bm25_ready
+    if not PARADEDB_ENABLED or not PARADEDB_URL:
+        return
+    pool = None
     try:
-        # Load ALL active sources for this instance, sorted by priority
+        import asyncpg
+        pool = await asyncpg.create_pool(PARADEDB_URL, min_size=1, max_size=5,
+                                         timeout=10, command_timeout=30)
+        async with pool.acquire() as conn:
+            # Create table + btree filter index (idempotent)
+            await conn.execute(_PARADEDB_DDL)
+            # Create BM25 index (IF NOT EXISTS is supported in pg_search 0.23.5)
+            try:
+                await conn.execute(_PARADEDB_BM25_DDL)
+            except Exception as idx_err:
+                logger.warning(f"ParadeDB BM25 index DDL note: {idx_err}")
+            # Validate the BM25 index is actually present before enabling search
+            row = await conn.fetchrow(_PARADEDB_BM25_CHECK)
+            bm25_present = (row["n"] > 0) if row else False
+
+        if not bm25_present:
+            logger.error(
+                "ParadeDB pool connected but BM25 index is missing on "
+                "knowledge_sources_index — BM25 search disabled, using MongoDB fallback. "
+                "Run POST /admin/paradedb/sync to re-create the index."
+            )
+            _paradedb_pool = pool        # keep pool alive for upserts/deletes
+            _paradedb_bm25_ready = False
+        else:
+            _paradedb_pool = pool
+            _paradedb_bm25_ready = True
+            logger.info("ParadeDB initialised — BM25 search enabled")
+    except Exception as e:
+        logger.error(f"ParadeDB init failed — knowledge search will use MongoDB fallback: {e}")
+        if pool is not None:
+            await pool.close()
+        _paradedb_pool = None
+        _paradedb_bm25_ready = False
+
+
+async def upsert_knowledge_source_to_paradedb(source: dict) -> None:
+    if _paradedb_pool is None:
+        return
+    try:
+        async with _paradedb_pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO knowledge_sources_index
+                    (id, instance_id, type, title, content, tags,
+                     priority, is_active, url, filename, created_at)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                ON CONFLICT (id) DO UPDATE SET
+                    instance_id = EXCLUDED.instance_id,
+                    type        = EXCLUDED.type,
+                    title       = EXCLUDED.title,
+                    content     = EXCLUDED.content,
+                    tags        = EXCLUDED.tags,
+                    priority    = EXCLUDED.priority,
+                    is_active   = EXCLUDED.is_active,
+                    url         = EXCLUDED.url,
+                    filename    = EXCLUDED.filename
+                """,
+                source.get("id"),
+                source.get("instance_id"),
+                source.get("type", "faq"),
+                source.get("title", ""),
+                source.get("content", ""),
+                source.get("tags") or [],
+                source.get("priority", 0),
+                source.get("is_active", True),
+                source.get("url"),
+                source.get("filename"),
+                source.get("created_at"),
+            )
+    except Exception as e:
+        logger.warning(f"ParadeDB upsert failed for source {source.get('id')}: {e}")
+
+
+async def delete_knowledge_source_from_paradedb(source_id: str) -> None:
+    if _paradedb_pool is None:
+        return
+    try:
+        async with _paradedb_pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM knowledge_sources_index WHERE id = $1",
+                source_id,
+            )
+    except Exception as e:
+        logger.warning(f"ParadeDB delete failed for source {source_id}: {e}")
+
+
+async def sync_all_knowledge_sources_to_paradedb(instance_id: str = None) -> dict:
+    """Bulk-sync MongoDB → ParadeDB. Safe to re-run; uses ON CONFLICT DO UPDATE."""
+    if _paradedb_pool is None:
+        return {"status": "skipped", "reason": "ParadeDB pool not available"}
+    q: dict = {}
+    if instance_id:
+        q["instance_id"] = instance_id
+    sources = await db.knowledge_sources.find(q, {"_id": 0}).to_list(10_000)
+    ok = fail = 0
+    for src in sources:
+        try:
+            await upsert_knowledge_source_to_paradedb(src)
+            ok += 1
+        except Exception:
+            fail += 1
+    return {"synced": ok, "failed": fail, "total": len(sources)}
+
+
+def _sanitize_bm25_query(raw: str) -> str:
+    """Strip Lucene special chars that would cause pg_search parse errors."""
+    return re.sub(r'[+\-!(){}\[\]^"~*?:\\/]', ' ', raw).strip()
+
+
+async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
+    # ---- ParadeDB BM25 path ----
+    safe_query = _sanitize_bm25_query(query) if query else ""
+    if _paradedb_bm25_ready and safe_query:
+        try:
+            async with _paradedb_pool.acquire() as conn:
+                # Use paradedb.parse() — plain text $2 with @@@ returns no rows in 0.23.5.
+                # ORDER BY raw score only; priority boost is applied in Python below to
+                # avoid the Top K scan penalty from arithmetic in ORDER BY.
+                rows = await conn.fetch(
+                    """
+                    SELECT id, title, content, priority,
+                           paradedb.score(id) AS bm25_score
+                    FROM   knowledge_sources_index
+                    WHERE  instance_id = $1
+                      AND  is_active   = true
+                      AND  id @@@ paradedb.parse($2, lenient => true)
+                    ORDER  BY paradedb.score(id) DESC
+                    LIMIT  100
+                    """,
+                    instance_id,
+                    safe_query,
+                )
+            if not rows:
+                # No BM25 hits — fall through to MongoDB so caller gets
+                # the full priority-sorted dump rather than an empty context.
+                logger.debug("ParadeDB BM25 returned 0 results for query, falling back to MongoDB")
+            else:
+                # Apply priority boost in Python (avoids Top K scan penalty in SQL).
+                boosted = sorted(
+                    rows,
+                    key=lambda r: (r["bm25_score"] or 0.0) * (1.0 + (r["priority"] or 0) * 0.1),
+                    reverse=True,
+                )
+                chunks: list[str] = []
+                total_chars = 0
+                for r in boosted:
+                    title = r["title"] or "Unknown"
+                    content = (r["content"] or "")[:1200]
+                    pri = r["priority"] or 0
+                    pri_label = (
+                        " [PRIORITY: HIGH]" if pri >= 2
+                        else (" [PRIORITY: MEDIUM]" if pri == 1 else "")
+                    )
+                    chunk = f"[{title}]{pri_label}\n{content}"
+                    if total_chars + len(chunk) > 30000:
+                        break
+                    chunks.append(chunk)
+                    total_chars += len(chunk)
+                if chunks:
+                    logger.info(
+                        f"search_knowledge instance={instance_id} backend=paradedb "
+                        f"query={(query or '')[:120]!r} rows={len(boosted)} context_chars={total_chars}"
+                    )
+                    return "\n\n".join(chunks)
+        except Exception as e:
+            logger.warning(f"ParadeDB search error, falling back to MongoDB: {e}")
+
+    # ---- MongoDB fallback (original behaviour) ----
+    try:
         all_sources = await db.knowledge_sources.find(
             {"is_active": True, "instance_id": instance_id}, {"_id": 0}
         ).sort([("priority", -1), ("created_at", -1)]).to_list(100)
 
         if not all_sources:
+            logger.info(
+                f"search_knowledge instance={instance_id} backend=mongodb_fallback "
+                f"query={(query or '')[:120]!r} rows=0 context_chars=0"
+            )
             return "__NO_KB__"  # Signal: no knowledge base configured at all
 
         chunks = []
@@ -285,6 +519,10 @@ async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
                 break
             chunks.append(chunk)
             total_chars += len(chunk)
+        logger.info(
+            f"search_knowledge instance={instance_id} backend=mongodb_fallback "
+            f"query={(query or '')[:120]!r} rows={len(all_sources)} context_chars={total_chars}"
+        )
         return "\n\n".join(chunks)
     except Exception as e:
         logger.warning(f"Knowledge search: {e}")
@@ -392,29 +630,52 @@ def build_system_prompt(bot_config: dict, knowledge_context: str = "", tone_exam
     return "\n\n".join(parts)
 
 
+class _ChatSession:
+    """Thin session wrapper around the Anthropic SDK, preserving per-session history."""
+
+    def __init__(self, api_key: str, model: str, system_message: str):
+        self._client = anthropic.AsyncAnthropic(api_key=api_key)
+        self._model = model
+        # messages[0] is always the system turn so existing refresh logic works unchanged.
+        self.messages: List[Dict[str, str]] = [{"role": "system", "content": system_message}]
+
+    async def send_message(self, text: str):
+        self.messages.append({"role": "user", "content": text})
+        system = next((m["content"] for m in self.messages if m["role"] == "system"), "")
+        history = [m for m in self.messages if m["role"] != "system"]
+        response = await self._client.messages.create(
+            model=self._model,
+            max_tokens=8096,
+            system=system,
+            messages=history,
+        )
+        reply = response.content[0].text
+        self.messages.append({"role": "assistant", "content": reply})
+        input_tokens = getattr(response.usage, "input_tokens", 0) or 0
+        output_tokens = getattr(response.usage, "output_tokens", 0) or 0
+        return reply, input_tokens, output_tokens
+
+
 async def call_claude(session_id: str, user_message: str, system_prompt: str,
-                      instance_id: str = "default", platform: str = "web") -> str:
-    api_key = os.environ.get("CLAUDE_API_KEY", "")
+                      instance_id: str = "default", platform: str = "web",
+                      model: str = None, instance_api_key: str = None) -> str:
+    api_key = instance_api_key or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY", "")
     if not api_key:
         raise HTTPException(status_code=500, detail="LLM API key not configured")
 
-    primary_model = "claude-opus-4-5-20251101"
-    fallback_model = "claude-sonnet-4-5-20251101"
+    primary_model = model if model in ALLOWED_MODELS else "claude-sonnet-4-5-20251101"
+    fallback_model = "claude-haiku-4-5-20251001"
     max_retries = 2
     retry_count = 0
     used_fallback = False
     last_error = None  # noqa: F841
     error_type = None
 
-    async def _attempt(model: str) -> str:
+    async def _attempt(model: str):
         nonlocal retry_count
         key = f"{session_id}_{instance_id}_{model}"
         if key not in llm_sessions:
-            llm_sessions[key] = LlmChat(
-                api_key=api_key,
-                session_id=key,
-                system_message=system_prompt
-            ).with_model("anthropic", model)
+            llm_sessions[key] = _ChatSession(api_key=api_key, model=model, system_message=system_prompt)
         else:
             # Refresh the system prompt on cached sessions so toggles like Passive Mode
             # take effect immediately for returning users. Wrapped in try/except so any
@@ -429,14 +690,15 @@ async def call_claude(session_id: str, user_message: str, system_prompt: str,
                         messages.insert(0, {"role": "system", "content": system_prompt})
             except Exception as _e:
                 logger.warning(f"[session-refresh] non-fatal: {_e}")
-        return await llm_sessions[key].send_message(UserMessage(text=user_message))
+        return await llm_sessions[key].send_message(user_message)
 
     # Try primary model with retries
     for attempt in range(max_retries + 1):
         try:
-            result = await _attempt(primary_model)
+            result, in_tok, out_tok = await _attempt(primary_model)
             await _log_llm_usage(instance_id, session_id, platform, primary_model,
-                                 primary_model, True, retry_count, False, None)
+                                 primary_model, True, retry_count, False, None,
+                                 in_tok, out_tok)
             return result
         except Exception as e:
             last_error = e  # noqa: F841
@@ -452,13 +714,14 @@ async def call_claude(session_id: str, user_message: str, system_prompt: str,
             else:
                 logger.error(f"Claude Opus exhausted retries: {e}")
 
-    # Fallback to Sonnet
+    # Fallback to Haiku
     try:
         used_fallback = True  # noqa: F841
-        result = await _attempt(fallback_model)
+        result, in_tok, out_tok = await _attempt(fallback_model)
         logger.info(f"Fallback to {fallback_model} succeeded for session {session_id}")
         await _log_llm_usage(instance_id, session_id, platform, fallback_model,
-                             primary_model, True, retry_count, True, error_type)
+                             primary_model, True, retry_count, True, error_type,
+                             in_tok, out_tok)
         return result
     except Exception as e:
         logger.error(f"Fallback model also failed: {e}")
@@ -469,7 +732,8 @@ async def call_claude(session_id: str, user_message: str, system_prompt: str,
 
 async def _log_llm_usage(instance_id: str, session_id: str, platform: str,
                           model_used: str, model_attempted: str, success: bool,
-                          retry_count: int, used_fallback: bool, error_type: str):
+                          retry_count: int, used_fallback: bool, error_type: str,
+                          input_tokens: int = 0, output_tokens: int = 0):
     try:
         await db.llm_usage.insert_one({
             "id": str(uuid.uuid4()),
@@ -483,6 +747,9 @@ async def _log_llm_usage(instance_id: str, session_id: str, platform: str,
             "retry_count": retry_count,
             "used_fallback": used_fallback,
             "error_type": error_type,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": input_tokens + output_tokens,
         })
     except Exception as e:
         logger.warning(f"Failed to log LLM usage: {e}")
@@ -735,7 +1002,7 @@ async def start_shared_discord_bot(token: str):
                     allow_skip = passive_mode and not is_mentioned and not is_dm
                     system_prompt = build_system_prompt(bot_config, knowledge, tone, passive_mode=passive_mode, allow_skip=allow_skip)
                     async with message.channel.typing():
-                        response = await call_claude(session_id, user_text, system_prompt, instance_id=instance_id, platform="discord")
+                        response = await call_claude(session_id, user_text, system_prompt, instance_id=instance_id, platform="discord", model=bot_config.get("model"), instance_api_key=bot_config.get("api_key"))
                     # Passive mode: detect [SKIP] sentinel and stay silent
                     if allow_skip and response and response.strip().upper().startswith("[SKIP]"):
                         logger.info(f"[PASSIVE] instance={instance_id[:12]} channel={channel_id} — skipped (no confident answer)")
@@ -826,6 +1093,10 @@ async def startup_event():
         migrate_id = first_instance["id"]
         for col in [db.bot_config, db.knowledge_sources, db.conversations, db.discord_config]:
             await col.update_many({"instance_id": {"$exists": False}}, {"$set": {"instance_id": migrate_id}})
+
+    # ParadeDB mirror index (optional — no-op when disabled)
+    if PARADEDB_ENABLED and PARADEDB_URL:
+        asyncio.create_task(init_paradedb())
 
     # Start shared Discord bot (one client, routes to all instances by guild)
     global _shared_discord_task
@@ -1185,7 +1456,7 @@ async def send_chat_message(body: ChatMessage):
         tone = await get_tone_examples_text(instance_id, bot_config)
         system_prompt = build_system_prompt(bot_config, knowledge, tone)
         response = await call_claude(session_id, body.message, system_prompt,
-                                    instance_id=instance_id, platform="web")
+                                    instance_id=instance_id, platform="web", model=bot_config.get("model"), instance_api_key=bot_config.get("api_key"))
     await save_conversation(session_id, body.message, response, platform="web", instance_id=instance_id)
     return {"response": response, "session_id": session_id}
 
@@ -1201,7 +1472,15 @@ async def get_chat_history(session_id: str):
 @api_router.get("/admin/bot-config")
 async def get_bot_config(instance_id: str = Depends(get_instance_access)):
     config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0})
-    return config or {}
+    if not config:
+        return {}
+    # Never return the raw API key — send a boolean so the UI knows one is set
+    if config.get("api_key"):
+        config["api_key_set"] = True
+        del config["api_key"]
+    else:
+        config["api_key_set"] = False
+    return config
 
 
 @api_router.put("/admin/bot-config")
@@ -1210,6 +1489,8 @@ async def update_bot_config(body: BotConfigUpdate, instance_id: str = Depends(ge
     for k, v in body.dict().items():
         if v is not None:
             update_data[k] = v
+    if "model" in update_data and update_data["model"] not in ALLOWED_MODELS:
+        raise HTTPException(status_code=400, detail=f"Invalid model. Allowed: {sorted(ALLOWED_MODELS)}")
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields provided")
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -1237,6 +1518,7 @@ async def add_faq(entry: FAQEntry, instance_id: str = Depends(get_instance_acces
     }
     await db.knowledge_sources.insert_one(doc)
     doc.pop("_id", None)
+    asyncio.create_task(upsert_knowledge_source_to_paradedb(doc))
     return doc
 
 
@@ -1287,6 +1569,7 @@ async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_inst
         }
         await db.knowledge_sources.insert_one(doc)
         doc.pop("_id", None)
+        asyncio.create_task(upsert_knowledge_source_to_paradedb(doc))
         return doc
     except HTTPException:
         raise
@@ -1329,6 +1612,7 @@ async def upload_document(
         }
         await db.knowledge_sources.insert_one(doc)
         doc.pop("_id", None)
+        asyncio.create_task(upsert_knowledge_source_to_paradedb(doc))
         return doc
     except HTTPException:
         raise
@@ -1341,6 +1625,7 @@ async def delete_source(source_id: str, instance_id: str = Depends(get_instance_
     result = await db.knowledge_sources.delete_one({"id": source_id, "instance_id": instance_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Source not found")
+    asyncio.create_task(delete_knowledge_source_from_paradedb(source_id))
     return {"success": True}
 
 
@@ -1351,6 +1636,7 @@ async def toggle_source(source_id: str, instance_id: str = Depends(get_instance_
         raise HTTPException(status_code=404, detail="Source not found")
     new_status = not source.get("is_active", True)
     await db.knowledge_sources.update_one({"id": source_id}, {"$set": {"is_active": new_status}})
+    asyncio.create_task(upsert_knowledge_source_to_paradedb({**source, "is_active": new_status}))
     return {"is_active": new_status}
 
 
@@ -1372,6 +1658,9 @@ async def update_source_priority(source_id: str, body: PriorityUpdate, instance_
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Source not found")
+    updated_src = await db.knowledge_sources.find_one({"id": source_id}, {"_id": 0})
+    if updated_src:
+        asyncio.create_task(upsert_knowledge_source_to_paradedb(updated_src))
     return {"success": True, "priority": body.priority}
 
 
@@ -1386,6 +1675,8 @@ async def update_source(source_id: str, body: SourceUpdate, instance_id: str = D
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.knowledge_sources.update_one({"id": source_id, "instance_id": instance_id}, {"$set": update})
     updated = await db.knowledge_sources.find_one({"id": source_id}, {"_id": 0})
+    if updated:
+        asyncio.create_task(upsert_knowledge_source_to_paradedb(updated))
     return updated
 
 
@@ -1503,6 +1794,27 @@ async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
     retry_res = await db.llm_usage.aggregate(pipeline_retries).to_list(1)
     total_retries = retry_res[0]["total_retries"] if retry_res else 0
 
+    # Token totals
+    pipeline_tokens = [
+        {"$match": {**q, "success": True}},
+        {"$group": {"_id": None,
+                    "total_input": {"$sum": "$input_tokens"},
+                    "total_output": {"$sum": "$output_tokens"},
+                    "total_tokens": {"$sum": "$total_tokens"}}}
+    ]
+    token_res = await db.llm_usage.aggregate(pipeline_tokens).to_list(1)
+    token_totals = token_res[0] if token_res else {"total_input": 0, "total_output": 0, "total_tokens": 0}
+
+    # Model breakdown (call count per model)
+    pipeline_models = [
+        {"$match": {**q, "success": True}},
+        {"$group": {"_id": "$model_used", "calls": {"$sum": 1},
+                    "input_tokens": {"$sum": "$input_tokens"},
+                    "output_tokens": {"$sum": "$output_tokens"}}}
+    ]
+    model_docs = await db.llm_usage.aggregate(pipeline_models).to_list(20)
+    model_breakdown = {d["_id"]: {"calls": d["calls"], "input_tokens": d["input_tokens"], "output_tokens": d["output_tokens"]} for d in model_docs}
+
     # Error type breakdown
     pipeline_errors = [
         {"$match": {**q, "success": False, "error_type": {"$ne": None}}},
@@ -1540,7 +1852,23 @@ async def analytics_llm_usage(instance_id: str = Depends(get_instance_access)):
         "success_rate": round((successful / total * 100), 1) if total else 100.0,
         "error_breakdown": error_breakdown,
         "daily": daily,
+        "total_input_tokens": token_totals.get("total_input", 0),
+        "total_output_tokens": token_totals.get("total_output", 0),
+        "total_tokens": token_totals.get("total_tokens", 0),
+        "model_breakdown": model_breakdown,
     }
+
+
+@api_router.get("/analytics/llm-calls")
+async def analytics_llm_calls(instance_id: str = Depends(get_instance_access), limit: int = 50):
+    """Return the most recent individual LLM API calls with token usage."""
+    docs = await db.llm_usage.find(
+        {"instance_id": instance_id},
+        {"_id": 0, "id": 1, "timestamp": 1, "model_used": 1, "platform": 1,
+         "input_tokens": 1, "output_tokens": 1, "total_tokens": 1,
+         "success": 1, "used_fallback": 1, "error_type": 1}
+    ).sort("timestamp", -1).limit(min(limit, 200)).to_list(200)
+    return docs
 
 
 @api_router.get("/analytics/passive-skips")
@@ -1555,6 +1883,59 @@ async def analytics_passive_skips(instance_id: str = Depends(get_instance_access
     week = await db.passive_skips.count_documents({**q, "timestamp": {"$gte": week_start.isoformat()}})
     recent = await db.passive_skips.find(q, {"_id": 0}).sort("timestamp", -1).limit(10).to_list(length=10)
     return {"total": total, "today": today, "last_7_days": week, "recent": recent}
+
+
+@api_router.post("/admin/paradedb/sync")
+async def paradedb_sync(
+    instance_id: Optional[str] = None,
+    current_user: dict = Depends(require_admin),
+):
+    """Bulk-sync all MongoDB knowledge_sources into ParadeDB. Idempotent — safe to re-run."""
+    if not PARADEDB_ENABLED:
+        raise HTTPException(status_code=400, detail="PARADEDB_ENABLED is not set")
+    if _paradedb_pool is None:
+        raise HTTPException(status_code=503, detail="ParadeDB pool not connected — check PARADEDB_URL and server logs")
+    result = await sync_all_knowledge_sources_to_paradedb(instance_id)
+    return result
+
+
+@api_router.get("/admin/paradedb/status")
+async def paradedb_status(current_user: dict = Depends(require_admin)):
+    """Returns whether ParadeDB is enabled, reachable, and the BM25 index is present."""
+    if not PARADEDB_ENABLED:
+        return {"enabled": False, "connected": False, "bm25_index_ready": False}
+    if _paradedb_pool is None:
+        return {"enabled": True, "connected": False, "bm25_index_ready": False}
+    try:
+        async with _paradedb_pool.acquire() as conn:
+            count_row = await conn.fetchrow("SELECT COUNT(*) AS n FROM knowledge_sources_index")
+            bm25_row = await conn.fetchrow(_PARADEDB_BM25_CHECK)
+        bm25_present = (bm25_row["n"] > 0) if bm25_row else False
+        return {
+            "enabled": True,
+            "connected": True,
+            "bm25_index_ready": bm25_present,
+            "search_active": _paradedb_bm25_ready,
+            "indexed_rows": count_row["n"] if count_row else 0,
+        }
+    except Exception as e:
+        return {"enabled": True, "connected": False, "bm25_index_ready": False, "error": str(e)}
+
+
+@api_router.delete("/analytics/clear")
+async def clear_analytics(instance_id: str = Depends(get_instance_access)):
+    """Delete all LLM usage logs, passive skips, and conversation stats for this instance."""
+    q = {"instance_id": instance_id}
+    llm_result = await db.llm_usage.delete_many(q)
+    skips_result = await db.passive_skips.delete_many(q)
+    convs_result = await db.conversations.delete_many(q)
+    return {
+        "cleared": {
+            "llm_calls": llm_result.deleted_count,
+            "passive_skips": skips_result.deleted_count,
+            "conversations": convs_result.deleted_count,
+        }
+    }
 
 
 # ==================== DISCORD (PROTECTED) ====================
