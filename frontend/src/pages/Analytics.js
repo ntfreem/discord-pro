@@ -6,7 +6,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar
 } from "recharts";
-import { MessageSquare, BookOpen, CheckCircle, Zap, Activity, AlertTriangle, RefreshCw, ExternalLink, EyeOff, Plus, X } from "lucide-react";
+import { MessageSquare, BookOpen, CheckCircle, Zap, Activity, AlertTriangle, RefreshCw, ExternalLink, EyeOff, Plus, X, Hash, ArrowDownUp, DollarSign, Trash2 } from "lucide-react";
 import { colors, fonts, T, rowEnter, rowLeave, onFocus, onBlur } from "../theme";
 
 const tooltipStyle = {
@@ -22,6 +22,27 @@ const DOT_GREEN = { fill: colors.brand.success, r: 3 };
 const ACTIVE_DOT = { r: 5 };
 const LEGEND_STYLE = { fontFamily: fonts.body, fontSize: "12px", color: colors.text.secondary, paddingTop: "16px" };
 const PLATFORM_COLORS = [colors.brand.blue, colors.brand.discord];
+
+// Anthropic list prices in USD per million tokens (updated May 2026)
+const MODEL_PRICING = {
+  "claude-haiku-4-5-20251001":  { input: 0.80,  output: 4.00  },
+  "claude-sonnet-4-5-20251101": { input: 3.00,  output: 15.00 },
+  "claude-opus-4-5-20251101":   { input: 15.00, output: 75.00 },
+};
+
+function calcCost(model, inputTokens, outputTokens) {
+  const p = MODEL_PRICING[model];
+  if (!p) return null;
+  return (inputTokens * p.input + outputTokens * p.output) / 1_000_000;
+}
+
+function fmtCost(dollars) {
+  if (dollars === null || dollars === undefined) return "—";
+  if (dollars === 0) return "$0.00";
+  if (dollars < 0.000001) return "<$0.000001";
+  if (dollars < 0.01) return `$${dollars.toFixed(6)}`;
+  return `$${dollars.toFixed(4)}`;
+}
 
 function StatCard({ title, value, icon: Icon, color }) {
   const [hovered, setHovered] = useState(false);
@@ -49,6 +70,7 @@ export default function Analytics() {
   const [overview, setOverview] = useState(null);
   const [daily, setDaily] = useState([]);
   const [llmUsage, setLlmUsage] = useState(null);
+  const [llmCalls, setLlmCalls] = useState([]);
   const [passiveSkips, setPassiveSkips] = useState(null);
   const [loading, setLoading] = useState(true);
   const [trainOpen, setTrainOpen] = useState(false);
@@ -56,9 +78,25 @@ export default function Analytics() {
   const [trainContent, setTrainContent] = useState("");
   const [trainPriority, setTrainPriority] = useState(0);
   const [trainSaving, setTrainSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false);
 
   const reloadSkips = () => {
     api.get(`/analytics/passive-skips`).then(r => setPassiveSkips(r.data)).catch(() => {});
+  };
+
+  const clearStats = async () => {
+    setClearing(true);
+    try {
+      await api.delete(`/analytics/clear`);
+      toast.success("All statistics cleared");
+      setOverview(null); setDaily([]); setLlmUsage(null); setLlmCalls([]); setPassiveSkips(null);
+      setClearConfirm(false);
+    } catch {
+      toast.error("Failed to clear statistics");
+    } finally {
+      setClearing(false);
+    }
   };
 
   const openTrain = (msg) => {
@@ -96,11 +134,13 @@ export default function Analytics() {
       api.get(`/analytics/overview`),
       api.get(`/analytics/daily`),
       api.get(`/analytics/llm-usage`),
+      api.get(`/analytics/llm-calls`).catch(() => ({ data: [] })),
       api.get(`/analytics/passive-skips`).catch(() => ({ data: null })),
-    ]).then(([ov, dl, llm, ps]) => {
+    ]).then(([ov, dl, llm, calls, ps]) => {
       setOverview(ov.data);
       setDaily(dl.data);
       setLlmUsage(llm.data);
+      setLlmCalls(calls.data || []);
       setPassiveSkips(ps.data);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [instanceId]);
@@ -120,8 +160,29 @@ export default function Analytics() {
 
   return (
     <div style={T.page}>
-      <p style={T.overline}>Metrics</p>
-      <h1 style={T.h1}>Analytics</h1>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0" }}>
+        <div>
+          <p style={T.overline}>Metrics</p>
+          <h1 style={{ ...T.h1, marginBottom: "32px" }}>Analytics</h1>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "4px" }}>
+          {clearConfirm ? (
+            <>
+              <span style={{ fontFamily: fonts.body, fontSize: "13px", color: colors.text.secondary }}>Clear all data?</span>
+              <button onClick={clearStats} disabled={clearing}
+                style={{ ...T.btnPrimary, backgroundColor: colors.brand.error, borderColor: colors.brand.error, fontSize: "12px", padding: "7px 14px", opacity: clearing ? 0.6 : 1 }}>
+                {clearing ? "Clearing…" : "Yes, clear all"}
+              </button>
+              <button onClick={() => setClearConfirm(false)} style={{ ...T.btnSecondary, fontSize: "12px", padding: "7px 14px" }}>Cancel</button>
+            </>
+          ) : (
+            <button onClick={() => setClearConfirm(true)}
+              style={{ ...T.btnSecondary, fontSize: "12px", padding: "7px 14px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <Trash2 size={13} /> Clear Statistics
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "32px" }}>
@@ -208,12 +269,25 @@ export default function Analytics() {
         </span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "16px" }}>
         <StatCard title="Total API Calls" value={llmUsage?.total_calls ?? 0} icon={Activity} color={colors.brand.blue} />
         <StatCard title="Success Rate" value={llmUsage ? `${llmUsage.success_rate}%` : "\u2014"} icon={CheckCircle}
           color={llmUsage?.success_rate >= 95 ? colors.brand.success : llmUsage?.success_rate >= 80 ? colors.brand.warning : colors.brand.error} />
         <StatCard title="Retry Attempts" value={llmUsage?.retry_attempts ?? 0} icon={RefreshCw} color={colors.brand.warning} />
-        <StatCard title="Fallbacks (Sonnet)" value={llmUsage?.fallback_used ?? 0} icon={AlertTriangle} color={colors.text.secondary} />
+        <StatCard title="Fallbacks Used" value={llmUsage?.fallback_used ?? 0} icon={AlertTriangle} color={colors.text.secondary} />
+      </div>
+
+      {/* Token usage cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+        <StatCard title="Input Tokens" value={(llmUsage?.total_input_tokens ?? 0).toLocaleString()} icon={Hash} color={colors.brand.cyan} />
+        <StatCard title="Output Tokens" value={(llmUsage?.total_output_tokens ?? 0).toLocaleString()} icon={ArrowDownUp} color={colors.brand.success} />
+        <StatCard title="Total Tokens" value={(llmUsage?.total_tokens ?? 0).toLocaleString()} icon={Zap} color={colors.brand.blue} />
+        <StatCard title="Est. Cost" icon={DollarSign} color={colors.brand.warning}
+          value={fmtCost(
+            Object.entries(llmUsage?.model_breakdown ?? {}).reduce((sum, [model, stats]) =>
+              sum + (calcCost(model, stats.input_tokens, stats.output_tokens) ?? 0), 0)
+          )}
+        />
       </div>
 
       {/* Passive Mode Skips */}
@@ -326,11 +400,97 @@ export default function Analytics() {
           )}
           <div style={{ marginTop: "20px", padding: "10px 12px", backgroundColor: colors.bg.base, borderRadius: "10px", border: `1px solid ${colors.border.subtle}` }}>
             <p style={{ margin: 0, fontFamily: fonts.body, fontSize: "11px", color: colors.text.secondary, lineHeight: "1.5" }}>
-              On failure: retries up to 2x on Claude Opus, then falls back to Claude Sonnet automatically.
+              On failure: retries up to 2x, then falls back to Haiku automatically.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Model breakdown */}
+      {Object.keys(llmUsage?.model_breakdown ?? {}).length > 0 && (
+        <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", overflow: "hidden", marginBottom: "24px" }}>
+          <div style={{ padding: "16px 20px", borderBottom: `1px solid ${colors.border.default}` }}>
+            <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Token Usage by Model</p>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${colors.border.subtle}` }}>
+                {["Model", "Calls", "Input Tokens", "Output Tokens", "Total Tokens", "Est. Cost"].map(h => (
+                  <th key={h} style={T.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(llmUsage.model_breakdown).map(([model, stats]) => (
+                <tr key={model} style={{ borderBottom: `1px solid ${colors.border.faint}` }}
+                  onMouseEnter={rowEnter} onMouseLeave={rowLeave}>
+                  <td style={{ padding: "12px 20px", fontFamily: fonts.mono, fontSize: "11px", color: colors.brand.cyan }}>{model}</td>
+                  <td style={{ padding: "12px 20px", fontFamily: fonts.heading, fontSize: "16px", fontWeight: "700", color: colors.text.primary }}>{stats.calls}</td>
+                  <td style={{ padding: "12px 20px", fontFamily: fonts.mono, fontSize: "12px", color: colors.text.secondary }}>{(stats.input_tokens || 0).toLocaleString()}</td>
+                  <td style={{ padding: "12px 20px", fontFamily: fonts.mono, fontSize: "12px", color: colors.brand.success }}>{(stats.output_tokens || 0).toLocaleString()}</td>
+                  <td style={{ padding: "12px 20px", fontFamily: fonts.mono, fontSize: "12px", color: colors.text.primary }}>{((stats.input_tokens || 0) + (stats.output_tokens || 0)).toLocaleString()}</td>
+                  <td style={{ padding: "12px 20px", fontFamily: fonts.mono, fontSize: "12px", fontWeight: "600", color: colors.brand.warning }}>{fmtCost(calcCost(model, stats.input_tokens || 0, stats.output_tokens || 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Recent API calls */}
+      {llmCalls.length > 0 && (
+        <div style={{ backgroundColor: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: "10px", overflow: "hidden", marginBottom: "32px" }}>
+          <div style={{ padding: "16px 20px", borderBottom: `1px solid ${colors.border.default}` }}>
+            <p style={{ fontFamily: fonts.heading, fontSize: "15px", fontWeight: "600", color: colors.text.primary, margin: 0 }}>Recent API Calls</p>
+          </div>
+          <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead style={{ position: "sticky", top: 0, backgroundColor: colors.bg.surface, zIndex: 1 }}>
+                <tr style={{ borderBottom: `1px solid ${colors.border.subtle}` }}>
+                  {["Time", "Model", "Platform", "Input", "Output", "Total", "Est. Cost", "Status"].map(h => (
+                    <th key={h} style={T.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {llmCalls.map((call, i) => (
+                  <tr key={call.id || i} style={{ borderBottom: `1px solid ${colors.border.faint}` }}
+                    onMouseEnter={rowEnter} onMouseLeave={rowLeave}>
+                    <td style={{ padding: "10px 20px", fontFamily: fonts.mono, fontSize: "11px", color: colors.text.muted, whiteSpace: "nowrap" }}>
+                      {call.timestamp ? new Date(call.timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}
+                    </td>
+                    <td style={{ padding: "10px 20px", fontFamily: fonts.mono, fontSize: "10px", color: colors.brand.cyan, whiteSpace: "nowrap" }}>
+                      {call.model_used || "—"}
+                    </td>
+                    <td style={{ padding: "10px 20px" }}>
+                      <span style={{
+                        display: "inline-block", padding: "2px 8px", borderRadius: "4px", fontSize: "10px",
+                        fontFamily: fonts.mono, textTransform: "uppercase", letterSpacing: "0.05em",
+                        backgroundColor: call.platform === "discord" ? "rgba(88,101,242,0.12)" : "rgba(59,130,246,0.12)",
+                        color: call.platform === "discord" ? colors.brand.discord : colors.brand.primary,
+                      }}>{call.platform || "web"}</span>
+                    </td>
+                    <td style={{ padding: "10px 20px", fontFamily: fonts.mono, fontSize: "12px", color: colors.text.secondary, textAlign: "right" }}>{(call.input_tokens || 0).toLocaleString()}</td>
+                    <td style={{ padding: "10px 20px", fontFamily: fonts.mono, fontSize: "12px", color: colors.brand.success, textAlign: "right" }}>{(call.output_tokens || 0).toLocaleString()}</td>
+                    <td style={{ padding: "10px 20px", fontFamily: fonts.mono, fontSize: "12px", fontWeight: "600", color: colors.text.primary, textAlign: "right" }}>{(call.total_tokens || 0).toLocaleString()}</td>
+                    <td style={{ padding: "10px 20px", fontFamily: fonts.mono, fontSize: "12px", fontWeight: "600", color: colors.brand.warning, textAlign: "right" }}>
+                      {fmtCost(calcCost(call.model_used, call.input_tokens || 0, call.output_tokens || 0))}
+                    </td>
+                    <td style={{ padding: "10px 20px" }}>
+                      <span style={{
+                        display: "inline-block", padding: "2px 8px", borderRadius: "4px", fontSize: "10px",
+                        fontFamily: fonts.mono, textTransform: "uppercase",
+                        backgroundColor: call.success ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                        color: call.success ? colors.brand.success : colors.brand.error,
+                      }}>{call.success ? "OK" : call.error_type || "ERR"}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Train-on-this modal */}
       {trainOpen && (
