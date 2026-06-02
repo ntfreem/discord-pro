@@ -2,22 +2,29 @@ import { useState, useEffect } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
-import { Save, Eye, EyeOff, Plus, X, ExternalLink, MessageSquare, Lightbulb } from "lucide-react";
+import { Save, Eye, EyeOff, Plus, X, ExternalLink, MessageSquare, Lightbulb, Cpu, Key } from "lucide-react";
 import { colors, fonts, T, onFocus, onBlur } from "../theme";
 
 export default function BotSettings() {
   const { selectedInstance } = useAuth();
   const instanceId = selectedInstance?.id;
-  const [config, setConfig] = useState({ name: "", persona: "", custom_instructions: "", tone_instructions: "", manual_tone_examples: [] });
+  const [config, setConfig] = useState({ name: "", persona: "", custom_instructions: "", tone_instructions: "", manual_tone_examples: [], model: "claude-sonnet-4-5-20251101" });
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [apiKeySet, setApiKeySet] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [approvedCount, setApprovedCount] = useState(0);
   const [newEx, setNewEx] = useState({ label: "", user_msg: "", bot_msg: "" });
   const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
     api.get(`/admin/bot-config`).then(r => {
-      if (r.data) setConfig({ name: r.data.name || "", persona: r.data.persona || "", custom_instructions: r.data.custom_instructions || "", tone_instructions: r.data.tone_instructions || "", manual_tone_examples: r.data.manual_tone_examples || [] });
+      if (r.data) {
+        setConfig({ name: r.data.name || "", persona: r.data.persona || "", custom_instructions: r.data.custom_instructions || "", tone_instructions: r.data.tone_instructions || "", manual_tone_examples: r.data.manual_tone_examples || [], model: r.data.model || "claude-sonnet-4-5-20251101" });
+        setApiKeySet(r.data.api_key_set || false);
+        setApiKeyInput("");
+      }
     }).catch(() => {});
     api.get(`/analytics/overview`).then(r => setApprovedCount(r.data?.approved_for_training ?? 0)).catch(() => {});
   }, [instanceId]);
@@ -26,7 +33,13 @@ export default function BotSettings() {
     if (!config.name.trim()) { toast.error("Bot name is required"); return; }
     if (!config.persona.trim()) { toast.error("Persona description is required"); return; }
     setSaving(true);
-    try { await api.put(`/admin/bot-config`, config); toast.success("Settings saved"); } catch { toast.error("Failed to save settings"); }
+    try {
+      const payload = { ...config };
+      if (apiKeyInput.trim()) payload.api_key = apiKeyInput.trim();
+      await api.put(`/admin/bot-config`, payload);
+      if (apiKeyInput.trim()) { setApiKeySet(true); setApiKeyInput(""); }
+      toast.success("Settings saved");
+    } catch { toast.error("Failed to save settings"); }
     finally { setSaving(false); }
   };
 
@@ -71,6 +84,34 @@ export default function BotSettings() {
                 placeholder="e.g. Aria, SupportBot, Max" data-testid="bot-name-input" onFocus={onFocus} onBlur={onBlur} />
               <p style={T.hint}>How the bot introduces itself.</p>
             </div>
+            <div style={{ marginBottom: "18px" }}>
+              <label style={T.label}>AI Model</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+                {[
+                  { value: "claude-haiku-4-5-20251001", label: "Haiku", sub: "Fast · Cheapest" },
+                  { value: "claude-sonnet-4-5-20251101", label: "Sonnet", sub: "Balanced" },
+                  { value: "claude-opus-4-5-20251101", label: "Opus", sub: "Most capable" },
+                ].map(({ value, label, sub }) => {
+                  const active = config.model === value;
+                  return (
+                    <button key={value} onClick={() => setConfig(p => ({ ...p, model: value }))}
+                      style={{
+                        padding: "10px 8px", borderRadius: "8px", border: `1px solid ${active ? colors.brand.light : colors.border.default}`,
+                        backgroundColor: active ? "rgba(59,130,246,0.1)" : colors.bg.panel,
+                        cursor: "pointer", textAlign: "center", transition: "all 0.2s",
+                      }}>
+                      <div style={{ display: "flex", justifyContent: "center", marginBottom: "4px" }}>
+                        <Cpu size={13} color={active ? colors.brand.light : colors.text.muted} />
+                      </div>
+                      <p style={{ fontFamily: fonts.body, fontSize: "12px", fontWeight: "600", color: active ? colors.brand.light : colors.text.primary, margin: 0 }}>{label}</p>
+                      <p style={{ fontFamily: fonts.mono, fontSize: "9px", color: colors.text.muted, margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.08em" }}>{sub}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={T.hint}>Haiku is fastest and cheapest. Opus gives the best answers but costs more.</p>
+            </div>
+
             <div>
               <label style={T.label}>Persona *</label>
               <textarea style={{ ...T.textarea, minHeight: "110px" }} value={config.persona}
@@ -79,6 +120,33 @@ export default function BotSettings() {
                 data-testid="bot-persona-input" onFocus={onFocus} onBlur={onBlur} />
               <p style={T.hint}>Core personality, role, and expertise area.</p>
             </div>
+          </div>
+
+          <div style={{ ...T.card, marginBottom: "20px" }}>
+            <p style={T.sectionTitle}>Anthropic API Key</p>
+            <p style={T.sectionSub}>Override the platform-wide key with one specific to this instance.</p>
+            {apiKeySet && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", padding: "8px 12px", backgroundColor: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: "8px" }}>
+                <Key size={12} color={colors.brand.success} />
+                <span style={{ fontFamily: fonts.mono, fontSize: "11px", color: colors.brand.success }}>Custom API key saved for this instance</span>
+              </div>
+            )}
+            <div style={{ position: "relative" }}>
+              <input
+                type={showApiKey ? "text" : "password"}
+                value={apiKeyInput}
+                onChange={e => setApiKeyInput(e.target.value)}
+                placeholder={apiKeySet ? "Enter new key to replace…" : "sk-ant-api03-…"}
+                style={{ ...T.input, paddingRight: "40px", fontFamily: fonts.mono, fontSize: "12px" }}
+                onFocus={onFocus} onBlur={onBlur}
+                autoComplete="off"
+              />
+              <button onClick={() => setShowApiKey(v => !v)}
+                style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: colors.text.muted, display: "flex", padding: "4px" }}>
+                {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+            <p style={T.hint}>Leave blank to use the platform-wide key. Saved on next "Save All Settings".</p>
           </div>
 
           <div style={{ ...T.card, marginBottom: "20px" }}>
