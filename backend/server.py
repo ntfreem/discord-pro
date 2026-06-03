@@ -15,6 +15,7 @@ import bcrypt
 import secrets
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from urllib.parse import urlparse, urlencode, parse_qsl
 import httpx
 
 import anthropic
@@ -1522,9 +1523,39 @@ async def add_faq(entry: FAQEntry, instance_id: str = Depends(get_instance_acces
     return doc
 
 
+# Tracking-parameter prefixes stripped when computing a canonical URL for dedup.
+_TRACKING_PREFIXES = ("utm_", "_gl", "_ga", "_gcl", "fbclid", "gclid", "mc_cid", "mc_eid", "ref")
+
+def _canonical_url(raw: str) -> str:
+    """Return a tracking-parameter-free URL for duplicate detection.
+
+    Strips query parameters whose names start with any known tracking prefix
+    (utm_*, _gl, _ga*, _gcl*, fbclid, gclid, …). If no meaningful params
+    remain the query string is dropped entirely. Fragment is always dropped.
+    """
+    parsed = urlparse(raw)
+    kept = [(k, v) for k, v in parse_qsl(parsed.query)
+            if not any(k.lower().startswith(p) for p in _TRACKING_PREFIXES)]
+    canonical = parsed._replace(query=urlencode(kept) if kept else "", fragment="")
+    return canonical.geturl()
+
+
 @api_router.post("/knowledge/sources/url")
 async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_instance_access)):
     try:
+        canonical = _canonical_url(entry.url)
+        existing = await db.knowledge_sources.find_one(
+            {"instance_id": instance_id, "type": "url", "canonical_url": canonical},
+            {"_id": 0}
+        )
+        if existing:
+            existing.pop("api_key", None)
+            raise HTTPException(
+                status_code=409,
+                detail=f"A URL source with this address already exists (id={existing['id']}). "
+                       "Delete it first or edit it directly."
+            )
+
         auth = None
         if entry.auth_username and entry.auth_password:
             auth = httpx.BasicAuth(entry.auth_username, entry.auth_password)
@@ -1541,14 +1572,12 @@ async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_inst
                     if resp.status_code == 429:
                         wait = int(resp.headers.get("Retry-After", 5 * (attempt + 1)))
                         logger.warning(f"Rate limited on {entry.url}, waiting {wait}s (attempt {attempt+1}/3)")
-                        import asyncio
                         await asyncio.sleep(wait)
                         continue
                     resp.raise_for_status()
                     break
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 429 and attempt < 2:
-                    import asyncio
                     await asyncio.sleep(5 * (attempt + 1))
                     continue
                 raise
@@ -1563,8 +1592,8 @@ async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_inst
         title = entry.title or (soup.title.string.strip() if soup.title and soup.title.string else entry.url)
         doc = {
             "id": str(uuid.uuid4()), "type": "url", "title": str(title)[:150],
-            "content": text, "url": entry.url, "instance_id": instance_id,
-            "priority": entry.priority or 0,
+            "content": text, "url": entry.url, "canonical_url": canonical,
+            "instance_id": instance_id, "priority": entry.priority or 0,
             "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.knowledge_sources.insert_one(doc)
