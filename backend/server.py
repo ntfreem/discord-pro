@@ -38,6 +38,14 @@ DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "")
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 DISCORD_BOT_PERMISSIONS = 68608 | 67108864  # View Channels + Send Messages + Read Message History + Change Nickname
 
+# APP_MODE controls which subsystems start at runtime.
+#   all    — (default) API + Discord bot. Preserves current local dev behaviour.
+#   api    — FastAPI only. Safe to run as N replicas; Discord bot never starts.
+#   worker — Discord bot only. Must run as a single instance; FastAPI still
+#            starts so /api/discord/callback and health routes remain available.
+APP_MODE = os.environ.get("APP_MODE", "all").lower()
+_run_discord = APP_MODE in ("all", "worker")
+
 PARADEDB_ENABLED = os.environ.get("PARADEDB_ENABLED", "").lower() in ("1", "true", "yes")
 PARADEDB_URL = os.environ.get("PARADEDB_URL", "")
 
@@ -1099,35 +1107,41 @@ async def startup_event():
     if PARADEDB_ENABLED and PARADEDB_URL:
         asyncio.create_task(init_paradedb())
 
-    # Start shared Discord bot (one client, routes to all instances by guild)
-    global _shared_discord_task
-    app_creds = await get_discord_credentials()
-    bot_token = app_creds.get("bot_token")
-    # Build guild→instance map
-    active_configs = await db.discord_config.find({"is_active": True}, {"_id": 0}).to_list(50)
-    for cfg in active_configs:
-        gid = cfg.get("guild_id")
-        iid = cfg.get("instance_id")
-        if gid and iid:
-            guild_instance_map[gid] = iid
-        # Use per-instance token if available, otherwise app token
-        if not bot_token:
-            bot_token = cfg.get("bot_token")
-    if bot_token:
-        _shared_discord_task = asyncio.create_task(start_shared_discord_bot(bot_token))
-        logger.info(f"Starting shared Discord bot ({len(active_configs)} active instances)")
+    # Discord bot — only started when APP_MODE is 'all' or 'worker'.
+    # Skipping this block in 'api' mode prevents multiple web replicas from
+    # each connecting a Discord client with the same token.
+    if _run_discord:
+        global _shared_discord_task
+        app_creds = await get_discord_credentials()
+        bot_token = app_creds.get("bot_token")
+        active_configs = await db.discord_config.find({"is_active": True}, {"_id": 0}).to_list(50)
+        for cfg in active_configs:
+            gid = cfg.get("guild_id")
+            iid = cfg.get("instance_id")
+            if gid and iid:
+                guild_instance_map[gid] = iid
+            if not bot_token:
+                bot_token = cfg.get("bot_token")
+        if bot_token:
+            _shared_discord_task = asyncio.create_task(start_shared_discord_bot(bot_token))
+            logger.info(f"Starting shared Discord bot ({len(active_configs)} active instances)")
+        else:
+            logger.warning("APP_MODE=%s but no Discord bot token found — bot not started", APP_MODE)
+    else:
+        logger.info("APP_MODE=%s: Discord bot not started", APP_MODE)
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     global _shared_discord_client, _shared_discord_task
-    if _shared_discord_client:
-        try:
-            await _shared_discord_client.close()
-        except Exception:
-            pass
-    if _shared_discord_task:
-        _shared_discord_task.cancel()
+    if _run_discord:
+        if _shared_discord_client:
+            try:
+                await _shared_discord_client.close()
+            except Exception:
+                pass
+        if _shared_discord_task:
+            _shared_discord_task.cancel()
     mongo_client.close()
 
 
