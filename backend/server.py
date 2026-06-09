@@ -13,6 +13,7 @@ import re
 import jwt
 import bcrypt
 import secrets
+import hashlib
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urlparse, urlencode, parse_qsl
@@ -212,6 +213,15 @@ class ChatMessage(BaseModel):
 class ApproveBody(BaseModel):
     approved: bool = True
 
+class ExternalChatRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+    metadata: Optional[dict] = None
+
+class ExternalApiKeyCreate(BaseModel):
+    name: str
+    instance_id: str
+
 class DiscordConfigUpdate(BaseModel):
     bot_token: Optional[str] = None
     is_active: Optional[bool] = None
@@ -281,6 +291,39 @@ async def get_instance_access(
     current_user: dict = Depends(get_current_user)
 ) -> str:
     return await _verify_instance_access(x_instance_id, current_user)
+
+
+def _hash_api_key(raw_key: str) -> str:
+    return hashlib.sha256(raw_key.encode()).hexdigest()
+
+
+async def get_api_key_access(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    authorization: Optional[str] = Header(None),
+) -> dict:
+    """Authenticate external callers via X-API-Key or Authorization: Bearer bbk_...
+    Returns {"instance_id": str, "key_id": str} on success.
+    """
+    raw_key = None
+    if x_api_key:
+        raw_key = x_api_key
+    elif authorization and authorization.startswith("Bearer bbk_"):
+        raw_key = authorization.split(" ", 1)[1]
+    if not raw_key:
+        raise HTTPException(status_code=401, detail="API key required (X-API-Key header or Authorization: Bearer bbk_...)")
+    key_hash = _hash_api_key(raw_key)
+    record = await db.external_api_keys.find_one(
+        {"key_hash": key_hash, "is_active": True}, {"_id": 0}
+    )
+    if not record:
+        raise HTTPException(status_code=401, detail="Invalid or inactive API key")
+    async def _touch():
+        await db.external_api_keys.update_one(
+            {"id": record["id"]},
+            {"$set": {"last_used_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    asyncio.create_task(_touch())
+    return {"instance_id": record["instance_id"], "key_id": record["id"]}
 
 
 # ==================== KNOWLEDGE / TONE HELPERS ====================
@@ -1071,6 +1114,7 @@ async def startup_event():
         await db.llm_usage.create_index([("timestamp", -1)])
         await db.users.create_index([("email", 1)], unique=True)
         await db.users.create_index([("id", 1)])
+        await db.external_api_keys.create_index([("key_hash", 1)], unique=True)
     except Exception as e:
         logger.warning(f"Index creation: {e}")
 
@@ -2498,9 +2542,93 @@ async def debug_discord_roles(instance_id: str = Depends(get_instance_access)):
 
 
 
+# ==================== EXTERNAL API (v1) ====================
+
+v1_router = APIRouter(prefix="/api/v1")
+
+
+@v1_router.post("/chat")
+async def external_chat(
+    body: ExternalChatRequest,
+    key_ctx: dict = Depends(get_api_key_access),
+):
+    """External application chat endpoint. Authenticated via API key scoped to one instance."""
+    instance_id = key_ctx["instance_id"]
+    session_id = body.session_id or str(uuid.uuid4())
+    bot_config = await db.bot_config.find_one({"instance_id": instance_id}, {"_id": 0}) or {}
+    knowledge = await search_knowledge(body.message, instance_id)
+    if knowledge == "__NO_KB__":
+        reply = "I don't have any knowledge base configured yet. Please check back later or contact the administrator."
+    else:
+        tone = await get_tone_examples_text(instance_id, bot_config)
+        system_prompt = build_system_prompt(bot_config, knowledge, tone)
+        reply = await call_claude(
+            session_id, body.message, system_prompt,
+            instance_id=instance_id, platform="api",
+            model=bot_config.get("model"),
+            instance_api_key=bot_config.get("api_key"),
+        )
+    await save_conversation(
+        session_id, body.message, reply,
+        platform="api", instance_id=instance_id,
+        metadata=body.metadata,
+    )
+    return {"reply": reply, "instance_id": instance_id, "session_id": session_id}
+
+
+# ==================== ADMIN: EXTERNAL API KEY MANAGEMENT ====================
+
+@api_router.post("/admin/api-keys")
+async def create_api_key(body: ExternalApiKeyCreate, current_user: dict = Depends(require_admin)):
+    """Create an external API key scoped to one instance. Returns raw key once only."""
+    instance = await db.bot_instances.find_one({"id": body.instance_id}, {"_id": 0, "id": 1})
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    raw_key = "bbk_" + secrets.token_urlsafe(32)
+    key_id = str(uuid.uuid4())
+    await db.external_api_keys.insert_one({
+        "id": key_id,
+        "key_hash": _hash_api_key(raw_key),
+        "name": body.name,
+        "instance_id": body.instance_id,
+        "created_by": current_user["id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "last_used_at": None,
+        "is_active": True,
+    })
+    return {
+        "id": key_id,
+        "key": raw_key,          # returned once only — not stored in DB
+        "name": body.name,
+        "instance_id": body.instance_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@api_router.get("/admin/api-keys")
+async def list_api_keys(current_user: dict = Depends(require_admin)):
+    """List all API keys. Raw key value is never returned."""
+    keys = await db.external_api_keys.find(
+        {}, {"_id": 0, "key_hash": 0}
+    ).sort("created_at", -1).to_list(200)
+    return keys
+
+
+@api_router.delete("/admin/api-keys/{key_id}")
+async def deactivate_api_key(key_id: str, current_user: dict = Depends(require_admin)):
+    """Deactivate an API key. Record is kept for audit; key becomes immediately invalid."""
+    result = await db.external_api_keys.update_one(
+        {"id": key_id}, {"$set": {"is_active": False}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="API key not found")
+    return {"success": True, "id": key_id}
+
+
 # ==================== APP SETUP ====================
 
 app.include_router(api_router)
+app.include_router(v1_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
