@@ -2,7 +2,7 @@
 
 AI-powered Discord support agents with knowledge retrieval, Anthropic integration, ParadeDB BM25 search, and external API access.
 
-- Anthropic Claude integration
+- LLM integration
 - ParadeDB BM25 knowledge retrieval
 - MongoDB fallback search
 - Discord support automation
@@ -27,7 +27,7 @@ See:
 ## Architecture
 
 Discord → BridgeBot Worker → BridgeBot API
-                              ├── Anthropic Claude
+                              ├── LLM
                               ├── MongoDB
                               └── ParadeDB BM25
 
