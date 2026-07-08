@@ -82,8 +82,10 @@ Then edit backend/.env. Only four values are required to start the server:
   ADMIN_PASSWORD=ChangeMe123!
   PARADEDB_URL=postgresql://postgres:secret@localhost:5433/postgres
 
-  # Recommended for local dev — API only, no Discord credentials needed.
-  APP_MODE=api
+  # Recommended for single-instance deployments (local or production).
+  # Discord starts automatically if credentials are configured; otherwise
+  # the app runs cleanly without it and prompts you to configure via the UI.
+  APP_MODE=all
 
 Everything else (Anthropic, Discord, Resend) can be left empty and
 configured later from the admin UI.
@@ -153,12 +155,13 @@ KEY NOTES
 ================================================================
 
 APP_MODE
-  api    — FastAPI only. Recommended for local dev. No Discord credentials
-           needed. Safe to scale horizontally as N replicas.
   all    — FastAPI + Discord bot if credentials are configured. Discord is
-           optional — the app starts cleanly without it and logs a message
-           pointing to the admin UI. Use for single-instance production.
-  worker — Discord bot only. Fails fast if no credentials are configured.
+           optional — the app starts cleanly without it. Recommended for
+           single-instance deployments (local or production).
+  api    — FastAPI only. No Discord bot or credentials needed. Use for
+           API-only development or horizontal scaling (N replicas behind
+           a load balancer).
+  worker — Discord bot only. Fails fast if credentials are not configured.
            Run exactly one instance per Discord application.
 
 PARADEDB_URL port 5433
