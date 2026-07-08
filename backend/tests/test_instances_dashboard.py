@@ -7,12 +7,12 @@ import requests
 import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-ADMIN_EMAIL = "admin@bridgebot.tech"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "you@example.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")
 
 @pytest.fixture(scope="module")
 def admin_token():
-    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
+    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email_or_username": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
     assert r.status_code == 200
     return r.json()["token"]
 
@@ -133,7 +133,7 @@ class TestAnalyticsDashboard:
 def cleanup(request):
     yield
     try:
-        r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"email_or_username": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
         token = r.json().get("token")
         if not token:
             return

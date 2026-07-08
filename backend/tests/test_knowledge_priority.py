@@ -13,23 +13,33 @@ import requests
 import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-INSTANCE_ID = "db4bc405-143a-42b4-9df4-60cf20047c0a"  # James - Support Agent instance
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "you@example.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")
+
+def _get_first_instance_id(token):
+    r = requests.get(f"{BASE_URL}/api/admin/instances",
+                     headers={"Authorization": f"Bearer {token}"})
+    instances = r.json() if r.status_code == 200 else []
+    return instances[0]["id"] if instances else None
 
 class TestKnowledgePriority:
     """Test knowledge source priority feature"""
-    
+
     token = None
+    instance_id = None
     created_source_ids = []
-    
+
     @classmethod
     def setup_class(cls):
         """Login and get auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email_or_username": "administrator",
-            "password": "Admin@123"
+            "email_or_username": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200, f"Login failed: {response.text}"
         cls.token = response.json().get("token")
+        cls.instance_id = _get_first_instance_id(cls.token)
+        assert cls.instance_id, "No instance found — create one first"
         cls.created_source_ids = []
     
     @classmethod
@@ -37,18 +47,18 @@ class TestKnowledgePriority:
         """Cleanup created test sources"""
         headers = {
             "Authorization": f"Bearer {cls.token}",
-            "X-Instance-ID": INSTANCE_ID
+            "X-Instance-ID": cls.instance_id
         }
         for source_id in cls.created_source_ids:
             try:
                 requests.delete(f"{BASE_URL}/api/knowledge/sources/{source_id}", headers=headers)
             except:
                 pass
-    
+
     def get_headers(self):
         return {
             "Authorization": f"Bearer {self.token}",
-            "X-Instance-ID": INSTANCE_ID,
+            "X-Instance-ID": self.instance_id,
             "Content-Type": "application/json"
         }
     
@@ -295,39 +305,42 @@ class TestKnowledgePriority:
 
 class TestUploadWithPriority:
     """Test document upload with priority (separate class for file upload)"""
-    
+
     token = None
+    instance_id = None
     created_source_ids = []
-    
+
     @classmethod
     def setup_class(cls):
         """Login and get auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email_or_username": "administrator",
-            "password": "Admin@123"
+            "email_or_username": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         cls.token = response.json().get("token")
+        cls.instance_id = _get_first_instance_id(cls.token)
+        assert cls.instance_id, "No instance found — create one first"
         cls.created_source_ids = []
-    
+
     @classmethod
     def teardown_class(cls):
         """Cleanup created test sources"""
         headers = {
             "Authorization": f"Bearer {cls.token}",
-            "X-Instance-ID": INSTANCE_ID
+            "X-Instance-ID": cls.instance_id
         }
         for source_id in cls.created_source_ids:
             try:
                 requests.delete(f"{BASE_URL}/api/knowledge/sources/{source_id}", headers=headers)
             except:
                 pass
-    
+
     def test_upload_document_with_priority(self):
         """POST /api/knowledge/sources/upload with priority form field"""
         headers = {
             "Authorization": f"Bearer {self.token}",
-            "X-Instance-ID": INSTANCE_ID
+            "X-Instance-ID": self.instance_id
         }
         
         # Create a simple text file content
@@ -357,7 +370,7 @@ class TestUploadWithPriority:
         """POST /api/knowledge/sources/upload without priority defaults to 0"""
         headers = {
             "Authorization": f"Bearer {self.token}",
-            "X-Instance-ID": INSTANCE_ID
+            "X-Instance-ID": self.instance_id
         }
         
         file_content = b"Test document without priority specified."

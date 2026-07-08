@@ -8,15 +8,15 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@bridgebot.tech")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "you@example.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")
 TEST_USER_EMAIL = os.environ.get("TEST_USER_EMAIL", "testuser@example.com")
 TEST_USER_PASSWORD = os.environ.get("TEST_USER_PASSWORD", "Test@123")
 
 
 @pytest.fixture(scope="module")
 def admin_token():
-    resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
+    resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email_or_username": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
     assert resp.status_code == 200, f"Admin login failed: {resp.text}"
     data = resp.json()
     return data["token"], data.get("instance_id") or data.get("instances", [{}])[0].get("id", "")
@@ -34,7 +34,7 @@ class TestAuthFlow:
     """Auth endpoints: register, verify, login, me"""
 
     def test_admin_login_success(self):
-        resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
+        resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email_or_username": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
         assert resp.status_code == 200
         data = resp.json()
         assert "token" in data
@@ -42,11 +42,11 @@ class TestAuthFlow:
         assert data["user"]["role"] == "superadmin"
 
     def test_login_invalid_password(self):
-        resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email": ADMIN_EMAIL, "password": "wrongpass"})
+        resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email_or_username": ADMIN_EMAIL, "password": "wrongpass"})
         assert resp.status_code in [401, 400]
 
     def test_login_unregistered_user(self):
-        resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "notexist@example.com", "password": "pass"})
+        resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email_or_username": "notexist@example.com", "password": "pass"})
         assert resp.status_code in [401, 404, 400]
 
     def test_get_me_with_valid_token(self, admin_headers):
@@ -77,7 +77,7 @@ class TestAuthFlow:
         assert resp.status_code in [400, 401]
 
     def test_testuser_login(self):
-        resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD})
+        resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email_or_username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD})
         assert resp.status_code == 200
         data = resp.json()
         assert "token" in data
@@ -119,7 +119,7 @@ class TestInstanceManagement:
             pytest.skip("No instance created")
         # Login as testuser and check instances
         login_resp = requests.post(f"{BASE_URL}/api/auth/login",
-                                   json={"email": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD})
+                                   json={"email_or_username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD})
         assert login_resp.status_code == 200
         data = login_resp.json()
         assert "instances" in data

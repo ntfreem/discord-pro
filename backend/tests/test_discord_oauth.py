@@ -9,7 +9,7 @@ INSTANCE_ID = "96966c6c-2c2e-47e5-91f9-0518dfe25e34"
 
 # Test credentials
 ADMIN_USERNAME = "administrator"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")
 
 
 @pytest.fixture(scope="module")

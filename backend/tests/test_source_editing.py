@@ -8,27 +8,38 @@ import os
 from datetime import datetime
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-INSTANCE_ID = "db4bc405-143a-42b4-9df4-60cf20047c0a"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "you@example.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")
 
 @pytest.fixture(scope="module")
 def auth_token():
     """Get authentication token for admin user"""
     response = requests.post(f"{BASE_URL}/api/auth/login", json={
-        "email_or_username": "administrator",
-        "password": "Admin@123"
+        "email_or_username": ADMIN_EMAIL,
+        "password": ADMIN_PASSWORD
     })
     if response.status_code == 200:
         return response.json().get("token")
     pytest.skip(f"Authentication failed: {response.status_code} - {response.text}")
 
 @pytest.fixture(scope="module")
-def api_client(auth_token):
+def instance_id(auth_token):
+    """Fetch the first available instance ID from the API"""
+    r = requests.get(f"{BASE_URL}/api/admin/instances",
+                     headers={"Authorization": f"Bearer {auth_token}"})
+    instances = r.json() if r.status_code == 200 else []
+    if not instances:
+        pytest.skip("No instances found — create one first")
+    return instances[0]["id"]
+
+@pytest.fixture(scope="module")
+def api_client(auth_token, instance_id):
     """Session with auth header and instance ID"""
     session = requests.Session()
     session.headers.update({
         "Content-Type": "application/json",
         "Authorization": f"Bearer {auth_token}",
-        "X-Instance-ID": INSTANCE_ID
+        "X-Instance-ID": instance_id
     })
     return session
 

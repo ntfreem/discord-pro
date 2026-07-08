@@ -350,10 +350,6 @@ CREATE TABLE IF NOT EXISTS knowledge_sources_index (
 
 CREATE INDEX IF NOT EXISTS idx_ki_instance_active
     ON knowledge_sources_index (instance_id, is_active);
-
-CREATE INDEX IF NOT EXISTS idx_ki_canonical_url
-    ON knowledge_sources_index (instance_id, canonical_url)
-    WHERE canonical_url IS NOT NULL;
 """
 
 _PARADEDB_MIGRATE_DDL = """
