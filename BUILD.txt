@@ -1,38 +1,68 @@
 ================================================================
 BridgeBot / BotForge — Build & Run Guide
-Branch: v3.0.0
+Branch: v3.0.0 (default branch)
 ================================================================
 
 PREREQUISITES
 -------------
 - Python 3.9+
 - Node.js + Yarn
-- MongoDB (Atlas free tier or Docker)
-- ParadeDB (required for knowledge sources)
+- Docker (recommended for MongoDB and ParadeDB)
 
-Start ParadeDB via Docker:
-  docker run -d \
-    --name paradedb \
-    -e POSTGRES_PASSWORD=secret \
-    -p 5433:5432 \
-    paradedb/paradedb:latest
-
-Start MongoDB via Docker (if not using Atlas):
-  docker run -d -p 27017:27017 mongo
+Or, without Docker:
+- A running MongoDB instance (local or Atlas)
+- A running ParadeDB instance (local PostgreSQL + pg_search extension)
 
 
 STEP 1 — CLONE
 --------------
   git clone git@github.com:ntfreem/discord-pro.git
   cd discord-pro
-  git checkout v3.0.0
+
+Check out the branch unambiguously (avoids branch/tag name collision):
+  git fetch origin
+  git switch --track origin/v3.0.0
+
+Confirm you are on the right branch and commit:
+  git branch --show-current
+  git log --oneline -1
+
+Expected output:
+  v3.0.0
+  338fe2d Add BUILD.txt with full local build and run instructions
 
 
-STEP 2 — ENVIRONMENT VARIABLES
+STEP 2 — START DATABASES
+-------------------------
+If containers from a previous run already exist, stop and remove them first:
+
+  docker stop paradedb mongo 2>/dev/null || true
+  docker rm   paradedb mongo 2>/dev/null || true
+
+Start ParadeDB (PostgreSQL + BM25 search extension):
+  docker run -d \
+    --name paradedb \
+    -e POSTGRES_PASSWORD=secret \
+    -p 5433:5432 \
+    paradedb/paradedb:latest
+
+  Note: host port 5433 maps to container port 5432.
+  PARADEDB_URL must use port 5433 when connecting from the host.
+
+Start MongoDB:
+  docker run -d \
+    --name mongo \
+    -p 27017:27017 \
+    mongo
+
+Or use MongoDB Atlas — copy the Atlas connection string as MONGO_URL below.
+
+
+STEP 3 — ENVIRONMENT VARIABLES
 -------------------------------
-Create the file backend/.env with the following content
-(replace values in angle brackets):
+Create the file backend/.env (copy and fill in the values below):
 
+  # Required
   MONGO_URL=mongodb://localhost:27017/bridgebot
   DB_NAME=bridgebot
   JWT_SECRET=<run: openssl rand -hex 32>
@@ -40,12 +70,19 @@ Create the file backend/.env with the following content
   ADMIN_PASSWORD=ChangeMe123!
   PARADEDB_URL=postgresql://postgres:secret@localhost:5433/postgres
   ANTHROPIC_API_KEY=sk-ant-...
-  APP_MODE=all
+
+  # APP_MODE controls which subsystems start:
+  #   api    — API only. Best for local web-only testing. No Discord
+  #            credentials needed. Safe to run multiple replicas.
+  #   all    — API + Discord bot in one process (default).
+  #            Requires Discord credentials below.
+  #   worker — Discord bot only (pair with api replicas in production).
+  APP_MODE=api
 
   # Optional — emails print to console if not set
   RESEND_API_KEY=re_...
 
-  # Optional — only needed for Discord bot
+  # Required only when APP_MODE=all or APP_MODE=worker
   DISCORD_BOT_TOKEN=...
   DISCORD_CLIENT_ID=...
   DISCORD_CLIENT_SECRET=...
@@ -55,21 +92,36 @@ Generate a secure JWT_SECRET:
   openssl rand -hex 32
 
 
-STEP 3 — BACKEND
+STEP 4 — BACKEND
 ----------------
+Create and activate a virtual environment:
+
   cd backend
-  pip install -r requirements.txt
+  python -m venv .venv
+
+  # macOS / Linux:
+  source .venv/bin/activate
+
+  # Windows (PowerShell):
+  .venv\Scripts\Activate.ps1
+
+Install dependencies:
+  python -m pip install -r requirements.txt
+
+Start the server:
   uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 
-Watch for this line in the logs:
+Watch for these lines in the logs:
+  Connected to MongoDB
   ParadeDB initialised — BM25 search enabled
+  Uvicorn running on http://0.0.0.0:8000
 
 Verify the server is up:
   curl http://localhost:8000/api/
   Expected: {"message":"BridgeBot API","version":"2.0.0"}
 
 
-STEP 4 — FRONTEND
+STEP 5 — FRONTEND
 -----------------
 Open a new terminal:
 
@@ -78,43 +130,102 @@ Open a new terminal:
   yarn start
 
 Opens at: http://localhost:3000
+The dev server automatically proxies /api/* to http://localhost:8000.
 
 
-STEP 5 — LOGIN
+STEP 6 — LOGIN
 --------------
 Open http://localhost:3000
 Log in with the ADMIN_EMAIL and ADMIN_PASSWORD from your .env
 
 
-STEP 6 — RUN TESTS (optional)
+STEP 7 — RUN TESTS (optional)
 ------------------------------
-With the backend running:
+With the backend running, open another terminal:
 
   cd backend
-  REACT_APP_BACKEND_URL=http://localhost:8000 pytest tests/ -v
+  source .venv/bin/activate
+  REACT_APP_BACKEND_URL=http://localhost:8000 python -m pytest tests/ -v
 
 
 ================================================================
 KEY NOTES
 ================================================================
 
-PARADEDB_URL   Required. Server refuses to start without it.
-               Knowledge sources are stored in PostgreSQL/ParadeDB.
+APP_MODE=api vs all
+  Use APP_MODE=api for local web-only development. The Discord bot
+  does not start, so you do not need any Discord credentials.
+  Switch to APP_MODE=all only when testing Discord bot behaviour.
 
-MONGO_URL      Required. Used for users, conversations, analytics,
-               Discord config — everything except knowledge sources.
+PARADEDB_URL port 5433
+  The Docker command maps host port 5433 → container port 5432.
+  Always use port 5433 in PARADEDB_URL when running locally via Docker.
+  If you run PostgreSQL/ParadeDB natively (not in Docker), use port 5432.
+
+PARADEDB_URL is required
+  The server refuses to start without it. Knowledge sources are stored
+  in PostgreSQL/ParadeDB — MongoDB is not used for knowledge data.
+
+MONGO_URL is required
+  Used for users, conversations, analytics, Discord config, and API keys.
 
 ANTHROPIC_API_KEY
-               Optional at startup, but chat will not work without it.
+  Optional at startup. The server starts without it, but all chat
+  requests will fail until a valid key is configured.
 
-RESEND_API_KEY Optional. Verification and reset emails are printed
-               to the console log if this is not set.
+RESEND_API_KEY
+  Optional. Verification and password-reset emails are printed to the
+  server console log if this is not set (useful for local development).
 
-Discord vars   Optional. Only required if running the Discord bot.
 
-APP_MODE       Controls which subsystems start:
-                 all    — API + Discord bot (default, good for local dev)
-                 api    — API only, no Discord bot
-                 worker — Discord bot only (run alongside api replicas)
+================================================================
+TROUBLESHOOTING
+================================================================
+
+Port 8000 already in use
+  Find and kill the process using it:
+    lsof -ti :8000 | xargs kill -9      # macOS / Linux
+    netstat -ano | findstr :8000        # Windows (find PID, then):
+    taskkill /PID <PID> /F
+  Or start uvicorn on a different port:
+    uvicorn server:app --port 8001 --reload
+  And set REACT_APP_BACKEND_URL=http://localhost:8001 when running tests.
+
+Port 3000 already in use
+  The frontend dev server will prompt you to use the next available port.
+  Accept, then update any test commands to point to the new port.
+
+RuntimeError: PARADEDB_URL is required
+  PARADEDB_URL is not set in backend/.env.
+  Add it and make sure ParadeDB (or PostgreSQL + pg_search) is running.
+  Confirm ParadeDB is accepting connections:
+    pg_isready -h localhost -p 5433
+
+MongoDB connection failure
+  Check MONGO_URL is correct and MongoDB is running:
+    docker ps | grep mongo
+  If using Atlas, verify your IP is whitelisted and credentials are correct.
+  Test the connection string directly:
+    mongosh "$MONGO_URL"
+
+Chat returns an error / no response
+  ANTHROPIC_API_KEY is missing or invalid. Add a valid key to backend/.env
+  and restart the server. Check https://console.anthropic.com for your key.
+
+ModuleNotFoundError on startup
+  The virtual environment is not activated, or dependencies were not installed.
+  Run:
+    source backend/.venv/bin/activate    # macOS / Linux
+    python -m pip install -r requirements.txt
+
+Login returns 401 after first run
+  JWT_SECRET may have changed between runs, invalidating existing tokens.
+  Clear browser localStorage (or use a private window) and log in again.
+
+ParadeDB BM25 index missing warning in logs
+  Run the server once — init_paradedb() creates the table and BM25 index
+  automatically on startup. If the warning persists, check that the
+  pg_search extension is available in your ParadeDB image:
+    docker exec -it paradedb psql -U postgres -c "SELECT * FROM pg_extension;"
 
 ================================================================
