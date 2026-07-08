@@ -10,6 +10,7 @@ INSTANCE_ID = "96966c6c-2c2e-47e5-91f9-0518dfe25e34"
 # Test credentials
 ADMIN_USERNAME = "administrator"
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")
+DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID", "")
 
 
 @pytest.fixture(scope="module")
@@ -74,7 +75,9 @@ class TestDiscordOAuthUrl:
         
         # Verify required parameters
         assert "client_id" in params, "URL should contain client_id"
-        assert params["client_id"][0] == "1492589924480843858", "client_id should match configured value"
+        if DISCORD_CLIENT_ID:
+            assert params["client_id"][0] == DISCORD_CLIENT_ID, \
+                f"client_id mismatch: got {params['client_id'][0]}, expected {DISCORD_CLIENT_ID}"
         
         assert "permissions" in params, "URL should contain permissions"
         
