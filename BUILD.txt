@@ -73,33 +73,20 @@ Copy the example file and fill in the values:
 
   cp backend/.env.example backend/.env
 
-Then edit backend/.env. Minimum required values for local dev with docker compose:
+Then edit backend/.env. Only four values are required to start the server:
 
-  # Required
   MONGO_URL=mongodb://localhost:27017/bridgebot
   DB_NAME=bridgebot
   JWT_SECRET=<run: openssl rand -hex 32>
   ADMIN_EMAIL=admin@example.com
   ADMIN_PASSWORD=ChangeMe123!
   PARADEDB_URL=postgresql://postgres:secret@localhost:5433/postgres
-  ANTHROPIC_API_KEY=sk-ant-...
 
-  # APP_MODE controls which subsystems start:
-  #   api    — API only. Best for local web-only testing. No Discord
-  #            credentials needed. Safe to run multiple replicas.
-  #   all    — API + Discord bot in one process (default).
-  #            Requires Discord credentials below.
-  #   worker — Discord bot only (pair with api replicas in production).
+  # Recommended for local dev — API only, no Discord credentials needed.
   APP_MODE=api
 
-  # Optional — emails print to console if not set
-  RESEND_API_KEY=re_...
-
-  # Required only when APP_MODE=all or APP_MODE=worker
-  DISCORD_BOT_TOKEN=...
-  DISCORD_CLIENT_ID=...
-  DISCORD_CLIENT_SECRET=...
-  DISCORD_REDIRECT_URI=http://localhost:3000/api/auth/discord/callback
+Everything else (Anthropic, Discord, Resend) can be left empty and
+configured later from the admin UI.
 
 Generate a secure JWT_SECRET:
   openssl rand -hex 32
@@ -165,10 +152,14 @@ With the backend running, open another terminal:
 KEY NOTES
 ================================================================
 
-APP_MODE=api vs all
-  Use APP_MODE=api for local web-only development. The Discord bot
-  does not start, so you do not need any Discord credentials.
-  Switch to APP_MODE=all only when testing Discord bot behaviour.
+APP_MODE
+  api    — FastAPI only. Recommended for local dev. No Discord credentials
+           needed. Safe to scale horizontally as N replicas.
+  all    — FastAPI + Discord bot if credentials are configured. Discord is
+           optional — the app starts cleanly without it and logs a message
+           pointing to the admin UI. Use for single-instance production.
+  worker — Discord bot only. Fails fast if no credentials are configured.
+           Run exactly one instance per Discord application.
 
 PARADEDB_URL port 5433
   The Docker command maps host port 5433 → container port 5432.

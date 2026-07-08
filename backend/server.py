@@ -40,12 +40,22 @@ DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 DISCORD_BOT_PERMISSIONS = 68608 | 67108864  # View Channels + Send Messages + Read Message History + Change Nickname
 
 # APP_MODE controls which subsystems start at runtime.
-#   all    — (default) API + Discord bot. Preserves current local dev behaviour.
-#   api    — FastAPI only. Safe to run as N replicas; Discord bot never starts.
-#   worker — Discord bot only. Must run as a single instance; FastAPI still
-#            starts so /api/discord/callback and health routes remain available.
+#
+# Architecture principle: MongoDB, ParadeDB, JWT_SECRET, and admin credentials
+# are required infrastructure. Everything else (Discord, Anthropic, Resend) is
+# an optional integration that can be configured later via the admin UI.
+#
+#   api    — FastAPI only. Recommended for local development and horizontally
+#            scaled API replicas. No Discord credentials needed.
+#
+#   all    — FastAPI + Discord bot (if credentials are configured). Discord is
+#            optional — the app starts cleanly without it and logs a clear
+#            message. Recommended for simple single-instance production.
+#
+#   worker — Discord bot only. Requires Discord credentials — fails fast if
+#            not configured because a worker with no bot to run is useless.
+#            Run exactly one instance per Discord application.
 APP_MODE = os.environ.get("APP_MODE", "all").lower()
-_run_discord = APP_MODE in ("all", "worker")
 
 PARADEDB_URL = os.environ.get("PARADEDB_URL", "")
 
@@ -1216,10 +1226,13 @@ async def startup_event():
 
     await init_paradedb()
 
-    # Discord bot — only started when APP_MODE is 'all' or 'worker'.
-    # Skipping this block in 'api' mode prevents multiple web replicas from
-    # each connecting a Discord client with the same token.
-    if _run_discord:
+    # Discord bot startup — behaviour depends on APP_MODE.
+    # api mode never starts the bot; all mode treats Discord as optional;
+    # worker mode requires credentials and fails fast without them.
+    if APP_MODE == "api":
+        logger.info("APP_MODE=api: Discord bot disabled (API-only mode, recommended for local dev)")
+
+    elif APP_MODE in ("all", "worker"):
         global _shared_discord_task
         app_creds = await get_discord_credentials()
         bot_token = app_creds.get("bot_token")
@@ -1231,26 +1244,34 @@ async def startup_event():
                 guild_instance_map[gid] = iid
             if not bot_token:
                 bot_token = cfg.get("bot_token")
+
         if bot_token:
             _shared_discord_task = asyncio.create_task(start_shared_discord_bot(bot_token))
-            logger.info(f"Starting shared Discord bot ({len(active_configs)} active instances)")
+            logger.info(f"APP_MODE={APP_MODE}: Discord bot starting ({len(active_configs)} active instance(s))")
+        elif APP_MODE == "worker":
+            # Worker has nothing useful to do without a bot token.
+            raise RuntimeError(
+                "APP_MODE=worker requires Discord credentials. "
+                "Set DISCORD_BOT_TOKEN in the environment or configure Discord in the admin UI."
+            )
         else:
-            logger.warning("APP_MODE=%s but no Discord bot token found — bot not started", APP_MODE)
-    else:
-        logger.info("APP_MODE=%s: Discord bot not started", APP_MODE)
+            # all mode — Discord is optional. App is fully functional without it.
+            logger.info(
+                "APP_MODE=all: Discord bot disabled — configure Discord credentials "
+                "in the admin UI to enable it."
+            )
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     global _shared_discord_client, _shared_discord_task
-    if _run_discord:
-        if _shared_discord_client:
-            try:
-                await _shared_discord_client.close()
-            except Exception:
-                pass
-        if _shared_discord_task:
-            _shared_discord_task.cancel()
+    if _shared_discord_client:
+        try:
+            await _shared_discord_client.close()
+        except Exception:
+            pass
+    if _shared_discord_task:
+        _shared_discord_task.cancel()
     mongo_client.close()
 
 
