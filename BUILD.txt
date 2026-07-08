@@ -1,6 +1,7 @@
 ================================================================
 BridgeBot / BotForge — Build & Run Guide
-Branch: v3.0.0 (default branch)
+Default branch: main
+Feature branch: implementing-local-build-instructions
 ================================================================
 
 PREREQUISITES
@@ -19,17 +20,21 @@ STEP 1 — CLONE
   git clone git@github.com:ntfreem/discord-pro.git
   cd discord-pro
 
-Check out the branch unambiguously (avoids branch/tag name collision):
+Clone defaults to main. To work on the feature branch instead:
   git fetch origin
-  git switch --track origin/v3.0.0
+  git switch --track origin/implementing-local-build-instructions
 
 Confirm you are on the right branch and commit:
   git branch --show-current
   git log --oneline -1
 
-Expected output:
-  v3.0.0
-  338fe2d Add BUILD.txt with full local build and run instructions
+Expected output (main):
+  main
+  59239c5 Skip URL scraping test on 5xx and network errors from external host
+
+Expected output (feature branch):
+  implementing-local-build-instructions
+  59239c5 Skip URL scraping test on 5xx and network errors from external host
 
 
 STEP 2 — START DATABASES
