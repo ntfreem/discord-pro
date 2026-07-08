@@ -37,35 +37,43 @@ Expected output (feature branch):
   59239c5 Skip URL scraping test on 5xx and network errors from external host
 
 
-STEP 2 — START DATABASES
--------------------------
-If containers from a previous run already exist, stop and remove them first:
+STEP 2 — START DATABASES (docker compose)
+------------------------------------------
+The repo includes docker-compose.yml which starts MongoDB and ParadeDB.
+The backend and frontend run on the host for hot reload — they are not
+containerised.
 
-  docker stop paradedb mongo 2>/dev/null || true
-  docker rm   paradedb mongo 2>/dev/null || true
+Start both services:
+  docker compose up -d
 
-Start ParadeDB (PostgreSQL + BM25 search extension):
-  docker run -d \
-    --name paradedb \
-    -e POSTGRES_PASSWORD=secret \
-    -p 5433:5432 \
-    paradedb/paradedb:latest
+Check they are healthy (wait ~20 seconds after first start):
+  docker compose ps
 
-  Note: host port 5433 maps to container port 5432.
-  PARADEDB_URL must use port 5433 when connecting from the host.
+Expected output — both should show "(healthy)":
+  NAME                  STATUS
+  bridgebot-mongo       Up X seconds (healthy)
+  bridgebot-paradedb    Up X seconds (healthy)
 
-Start MongoDB:
-  docker run -d \
-    --name mongo \
-    -p 27017:27017 \
-    mongo
+Stop services (data is preserved in named volumes):
+  docker compose down
 
-Or use MongoDB Atlas — copy the Atlas connection string as MONGO_URL below.
+Stop services AND delete all data:
+  docker compose down -v
+
+Alternative — MongoDB Atlas:
+  Skip the docker compose step and set MONGO_URL in backend/.env to
+  your Atlas connection string. You still need ParadeDB locally, so
+  run just that service:
+    docker compose up -d paradedb
 
 
 STEP 3 — ENVIRONMENT VARIABLES
 -------------------------------
-Create the file backend/.env (copy and fill in the values below):
+Copy the example file and fill in the values:
+
+  cp backend/.env.example backend/.env
+
+Then edit backend/.env. Minimum required values for local dev with docker compose:
 
   # Required
   MONGO_URL=mongodb://localhost:27017/bridgebot
@@ -207,8 +215,9 @@ RuntimeError: PARADEDB_URL is required
     pg_isready -h localhost -p 5433
 
 MongoDB connection failure
-  Check MONGO_URL is correct and MongoDB is running:
-    docker ps | grep mongo
+  Check MongoDB is running and healthy:
+    docker compose ps
+    docker compose logs mongo
   If using Atlas, verify your IP is whitelisted and credentials are correct.
   Test the connection string directly:
     mongosh "$MONGO_URL"
@@ -229,8 +238,9 @@ Login returns 401 after first run
 
 ParadeDB BM25 index missing warning in logs
   Run the server once — init_paradedb() creates the table and BM25 index
-  automatically on startup. If the warning persists, check that the
-  pg_search extension is available in your ParadeDB image:
-    docker exec -it paradedb psql -U postgres -c "SELECT * FROM pg_extension;"
+  automatically on startup. If the warning persists, check ParadeDB logs
+  and confirm the pg_search extension is available:
+    docker compose logs paradedb
+    docker exec -it bridgebot-paradedb psql -U postgres -c "SELECT * FROM pg_extension;"
 
 ================================================================

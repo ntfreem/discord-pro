@@ -1,0 +1,78 @@
+# docker-compose.yml — Infrastructure only (dev mode)
+#
+# Spins up MongoDB and ParadeDB for local development.
+# The backend and frontend run directly on the host for hot reload.
+#
+# Usage:
+#   docker compose up -d          # start both services
+#   docker compose down           # stop (data is preserved in volumes)
+#   docker compose down -v        # stop AND delete all data volumes
+
+version: "3.9"
+
+networks:
+  # Isolated network for inter-container communication.
+  # Host-based backend connects via localhost ports mapped below.
+  bridgebot-dev:
+    driver: bridge
+
+volumes:
+  # Named volumes so data persists across docker compose down / up cycles.
+  mongo-data:
+  paradedb-data:
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # MongoDB — primary datastore for users, conversations, analytics, Discord
+  # config, and API keys. Knowledge sources are stored in ParadeDB, not here.
+  # ---------------------------------------------------------------------------
+  mongo:
+    image: mongo:7
+    container_name: bridgebot-mongo
+    restart: unless-stopped
+    networks:
+      - bridgebot-dev
+    ports:
+      # Host 27017 → container 27017.
+      # backend/.env: MONGO_URL=mongodb://localhost:27017/bridgebot
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # ParadeDB — PostgreSQL + pg_search extension used as the primary store for
+  # knowledge sources with BM25 full-text search. The server REQUIRES this.
+  #
+  # Important: host port is 5433, NOT 5432, to avoid clashing with any local
+  # PostgreSQL installation. The container still listens on 5432 internally.
+  #
+  # backend/.env: PARADEDB_URL=postgresql://postgres:secret@localhost:5433/postgres
+  # ---------------------------------------------------------------------------
+  paradedb:
+    image: paradedb/paradedb:latest
+    container_name: bridgebot-paradedb
+    restart: unless-stopped
+    networks:
+      - bridgebot-dev
+    ports:
+      # Host 5433 → container 5432 (avoids conflicts with local PostgreSQL).
+      - "5433:5432"
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - paradedb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
