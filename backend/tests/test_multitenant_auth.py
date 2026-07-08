@@ -8,7 +8,7 @@ import os
 import re
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+BASE_URL = os.environ.get('BACKEND_URL', '').rstrip('/')
 
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "you@example.com")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")

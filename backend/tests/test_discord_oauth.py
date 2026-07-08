@@ -4,7 +4,7 @@ import requests
 import os
 from urllib.parse import urlparse, parse_qs
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+BASE_URL = os.environ.get('BACKEND_URL', '').rstrip('/')
 INSTANCE_ID = "96966c6c-2c2e-47e5-91f9-0518dfe25e34"
 
 # Test credentials

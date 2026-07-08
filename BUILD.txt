@@ -145,7 +145,7 @@ With the backend running, open another terminal:
 
   cd backend
   source .venv/bin/activate
-  REACT_APP_BACKEND_URL=http://localhost:8000 python -m pytest tests/ -v
+  BACKEND_URL=http://localhost:8000 python -m pytest tests/ -v
 
 
 ================================================================
@@ -189,7 +189,7 @@ Port 8000 already in use
     taskkill /PID <PID> /F
   Or start uvicorn on a different port:
     uvicorn server:app --port 8001 --reload
-  And set REACT_APP_BACKEND_URL=http://localhost:8001 when running tests.
+  And set BACKEND_URL=http://localhost:8001 when running tests.
 
 Port 3000 already in use
   The frontend dev server will prompt you to use the next available port.
