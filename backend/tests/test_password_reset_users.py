@@ -2,10 +2,57 @@
 import pytest
 import requests
 import os
+import re
+import time
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "you@example.com")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")
+SERVER_LOG = os.environ.get("SERVER_LOG", "/tmp/server.log")
+
+
+def _extract_verification_code(email):
+    time.sleep(0.5)
+    try:
+        with open(SERVER_LOG) as f:
+            log = f.read()
+        matches = re.findall(rf"To: {re.escape(email)}\nCode: (\d{{6}})", log)
+        return matches[-1] if matches else None
+    except Exception:
+        return None
+
+
+def setup_module(module):
+    """Register and verify testuser@example.com before this module's tests run."""
+    resp = requests.post(f"{BASE_URL}/api/auth/register", json={
+        "email": "testuser@example.com",
+        "username": "testuser",
+        "password": "Test@123",
+    })
+    if resp.status_code == 400 and "already registered" in resp.text.lower():
+        return
+    if resp.status_code != 200:
+        return
+    code = _extract_verification_code("testuser@example.com")
+    if code:
+        requests.post(f"{BASE_URL}/api/auth/verify", json={
+            "email": "testuser@example.com", "code": code
+        })
+
+
+def teardown_module(module):
+    """Delete testuser@example.com after all tests in this module."""
+    login = requests.post(f"{BASE_URL}/api/auth/login", json={
+        "email_or_username": ADMIN_EMAIL, "password": ADMIN_PASSWORD
+    })
+    if login.status_code != 200:
+        return
+    token = login.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    users = requests.get(f"{BASE_URL}/api/admin/users", headers=headers).json()
+    user = next((u for u in users if u["email"] == "testuser@example.com"), None)
+    if user:
+        requests.delete(f"{BASE_URL}/api/admin/users/{user['id']}", headers=headers)
 
 
 @pytest.fixture
