@@ -1,0 +1,120 @@
+================================================================
+BridgeBot / BotForge — Build & Run Guide
+Branch: v3.0.0
+================================================================
+
+PREREQUISITES
+-------------
+- Python 3.9+
+- Node.js + Yarn
+- MongoDB (Atlas free tier or Docker)
+- ParadeDB (required for knowledge sources)
+
+Start ParadeDB via Docker:
+  docker run -d \
+    --name paradedb \
+    -e POSTGRES_PASSWORD=secret \
+    -p 5433:5432 \
+    paradedb/paradedb:latest
+
+Start MongoDB via Docker (if not using Atlas):
+  docker run -d -p 27017:27017 mongo
+
+
+STEP 1 — CLONE
+--------------
+  git clone git@github.com:ntfreem/discord-pro.git
+  cd discord-pro
+  git checkout v3.0.0
+
+
+STEP 2 — ENVIRONMENT VARIABLES
+-------------------------------
+Create the file backend/.env with the following content
+(replace values in angle brackets):
+
+  MONGO_URL=mongodb://localhost:27017/bridgebot
+  DB_NAME=bridgebot
+  JWT_SECRET=<run: openssl rand -hex 32>
+  ADMIN_EMAIL=admin@example.com
+  ADMIN_PASSWORD=ChangeMe123!
+  PARADEDB_URL=postgresql://postgres:secret@localhost:5433/postgres
+  ANTHROPIC_API_KEY=sk-ant-...
+  APP_MODE=all
+
+  # Optional — emails print to console if not set
+  RESEND_API_KEY=re_...
+
+  # Optional — only needed for Discord bot
+  DISCORD_BOT_TOKEN=...
+  DISCORD_CLIENT_ID=...
+  DISCORD_CLIENT_SECRET=...
+  DISCORD_REDIRECT_URI=http://localhost:3000/api/auth/discord/callback
+
+Generate a secure JWT_SECRET:
+  openssl rand -hex 32
+
+
+STEP 3 — BACKEND
+----------------
+  cd backend
+  pip install -r requirements.txt
+  uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+
+Watch for this line in the logs:
+  ParadeDB initialised — BM25 search enabled
+
+Verify the server is up:
+  curl http://localhost:8000/api/
+  Expected: {"message":"BridgeBot API","version":"2.0.0"}
+
+
+STEP 4 — FRONTEND
+-----------------
+Open a new terminal:
+
+  cd frontend
+  yarn install
+  yarn start
+
+Opens at: http://localhost:3000
+
+
+STEP 5 — LOGIN
+--------------
+Open http://localhost:3000
+Log in with the ADMIN_EMAIL and ADMIN_PASSWORD from your .env
+
+
+STEP 6 — RUN TESTS (optional)
+------------------------------
+With the backend running:
+
+  cd backend
+  REACT_APP_BACKEND_URL=http://localhost:8000 pytest tests/ -v
+
+
+================================================================
+KEY NOTES
+================================================================
+
+PARADEDB_URL   Required. Server refuses to start without it.
+               Knowledge sources are stored in PostgreSQL/ParadeDB.
+
+MONGO_URL      Required. Used for users, conversations, analytics,
+               Discord config — everything except knowledge sources.
+
+ANTHROPIC_API_KEY
+               Optional at startup, but chat will not work without it.
+
+RESEND_API_KEY Optional. Verification and reset emails are printed
+               to the console log if this is not set.
+
+Discord vars   Optional. Only required if running the Discord bot.
+
+APP_MODE       Controls which subsystems start:
+                 all    — API + Discord bot (default, good for local dev)
+                 api    — API only, no Discord bot
+                 worker — Discord bot only (run alongside api replicas)
+
+================================================================
