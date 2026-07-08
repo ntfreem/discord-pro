@@ -47,7 +47,6 @@ DISCORD_BOT_PERMISSIONS = 68608 | 67108864  # View Channels + Send Messages + Re
 APP_MODE = os.environ.get("APP_MODE", "all").lower()
 _run_discord = APP_MODE in ("all", "worker")
 
-PARADEDB_ENABLED = os.environ.get("PARADEDB_ENABLED", "").lower() in ("1", "true", "yes")
 PARADEDB_URL = os.environ.get("PARADEDB_URL", "")
 
 
@@ -334,21 +333,37 @@ _PARADEDB_DDL = """
 CREATE EXTENSION IF NOT EXISTS pg_search;
 
 CREATE TABLE IF NOT EXISTS knowledge_sources_index (
-    id          TEXT PRIMARY KEY,
-    instance_id TEXT NOT NULL,
-    type        TEXT NOT NULL DEFAULT 'faq',
-    title       TEXT NOT NULL DEFAULT '',
-    content     TEXT NOT NULL DEFAULT '',
-    tags        TEXT[] DEFAULT '{}',
-    priority    INTEGER NOT NULL DEFAULT 0,
-    is_active   BOOLEAN NOT NULL DEFAULT true,
-    url         TEXT,
-    filename    TEXT,
-    created_at  TEXT
+    id            TEXT PRIMARY KEY,
+    instance_id   TEXT NOT NULL,
+    type          TEXT NOT NULL DEFAULT 'faq',
+    title         TEXT NOT NULL DEFAULT '',
+    content       TEXT NOT NULL DEFAULT '',
+    tags          TEXT[] DEFAULT '{}',
+    priority      INTEGER NOT NULL DEFAULT 0,
+    is_active     BOOLEAN NOT NULL DEFAULT true,
+    url           TEXT,
+    canonical_url TEXT,
+    filename      TEXT,
+    created_at    TEXT,
+    updated_at    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_ki_instance_active
     ON knowledge_sources_index (instance_id, is_active);
+
+CREATE INDEX IF NOT EXISTS idx_ki_canonical_url
+    ON knowledge_sources_index (instance_id, canonical_url)
+    WHERE canonical_url IS NOT NULL;
+"""
+
+_PARADEDB_MIGRATE_DDL = """
+ALTER TABLE knowledge_sources_index
+    ADD COLUMN IF NOT EXISTS canonical_url TEXT,
+    ADD COLUMN IF NOT EXISTS updated_at    TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_ki_canonical_url
+    ON knowledge_sources_index (instance_id, canonical_url)
+    WHERE canonical_url IS NOT NULL;
 """
 
 _PARADEDB_BM25_DDL = """
@@ -374,112 +389,176 @@ WHERE  a.amname  = 'bm25'
 
 async def init_paradedb() -> None:
     global _paradedb_pool, _paradedb_bm25_ready
-    if not PARADEDB_ENABLED or not PARADEDB_URL:
-        return
-    pool = None
-    try:
-        import asyncpg
-        pool = await asyncpg.create_pool(PARADEDB_URL, min_size=1, max_size=5,
-                                         timeout=10, command_timeout=30)
-        async with pool.acquire() as conn:
-            # Create table + btree filter index (idempotent)
-            await conn.execute(_PARADEDB_DDL)
-            # Create BM25 index (IF NOT EXISTS is supported in pg_search 0.23.5)
-            try:
-                await conn.execute(_PARADEDB_BM25_DDL)
-            except Exception as idx_err:
-                logger.warning(f"ParadeDB BM25 index DDL note: {idx_err}")
-            # Validate the BM25 index is actually present before enabling search
-            row = await conn.fetchrow(_PARADEDB_BM25_CHECK)
-            bm25_present = (row["n"] > 0) if row else False
+    if not PARADEDB_URL:
+        raise RuntimeError(
+            "PARADEDB_URL is required — knowledge sources are stored in PostgreSQL/ParadeDB."
+        )
+    import asyncpg
+    pool = await asyncpg.create_pool(PARADEDB_URL, min_size=1, max_size=5,
+                                     timeout=10, command_timeout=30)
+    async with pool.acquire() as conn:
+        await conn.execute(_PARADEDB_DDL)
+        await conn.execute(_PARADEDB_MIGRATE_DDL)
+        try:
+            await conn.execute(_PARADEDB_BM25_DDL)
+        except Exception as idx_err:
+            logger.warning(f"ParadeDB BM25 index DDL note: {idx_err}")
+        row = await conn.fetchrow(_PARADEDB_BM25_CHECK)
+        bm25_present = (row["n"] > 0) if row else False
 
-        if not bm25_present:
-            logger.error(
-                "ParadeDB pool connected but BM25 index is missing on "
-                "knowledge_sources_index — BM25 search disabled, using MongoDB fallback. "
-                "Run POST /admin/paradedb/sync to re-create the index."
-            )
-            _paradedb_pool = pool        # keep pool alive for upserts/deletes
-            _paradedb_bm25_ready = False
-        else:
-            _paradedb_pool = pool
-            _paradedb_bm25_ready = True
-            logger.info("ParadeDB initialised — BM25 search enabled")
-    except Exception as e:
-        logger.error(f"ParadeDB init failed — knowledge search will use MongoDB fallback: {e}")
-        if pool is not None:
-            await pool.close()
-        _paradedb_pool = None
+    _paradedb_pool = pool
+    if not bm25_present:
+        logger.error(
+            "ParadeDB pool connected but BM25 index is missing on "
+            "knowledge_sources_index — BM25 search disabled."
+        )
         _paradedb_bm25_ready = False
+    else:
+        _paradedb_bm25_ready = True
+        logger.info("ParadeDB initialised — BM25 search enabled")
 
 
 async def upsert_knowledge_source_to_paradedb(source: dict) -> None:
     if _paradedb_pool is None:
-        return
-    try:
-        async with _paradedb_pool.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO knowledge_sources_index
-                    (id, instance_id, type, title, content, tags,
-                     priority, is_active, url, filename, created_at)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-                ON CONFLICT (id) DO UPDATE SET
-                    instance_id = EXCLUDED.instance_id,
-                    type        = EXCLUDED.type,
-                    title       = EXCLUDED.title,
-                    content     = EXCLUDED.content,
-                    tags        = EXCLUDED.tags,
-                    priority    = EXCLUDED.priority,
-                    is_active   = EXCLUDED.is_active,
-                    url         = EXCLUDED.url,
-                    filename    = EXCLUDED.filename
-                """,
-                source.get("id"),
-                source.get("instance_id"),
-                source.get("type", "faq"),
-                source.get("title", ""),
-                source.get("content", ""),
-                source.get("tags") or [],
-                source.get("priority", 0),
-                source.get("is_active", True),
-                source.get("url"),
-                source.get("filename"),
-                source.get("created_at"),
-            )
-    except Exception as e:
-        logger.warning(f"ParadeDB upsert failed for source {source.get('id')}: {e}")
+        raise RuntimeError("ParadeDB pool is not initialised — cannot write knowledge source")
+    async with _paradedb_pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO knowledge_sources_index
+                (id, instance_id, type, title, content, tags,
+                 priority, is_active, url, canonical_url, filename, created_at, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+            ON CONFLICT (id) DO UPDATE SET
+                instance_id   = EXCLUDED.instance_id,
+                type          = EXCLUDED.type,
+                title         = EXCLUDED.title,
+                content       = EXCLUDED.content,
+                tags          = EXCLUDED.tags,
+                priority      = EXCLUDED.priority,
+                is_active     = EXCLUDED.is_active,
+                url           = EXCLUDED.url,
+                canonical_url = EXCLUDED.canonical_url,
+                filename      = EXCLUDED.filename,
+                updated_at    = EXCLUDED.updated_at
+            """,
+            source.get("id"),
+            source.get("instance_id"),
+            source.get("type", "faq"),
+            source.get("title", ""),
+            source.get("content", ""),
+            source.get("tags") or [],
+            source.get("priority", 0),
+            source.get("is_active", True),
+            source.get("url"),
+            source.get("canonical_url"),
+            source.get("filename"),
+            source.get("created_at"),
+            source.get("updated_at"),
+        )
 
 
 async def delete_knowledge_source_from_paradedb(source_id: str) -> None:
     if _paradedb_pool is None:
-        return
-    try:
-        async with _paradedb_pool.acquire() as conn:
-            await conn.execute(
-                "DELETE FROM knowledge_sources_index WHERE id = $1",
-                source_id,
+        raise RuntimeError("ParadeDB pool is not initialised — cannot delete knowledge source")
+    async with _paradedb_pool.acquire() as conn:
+        await conn.execute(
+            "DELETE FROM knowledge_sources_index WHERE id = $1",
+            source_id,
+        )
+
+
+def _pg_row_to_dict(row) -> dict:
+    d = dict(row)
+    if d.get("tags") is None:
+        d["tags"] = []
+    return d
+
+
+async def _pg_list_sources(instance_id: str) -> list:
+    async with _paradedb_pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, instance_id, type, title, content, tags, priority,
+                   is_active, url, canonical_url, filename, created_at, updated_at
+            FROM   knowledge_sources_index
+            WHERE  instance_id = $1
+            ORDER  BY priority DESC, created_at DESC
+            LIMIT  200
+            """,
+            instance_id,
+        )
+    return [_pg_row_to_dict(r) for r in rows]
+
+
+async def _pg_fetch_source(source_id: str, instance_id: str) -> dict | None:
+    async with _paradedb_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT id, instance_id, type, title, content, tags, priority,
+                   is_active, url, canonical_url, filename, created_at, updated_at
+            FROM   knowledge_sources_index
+            WHERE  id = $1 AND instance_id = $2
+            """,
+            source_id, instance_id,
+        )
+    return _pg_row_to_dict(row) if row else None
+
+
+async def _pg_count_sources(instance_id: str, is_active: bool | None = None) -> int:
+    async with _paradedb_pool.acquire() as conn:
+        if is_active is None:
+            row = await conn.fetchrow(
+                "SELECT COUNT(*) AS n FROM knowledge_sources_index WHERE instance_id = $1",
+                instance_id,
             )
-    except Exception as e:
-        logger.warning(f"ParadeDB delete failed for source {source_id}: {e}")
+        else:
+            row = await conn.fetchrow(
+                "SELECT COUNT(*) AS n FROM knowledge_sources_index WHERE instance_id = $1 AND is_active = $2",
+                instance_id, is_active,
+            )
+    return row["n"] if row else 0
 
 
-async def sync_all_knowledge_sources_to_paradedb(instance_id: str = None) -> dict:
-    """Bulk-sync MongoDB → ParadeDB. Safe to re-run; uses ON CONFLICT DO UPDATE."""
-    if _paradedb_pool is None:
-        return {"status": "skipped", "reason": "ParadeDB pool not available"}
-    q: dict = {}
-    if instance_id:
-        q["instance_id"] = instance_id
-    sources = await db.knowledge_sources.find(q, {"_id": 0}).to_list(10_000)
-    ok = fail = 0
-    for src in sources:
-        try:
-            await upsert_knowledge_source_to_paradedb(src)
-            ok += 1
-        except Exception:
-            fail += 1
-    return {"synced": ok, "failed": fail, "total": len(sources)}
+async def _pg_update_source(source_id: str, instance_id: str, fields: dict) -> dict | None:
+    if not fields:
+        return await _pg_fetch_source(source_id, instance_id)
+    set_clauses = ", ".join(f"{k} = ${i+3}" for i, k in enumerate(fields))
+    values = list(fields.values())
+    async with _paradedb_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            f"""
+            UPDATE knowledge_sources_index
+            SET    {set_clauses}
+            WHERE  id = $1 AND instance_id = $2
+            RETURNING id, instance_id, type, title, content, tags, priority,
+                      is_active, url, canonical_url, filename, created_at, updated_at
+            """,
+            source_id, instance_id, *values,
+        )
+    return _pg_row_to_dict(row) if row else None
+
+
+async def _pg_delete_source(source_id: str, instance_id: str) -> bool:
+    async with _paradedb_pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM knowledge_sources_index WHERE id = $1 AND instance_id = $2",
+            source_id, instance_id,
+        )
+    return result == "DELETE 1"
+
+
+async def _pg_find_by_canonical_url(instance_id: str, canonical_url: str) -> dict | None:
+    async with _paradedb_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT id, instance_id, type, title, content, tags, priority,
+                   is_active, url, canonical_url, filename, created_at, updated_at
+            FROM   knowledge_sources_index
+            WHERE  instance_id = $1 AND canonical_url = $2 AND type = 'url'
+            """,
+            instance_id, canonical_url,
+        )
+    return _pg_row_to_dict(row) if row else None
 
 
 def _sanitize_bm25_query(raw: str) -> str:
@@ -488,96 +567,90 @@ def _sanitize_bm25_query(raw: str) -> str:
 
 
 async def search_knowledge(query: str, instance_id: str, limit: int = 5) -> str:
-    # ---- ParadeDB BM25 path ----
+    if not _paradedb_bm25_ready:
+        logger.error("search_knowledge: BM25 index not ready, returning empty context")
+        return ""
+
     safe_query = _sanitize_bm25_query(query) if query else ""
-    if _paradedb_bm25_ready and safe_query:
+    if not safe_query:
+        # No searchable terms — return priority-sorted full dump from PostgreSQL
         try:
             async with _paradedb_pool.acquire() as conn:
-                # Use paradedb.parse() — plain text $2 with @@@ returns no rows in 0.23.5.
-                # ORDER BY raw score only; priority boost is applied in Python below to
-                # avoid the Top K scan penalty from arithmetic in ORDER BY.
                 rows = await conn.fetch(
                     """
-                    SELECT id, title, content, priority,
-                           paradedb.score(id) AS bm25_score
+                    SELECT title, content, priority
                     FROM   knowledge_sources_index
-                    WHERE  instance_id = $1
-                      AND  is_active   = true
-                      AND  id @@@ paradedb.parse($2, lenient => true)
-                    ORDER  BY paradedb.score(id) DESC
+                    WHERE  instance_id = $1 AND is_active = true
+                    ORDER  BY priority DESC, created_at DESC
                     LIMIT  100
                     """,
                     instance_id,
-                    safe_query,
                 )
             if not rows:
-                # No BM25 hits — fall through to MongoDB so caller gets
-                # the full priority-sorted dump rather than an empty context.
-                logger.debug("ParadeDB BM25 returned 0 results for query, falling back to MongoDB")
-            else:
-                # Apply priority boost in Python (avoids Top K scan penalty in SQL).
-                boosted = sorted(
-                    rows,
-                    key=lambda r: (r["bm25_score"] or 0.0) * (1.0 + (r["priority"] or 0) * 0.1),
-                    reverse=True,
-                )
-                chunks: list[str] = []
-                total_chars = 0
-                for r in boosted:
-                    title = r["title"] or "Unknown"
-                    content = (r["content"] or "")[:1200]
-                    pri = r["priority"] or 0
-                    pri_label = (
-                        " [PRIORITY: HIGH]" if pri >= 2
-                        else (" [PRIORITY: MEDIUM]" if pri == 1 else "")
-                    )
-                    chunk = f"[{title}]{pri_label}\n{content}"
-                    if total_chars + len(chunk) > 30000:
-                        break
-                    chunks.append(chunk)
-                    total_chars += len(chunk)
-                if chunks:
-                    logger.info(
-                        f"search_knowledge instance={instance_id} backend=paradedb "
-                        f"query={(query or '')[:120]!r} rows={len(boosted)} context_chars={total_chars}"
-                    )
-                    return "\n\n".join(chunks)
+                return "__NO_KB__"
+            chunks: list[str] = []
+            total_chars = 0
+            for r in rows:
+                pri = r["priority"] or 0
+                pri_label = " [PRIORITY: HIGH]" if pri >= 2 else (" [PRIORITY: MEDIUM]" if pri == 1 else "")
+                chunk = f"[{r['title'] or 'Unknown'}]{pri_label}\n{(r['content'] or '')[:1200]}"
+                if total_chars + len(chunk) > 30000:
+                    break
+                chunks.append(chunk)
+                total_chars += len(chunk)
+            return "\n\n".join(chunks) if chunks else "__NO_KB__"
         except Exception as e:
-            logger.warning(f"ParadeDB search error, falling back to MongoDB: {e}")
+            logger.error(f"search_knowledge full-dump error: {e}")
+            return ""
 
-    # ---- MongoDB fallback (original behaviour) ----
     try:
-        all_sources = await db.knowledge_sources.find(
-            {"is_active": True, "instance_id": instance_id}, {"_id": 0}
-        ).sort([("priority", -1), ("created_at", -1)]).to_list(100)
-
-        if not all_sources:
-            logger.info(
-                f"search_knowledge instance={instance_id} backend=mongodb_fallback "
-                f"query={(query or '')[:120]!r} rows=0 context_chars=0"
+        async with _paradedb_pool.acquire() as conn:
+            # Use paradedb.parse() — plain text $2 with @@@ returns no rows in 0.23.5.
+            # ORDER BY raw score only; priority boost is applied in Python below to
+            # avoid the Top K scan penalty from arithmetic in ORDER BY.
+            rows = await conn.fetch(
+                """
+                SELECT id, title, content, priority,
+                       paradedb.score(id) AS bm25_score
+                FROM   knowledge_sources_index
+                WHERE  instance_id = $1
+                  AND  is_active   = true
+                  AND  id @@@ paradedb.parse($2, lenient => true)
+                ORDER  BY paradedb.score(id) DESC
+                LIMIT  100
+                """,
+                instance_id,
+                safe_query,
             )
-            return "__NO_KB__"  # Signal: no knowledge base configured at all
+        if not rows:
+            logger.debug("ParadeDB BM25 returned 0 results for query=%r instance=%s", query, instance_id)
+            return ""
 
-        chunks = []
+        boosted = sorted(
+            rows,
+            key=lambda r: (r["bm25_score"] or 0.0) * (1.0 + (r["priority"] or 0) * 0.1),
+            reverse=True,
+        )
+        chunks: list[str] = []
         total_chars = 0
-        for r in all_sources:
-            title = r.get("title", "Unknown")
-            content = r.get("content", "")[:1200]
-            pri = r.get("priority", 0)
-            pri_label = " [PRIORITY: HIGH]" if pri >= 2 else (" [PRIORITY: MEDIUM]" if pri == 1 else "")
-            chunk = f"[{title}]{pri_label}\n{content}"
-            # Stay within ~30K chars to leave room for the rest of the prompt
+        for r in boosted:
+            pri = r["priority"] or 0
+            pri_label = (
+                " [PRIORITY: HIGH]" if pri >= 2
+                else (" [PRIORITY: MEDIUM]" if pri == 1 else "")
+            )
+            chunk = f"[{r['title'] or 'Unknown'}]{pri_label}\n{(r['content'] or '')[:1200]}"
             if total_chars + len(chunk) > 30000:
                 break
             chunks.append(chunk)
             total_chars += len(chunk)
         logger.info(
-            f"search_knowledge instance={instance_id} backend=mongodb_fallback "
-            f"query={(query or '')[:120]!r} rows={len(all_sources)} context_chars={total_chars}"
+            f"search_knowledge instance={instance_id} backend=paradedb "
+            f"query={(query or '')[:120]!r} rows={len(boosted)} context_chars={total_chars}"
         )
         return "\n\n".join(chunks)
     except Exception as e:
-        logger.warning(f"Knowledge search: {e}")
+        logger.error(f"ParadeDB search error: {e}")
         return ""
 
 
@@ -1103,8 +1176,6 @@ async def start_shared_discord_bot(token: str):
 @app.on_event("startup")
 async def startup_event():
     try:
-        await db.knowledge_sources.create_index([("title", "text"), ("content", "text")])
-        await db.knowledge_sources.create_index([("instance_id", 1)])
         await db.conversations.create_index([("session_id", 1)])
         await db.conversations.create_index([("created_at", -1)])
         await db.conversations.create_index([("instance_id", 1)])
@@ -1144,12 +1215,10 @@ async def startup_event():
     first_instance = await db.bot_instances.find_one({}, {"id": 1})
     if first_instance:
         migrate_id = first_instance["id"]
-        for col in [db.bot_config, db.knowledge_sources, db.conversations, db.discord_config]:
+        for col in [db.bot_config, db.conversations, db.discord_config]:
             await col.update_many({"instance_id": {"$exists": False}}, {"$set": {"instance_id": migrate_id}})
 
-    # ParadeDB mirror index (optional — no-op when disabled)
-    if PARADEDB_ENABLED and PARADEDB_URL:
-        asyncio.create_task(init_paradedb())
+    await init_paradedb()
 
     # Discord bot — only started when APP_MODE is 'all' or 'worker'.
     # Skipping this block in 'api' mode prevents multiple web replicas from
@@ -1468,8 +1537,13 @@ async def delete_instance(instance_id: str, current_user: dict = Depends(require
     result = await db.bot_instances.delete_one({"id": instance_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Instance not found")
-    for col in [db.bot_config, db.knowledge_sources, db.conversations, db.discord_config]:
+    for col in [db.bot_config, db.conversations, db.discord_config]:
         await col.delete_many({"instance_id": instance_id})
+    if _paradedb_pool:
+        async with _paradedb_pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM knowledge_sources_index WHERE instance_id = $1", instance_id
+            )
     return {"success": True}
 
 
@@ -1561,10 +1635,7 @@ async def update_bot_config(body: BotConfigUpdate, instance_id: str = Depends(ge
 
 @api_router.get("/knowledge/sources")
 async def get_knowledge_sources(instance_id: str = Depends(get_instance_access)):
-    sources = await db.knowledge_sources.find(
-        {"instance_id": instance_id}, {"_id": 0}
-    ).sort([("priority", -1), ("created_at", -1)]).to_list(200)
-    return sources
+    return await _pg_list_sources(instance_id)
 
 
 @api_router.post("/knowledge/sources/faq")
@@ -1575,9 +1646,7 @@ async def add_faq(entry: FAQEntry, instance_id: str = Depends(get_instance_acces
         "instance_id": instance_id, "priority": entry.priority or 0,
         "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
     }
-    await db.knowledge_sources.insert_one(doc)
-    doc.pop("_id", None)
-    asyncio.create_task(upsert_knowledge_source_to_paradedb(doc))
+    await upsert_knowledge_source_to_paradedb(doc)
     return doc
 
 
@@ -1602,10 +1671,7 @@ def _canonical_url(raw: str) -> str:
 async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_instance_access)):
     try:
         canonical = _canonical_url(entry.url)
-        existing = await db.knowledge_sources.find_one(
-            {"instance_id": instance_id, "type": "url", "canonical_url": canonical},
-            {"_id": 0}
-        )
+        existing = await _pg_find_by_canonical_url(instance_id, canonical)
         if existing:
             existing.pop("api_key", None)
             raise HTTPException(
@@ -1654,9 +1720,7 @@ async def scrape_url_source(entry: URLEntry, instance_id: str = Depends(get_inst
             "instance_id": instance_id, "priority": entry.priority or 0,
             "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
         }
-        await db.knowledge_sources.insert_one(doc)
-        doc.pop("_id", None)
-        asyncio.create_task(upsert_knowledge_source_to_paradedb(doc))
+        await upsert_knowledge_source_to_paradedb(doc)
         return doc
     except HTTPException:
         raise
@@ -1697,9 +1761,7 @@ async def upload_document(
             "priority": priority,
             "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
         }
-        await db.knowledge_sources.insert_one(doc)
-        doc.pop("_id", None)
-        asyncio.create_task(upsert_knowledge_source_to_paradedb(doc))
+        await upsert_knowledge_source_to_paradedb(doc)
         return doc
     except HTTPException:
         raise
@@ -1709,21 +1771,19 @@ async def upload_document(
 
 @api_router.delete("/knowledge/sources/{source_id}")
 async def delete_source(source_id: str, instance_id: str = Depends(get_instance_access)):
-    result = await db.knowledge_sources.delete_one({"id": source_id, "instance_id": instance_id})
-    if result.deleted_count == 0:
+    deleted = await _pg_delete_source(source_id, instance_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Source not found")
-    asyncio.create_task(delete_knowledge_source_from_paradedb(source_id))
     return {"success": True}
 
 
 @api_router.patch("/knowledge/sources/{source_id}/toggle")
 async def toggle_source(source_id: str, instance_id: str = Depends(get_instance_access)):
-    source = await db.knowledge_sources.find_one({"id": source_id, "instance_id": instance_id}, {"_id": 0})
+    source = await _pg_fetch_source(source_id, instance_id)
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
     new_status = not source.get("is_active", True)
-    await db.knowledge_sources.update_one({"id": source_id}, {"$set": {"is_active": new_status}})
-    asyncio.create_task(upsert_knowledge_source_to_paradedb({**source, "is_active": new_status}))
+    await _pg_update_source(source_id, instance_id, {"is_active": new_status})
     return {"is_active": new_status}
 
 
@@ -1739,31 +1799,21 @@ class SourceUpdate(BaseModel):
 
 @api_router.patch("/knowledge/sources/{source_id}/priority")
 async def update_source_priority(source_id: str, body: PriorityUpdate, instance_id: str = Depends(get_instance_access)):
-    result = await db.knowledge_sources.update_one(
-        {"id": source_id, "instance_id": instance_id},
-        {"$set": {"priority": body.priority}}
-    )
-    if result.matched_count == 0:
+    updated = await _pg_update_source(source_id, instance_id, {"priority": body.priority})
+    if not updated:
         raise HTTPException(status_code=404, detail="Source not found")
-    updated_src = await db.knowledge_sources.find_one({"id": source_id}, {"_id": 0})
-    if updated_src:
-        asyncio.create_task(upsert_knowledge_source_to_paradedb(updated_src))
     return {"success": True, "priority": body.priority}
 
 
 @api_router.put("/knowledge/sources/{source_id}")
 async def update_source(source_id: str, body: SourceUpdate, instance_id: str = Depends(get_instance_access)):
-    source = await db.knowledge_sources.find_one({"id": source_id, "instance_id": instance_id}, {"_id": 0})
-    if not source:
-        raise HTTPException(status_code=404, detail="Source not found")
-    update = {k: v for k, v in body.dict().items() if v is not None}
-    if not update:
+    fields = {k: v for k, v in body.dict().items() if v is not None}
+    if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
-    update["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await db.knowledge_sources.update_one({"id": source_id, "instance_id": instance_id}, {"$set": update})
-    updated = await db.knowledge_sources.find_one({"id": source_id}, {"_id": 0})
-    if updated:
-        asyncio.create_task(upsert_knowledge_source_to_paradedb(updated))
+    fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    updated = await _pg_update_source(source_id, instance_id, fields)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Source not found")
     return updated
 
 
@@ -1822,7 +1872,7 @@ async def analytics_overview(instance_id: str = Depends(get_instance_access)):
     q = {"instance_id": instance_id}
     total_convs = await db.conversations.count_documents(q)
     approved_training = await db.conversations.count_documents({**q, "is_approved_for_training": True})
-    knowledge_count = await db.knowledge_sources.count_documents({"is_active": True, "instance_id": instance_id})
+    knowledge_count = await _pg_count_sources(instance_id, is_active=True)
     pipeline = [
         {"$match": q},
         {"$project": {"msg_count": {"$size": {"$ifNull": ["$messages", []]}}}},
@@ -1972,41 +2022,24 @@ async def analytics_passive_skips(instance_id: str = Depends(get_instance_access
     return {"total": total, "today": today, "last_7_days": week, "recent": recent}
 
 
-@api_router.post("/admin/paradedb/sync")
-async def paradedb_sync(
-    instance_id: Optional[str] = None,
-    current_user: dict = Depends(require_admin),
-):
-    """Bulk-sync all MongoDB knowledge_sources into ParadeDB. Idempotent — safe to re-run."""
-    if not PARADEDB_ENABLED:
-        raise HTTPException(status_code=400, detail="PARADEDB_ENABLED is not set")
-    if _paradedb_pool is None:
-        raise HTTPException(status_code=503, detail="ParadeDB pool not connected — check PARADEDB_URL and server logs")
-    result = await sync_all_knowledge_sources_to_paradedb(instance_id)
-    return result
-
-
 @api_router.get("/admin/paradedb/status")
 async def paradedb_status(current_user: dict = Depends(require_admin)):
-    """Returns whether ParadeDB is enabled, reachable, and the BM25 index is present."""
-    if not PARADEDB_ENABLED:
-        return {"enabled": False, "connected": False, "bm25_index_ready": False}
+    """Returns whether ParadeDB is reachable and the BM25 index is present."""
     if _paradedb_pool is None:
-        return {"enabled": True, "connected": False, "bm25_index_ready": False}
+        return {"connected": False, "bm25_index_ready": False}
     try:
         async with _paradedb_pool.acquire() as conn:
             count_row = await conn.fetchrow("SELECT COUNT(*) AS n FROM knowledge_sources_index")
             bm25_row = await conn.fetchrow(_PARADEDB_BM25_CHECK)
         bm25_present = (bm25_row["n"] > 0) if bm25_row else False
         return {
-            "enabled": True,
             "connected": True,
             "bm25_index_ready": bm25_present,
             "search_active": _paradedb_bm25_ready,
             "indexed_rows": count_row["n"] if count_row else 0,
         }
     except Exception as e:
-        return {"enabled": True, "connected": False, "bm25_index_ready": False, "error": str(e)}
+        return {"connected": False, "bm25_index_ready": False, "error": str(e)}
 
 
 @api_router.delete("/analytics/clear")
